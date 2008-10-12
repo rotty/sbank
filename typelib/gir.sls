@@ -66,7 +66,8 @@
          (core:array . ,(lambda array 
                           `(type (array (element-type
                                          ,(sxpath-ref array '(type)))
-                                        (size ,(ctype-sizeof 'pointer))))))
+                                        (size ,(ctype-sizeof 'pointer))
+                                        (alignment ,(ctype-alignof 'pointer))))))
          (core:type *PREORDER* . ,(type-resolver select-type))
          (^ *PREORDER* . ,list)))))
 
@@ -97,7 +98,7 @@
   (define primitive-types
     (cons
      'types
-     (map (trace-lambda info (info)
+     (map (lambda (info)
             (let ((size (cadr info)))
               `(primitive (name ,(symbol->string (car info)))
                           (size ,(cond ((eqv? size #f)
@@ -124,92 +125,104 @@
 
   ;; This is currently coded towards x86-64, but others are likely
   ;; similiar
-  (trace-define (calculate-sizes tag name components)
+  (define (calculate-sizes tag name components)
 
-    (trace-define (component-size c)
+    (case tag
+      ((union) (calculate tag name components
+                          (lambda (size comp-align)
+                            `((offset 0)))
+                          (lambda (size comp-size comp-align)
+                            (and size comp-size (max size comp-size)))))
+      ((record) (calculate tag name components
+                           (lambda (size comp-align)
+                            (if (and size comp-align)
+                                `((offset ,(align size comp-align)))
+                                '()))
+                           (lambda (size comp-size comp-align)
+                             (+ (align size comp-align) comp-size))))
+      (else
+       (error 'calculate-size "invalid type tag" tag))))
+
+  (define (calculate tag name components offset updated-size)
+
+    (define (component-size c)
       (and (not (sxpath-attr c '(bits)))
            (or (sxpath-attr c '(size))
                (sxpath-attr c '(type * size)))))
     
-    (trace-define (component-alignment c)
+    (define (component-alignment c)
       (or (sxpath-attr c '(alignment))
           (sxpath-attr c '(type * alignment))))
     
     (define (extend sxml . attrs)
       (cons (car sxml) (append (cdr sxml) attrs)))
 
-    (case tag
-      ((union) (values components #f #f))
-      ((record)
-       (let loop ((result '())
-                  (size 0) (max-align 0) (bwcomps '()) (bwlist '())
-                  (components components))
-         (trace-define (result-with-bitfields)
-           (let loop ((result result) (bit-offset 0) (comps bwcomps) (bws bwlist))
-             (if (null? comps)
-                 result
-                 (loop (cons (extend (car comps) `(bit-offset ,bit-offset))
-                             result)
-                       (+ bit-offset (car bws))
-                       (cdr comps)
-                       (cdr bws)))))
-         (write (list 'loop size max-align bwcomps bwlist (length components))) (newline)
-         (if (null? components)
-             (let ((max-align (and max-align
-                                   (max max-align (if (null? bwlist)
-                                                      0
-                                                      (component-alignment (car bwcomps)))))))
-               (values (reverse (result-with-bitfields))
-                       (and size max-align (align size max-align))
-                       max-align))
-             (let ((comp-size (component-size (car components)))
-                   (comp-align (component-alignment (car components)))
-                   (comp-bits (sxpath-attr (car components) '(bits))))
-               (define (alignment)
-                 (let ((bitfields-align (if (null? bwcomps)
-                                            0
-                                            (sxpath-attr (car bwcomps) '(type * alignment)))))
-                   (max max-align comp-align bitfields-align)))
-               (trace-define (offset)
-                 (if (and size comp-align)
-                     `((offset ,(align size comp-align)))
-                     '()))
-               (write (list 'comp comp-size comp-align comp-bits)) (newline)
-               (cond ((and size comp-size comp-align)
-                      (loop (cons (apply extend (car components) (offset))
-                                  (result-with-bitfields))
-                            (+ (align size comp-align) comp-size)
-                            (alignment)
-                            '() '()
-                            (cdr components)))
-                     ((and comp-bits
-                           (or (null? bwlist)
-                               (and-let* ((bwtype (sxpath-attr (car bwcomps) '(type)))
-                                          ((eq? bwtype (sxpath-attr (car components) '(type)))))
-                                 (bitfields-fit-inside? bwlist (sxpath-attr bwtype '(size))))))
-                      (loop result size max-align
-                            (cons (apply extend
-                                         (car components)
-                                         (offset))
-                                  bwcomps)
-                            (cons comp-bits bwlist)
-                            (cdr components)))
-                     (else
-                      (unless (and comp-size comp-align)
-                        (warning "size or alignment of component ~a in ~a not known~%"
-                                 (sxpath-attr (car components) '(name))
-                                 (list tag name)))
-                      (loop (cons (car components)
-                                  (result-with-bitfields))
-                            #f #f '() '()
-                            (cdr components))))))))
-      (else
-       (error 'calculate-size "invalid type tag" tag))))
+    (let loop ((result '())
+               (size 0) (max-align 0) (bwcomps '()) (bwlist '())
+               (components components))
+      (define (result-with-bitfields)
+        (let loop ((result result) (bit-offset 0) (comps bwcomps) (bws bwlist))
+          (if (null? comps)
+              result
+              (loop (cons (extend (car comps) `(bit-offset ,bit-offset))
+                          result)
+                    (+ bit-offset (car bws))
+                    (cdr comps)
+                    (cdr bws)))))
+      (if (null? components)
+          (let ((max-align (and max-align
+                                (max max-align (if (null? bwlist)
+                                                   0
+                                                   (component-alignment (car bwcomps))))))
+                (size (and size
+                           (+ size (if (null? bwlist)
+                                       0
+                                       (sxpath-attr (car bwcomps) '(type * size)))))))
+            (values (reverse (result-with-bitfields))
+                    (and size max-align (align size max-align))
+                    max-align))
+          (let ((comp-size (component-size (car components)))
+                (comp-align (component-alignment (car components)))
+                (comp-bits (sxpath-attr (car components) '(bits))))
+            (define (alignment)
+              (let ((bitfields-align (if (null? bwcomps)
+                                         0
+                                         (sxpath-attr (car bwcomps) '(type * alignment)))))
+                (max max-align comp-align bitfields-align)))
+            
+            (cond ((and size comp-size comp-align)
+                   (loop (cons (apply extend (car components) (offset size comp-align))
+                               (result-with-bitfields))
+                         (updated-size size comp-size comp-align)
+                         (alignment)
+                         '() '()
+                         (cdr components)))
+                  ((and comp-bits
+                        (or (null? bwlist)
+                            (and-let* ((bwtype (sxpath-attr (car bwcomps) '(type)))
+                                       ((eq? bwtype (sxpath-attr (car components) '(type)))))
+                              (bitfields-fit-inside? bwlist (sxpath-attr bwtype '(size))))))
+                   (loop result size max-align
+                         (cons (apply extend
+                                      (car components)
+                                      (offset size comp-align))
+                               bwcomps)
+                         (cons comp-bits bwlist)
+                         (cdr components)))
+                  (else
+                   (unless (and comp-size comp-align)
+                     (warning "size or alignment of component ~a in ~a not known~%"
+                              (sxpath-attr (car components) '(name))
+                              (list tag name)))
+                   (loop (cons (car components)
+                               (result-with-bitfields))
+                         #f #f '() '()
+                         (cdr components))))))))
   
-  (trace-define (align n alignment)
+  (define (align n alignment)
     (+ n (mod (- alignment (mod n alignment)) alignment)))
   
-  (trace-define (bitfields-fit-inside? bwlist size)
+  (define (bitfields-fit-inside? bwlist size)
     (>= (* size 8)
         (apply + bwlist)))
 
