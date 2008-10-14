@@ -37,7 +37,9 @@
 (let ((stypes (stypes-adjoin primitive-stypes
                              '(record
                                (name "Foo")
-                               (field (name "frobotz") (type "uint"))))))
+                               (field (name "frobotz") (type "uint"))
+                               (field (name "data")
+                                      (type (array (element-type (type "uint8")))))))))
   (testeez "adjoining"
     (test/equal "resolution and annotations correctness"
       (stypes-ref stypes "Foo")
@@ -45,8 +47,13 @@
                (field (name "frobotz")
                       (type ,(stypes-ref stypes "uint"))
                       (offset 0))
-               (size ,(c-type-sizeof 'uint))
-               (alignment ,(c-type-alignof 'uint))))))
+               (field (name "data")
+                      (type (array (element-type (type ,(stypes-ref stypes "uint8")))
+                                   (size ,(c-type-sizeof 'pointer))
+                                   (alignment ,(c-type-alignof 'pointer))))
+                      (offset ,(c-type-align 'pointer (c-type-sizeof 'uint))))
+               (size ,(* 2 (max (c-type-sizeof 'uint) (c-type-sizeof 'pointer))))
+               (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)))))))
 
 (let ((stypes
        (stypes-adjoin

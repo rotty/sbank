@@ -60,7 +60,17 @@
     (if (pair? type)
         (case (car type)
           ((type)
-           (list 'type (stypes-ref types (cadr type))))
+           (cond ((string? (cadr type))
+                  (list 'type (stypes-ref types (cadr type))))
+                 ((pair? (cadr type))
+                  (case (caadr type)
+                    ((array pointer)
+                     (list 'type (append (resolve-types (cadr type) types)
+                                         `((size ,(c-type-sizeof 'pointer))
+                                           (alignment ,(c-type-alignof 'pointer))))))
+                    (else
+                     type)))
+                 (error 'resolve-types "cannot resolve" type)))
           ((record union)
            (let ((name-attrs ((sxpath '(name)) type))
                  (name (sxpath-ref type '(name))))
@@ -95,7 +105,7 @@
     (define (lose msg . irritants)
       (apply error 'stype-fetcher msg irritants))
     (cond ((string? path)
-           (construct-stype-fetcher (stype-ref stype path) lose))
+           (construct-stype-fetcher (stype-ref stype path)))
           ((pair? path)
            (let ((fetchers (fetcher-chain stype path)))
              (lambda (pointer)
@@ -106,37 +116,23 @@
           (else
            (lose "invalid path" path))))
 
+  (define (construct-stype-fetcher component)
+    (call-with-values (lambda () (stype-compound-element-fetcher-values component))
+      c-compound-element-fetcher))
   
-  (define (make-primitive-fetcher offset type-sym bit-offset bits lose)
-    (let ((ptr-ref (make-pointer-ref type-sym)))
-      (cond ((and bits bit-offset)
-             (let ((end-offset (+ bit-offset bits)))
-               (lambda (pointer)
-                 (let ((val (ptr-ref pointer offset)))
-                   (bitwise-bit-field val bit-offset end-offset)))))
-            ((not (or bits bit-offset))
-             (lambda (pointer) (ptr-ref pointer offset)))
-            (else
-             (lose "either both or none of 'bits' and 'bit-offset' must be specified")))))
-  
-  (define (construct-stype-fetcher component lose)
+  (define (stype-compound-element-fetcher-values component)
     (let ((offset (sxpath-attr component '(offset)))
           (bits (sxpath-attr component '(bits)))
           (bit-offset (sxpath-attr component '(bit-offset)))
           (type (sxpath-attr component '(type))))
       (case (car type)
         ((primitive)
-         (make-primitive-fetcher offset
-                                 (string->symbol (stype-attribute type 'name))
-                                 bit-offset
-                                 bits
-                                 lose))
+         (values (string->symbol (stype-attribute type 'name)) offset bit-offset bits))
         ((record union)
-         (unless (not (or bits bit-offset))
-           (lose "'bits' or 'bit-offset' specified for composite member" component))
-         (lambda (pointer)
-           (integer->pointer (+ (pointer->integer pointer) offset)))))))
-  
+         (values (car type) offset #f #f))
+        (else
+         (error 'stype-compound-element-fetcher-values "invalid component type" component)))))
+
   (define (fetcher-chain stype path)
     (let loop ((fetchers '()) (stype stype) (path path))
       (if (null? path)
