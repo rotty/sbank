@@ -1,13 +1,14 @@
 #!r6rs
-(library (sbank typelib stypes)
+(library (sbank stypes)
   (export primitive-stypes
           stypes-adjoin
           stypes-ref
           stype-attribute
-          stype-fetcher)
+          stype-fetcher
+          stype-accessor-definer)
   (import (rnrs base)
           (rnrs control)
-          (rnrs arithmetic bitwise)
+          (rnrs syntax-case)
           (rnrs io simple)
           (xitomatl srfi and-let*)
           (xitomatl sxml-tools sxpathlib)
@@ -17,6 +18,7 @@
           (spells foreign)
           (spells receive)
           (spells format)
+          (for (spells define-values) run expand)
           (sbank sxpath-utils))
 
   (define primitive-stypes
@@ -130,6 +132,8 @@
          (values (string->symbol (stype-attribute type 'name)) offset bit-offset bits))
         ((record union)
          (values (car type) offset #f #f))
+        ((array pointer)
+         (values 'pointer offset #f #f))
         (else
          (error 'stype-compound-element-fetcher-values "invalid component type" component)))))
 
@@ -266,4 +270,22 @@
   
   (define (bitfields-fit-inside? bwlist size)
     (>= (* size 8)
-        (apply + bwlist))))
+        (apply + bwlist)))
+
+  (define (stype-accessor-definer types)
+    (lambda (stx)
+      (syntax-case stx ()
+        ((k <type-name> (<fetcher-name> <field-name>) ...)
+         (with-syntax (((args ...)
+                        (map (lambda (field-name)
+                               (datum->syntax
+                                #'k
+                                (call-with-values
+                                    (lambda ()
+                                      (stype-compound-element-fetcher-values
+                                       (stype-ref (stypes-ref types (syntax->datum #'<type-name>))
+                                                  field-name)))
+                                  list)))
+                             (map syntax->datum #'(<field-name> ...)))))
+           #`(define-values (<fetcher-name> ...)
+               (values (apply c-compound-element-fetcher 'args) ...))))))))
