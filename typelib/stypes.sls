@@ -19,6 +19,6 @@
                                              (field (name "code") (type "int"))
                                              (field (name "message")
                                                     (type (array (element-type (type "char")))))))
-                                   (call-with-input-file "../../systems/sbank/typelib.xml"
+                                   (call-with-input-file "../../systems/sbank/data/typelib.gir"
                                      gir-xml->stype-list)))))
         stypes))))

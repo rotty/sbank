@@ -1,0 +1,861 @@
+<?xml version="1.0"?>
+<repository version="1.0"
+            xmlns="http://www.gtk.org/introspection/core/1.0"
+            xmlns:c="http://www.gtk.org/introspection/c/1.0"
+            xmlns:glib="http://www.gtk.org/introspection/glib/1.0">
+  <namespace name="gtypelib" shared-library="gobject-2.0">
+    <record name="Header" c:type="Header">
+      <field name="magic">
+        <array c:type="gchar" size="16">
+          <type name="int8"/>
+        </array>
+      </field>
+      <field name="major_version">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="minor_version">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_entries">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_local_entries">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="directory">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="n_annotations">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="annotations">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="dependencies">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="size">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="namespace">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="nsversion">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="shared_library">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="entry_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="function_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="callback_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="signal_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="vfunc_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="arg_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="property_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="field_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="value_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="annotation_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="constant_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="error_domain_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="signature_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="enum_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="struct_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="object_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="interface_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="union_blob_size">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="padding">
+        <array c:type="guint16" size="7">
+          <type name="uint16"/>
+        </array>
+      </field>
+    </record>
+    <record name="DirEntry" c:type="DirEntry">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="local" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="offset">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <union name="SimpleTypeBlob" c:type="SimpleTypeBlob">
+      <record>
+        <field name="reserved" bits="8">
+          <type name="uint" c:type="guint"/>
+        </field>
+        <field name="reserved2" bits="16">
+          <type name="uint" c:type="guint"/>
+        </field>
+        <field name="pointer" bits="1">
+          <type name="uint" c:type="guint"/>
+        </field>
+        <field name="reserved3" bits="2">
+          <type name="uint" c:type="guint"/>
+        </field>
+        <field name="tag" bits="5">
+          <type name="uint" c:type="guint"/>
+        </field>
+      </record>
+      <field name="offset">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </union>
+    <record name="ArgBlob" c:type="ArgBlob">
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="in" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="out" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="dipper" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="null_ok" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="optional" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="transfer_ownership" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="transfer_container_ownership" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="return_value" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="reserved" bits="24">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="arg_type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+    </record>
+    <record name="SignatureBlob" c:type="SignatureBlob">
+      <field name="return_type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+      <field name="may_return_null" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="caller_owns_return_value" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="caller_owns_return_container" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="13">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_arguments">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="arguments">
+        <array c:type="ArgBlob">
+          <type name="ArgBlob"/>
+        </array>
+      </field>
+    </record>
+    <record name="CommonBlob" c:type="CommonBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="FunctionBlob" c:type="FunctionBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="setter" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="getter" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="constructor" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="wraps_vfunc" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="index" bits="10">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="symbol">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="signature">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="CallbackBlob" c:type="CallbackBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="signature">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="InterfaceTypeBlob" c:type="InterfaceTypeBlob">
+      <field name="pointer" bits="1">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved" bits="2">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="tag" bits="5">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved2">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="interface">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+    </record>
+    <record name="ArrayTypeBlob" c:type="ArrayTypeBlob">
+      <field name="pointer" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="2">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="tag" bits="5">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="zero_terminated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="has_length" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="has_size" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved2" bits="5">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <union>
+        <field name="length">
+          <type name="uint16" c:type="guint16"/>
+        </field>
+        <field name="size">
+          <type name="uint16" c:type="guint16"/>
+        </field>
+      </union>
+      <field name="type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+    </record>
+    <record name="ParamTypeBlob" c:type="ParamTypeBlob">
+      <field name="pointer" bits="1">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved" bits="2">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="tag" bits="5">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved2">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="n_types">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="type">
+        <array c:type="SimpleTypeBlob">
+          <type name="SimpleTypeBlob"/>
+        </array>
+      </field>
+    </record>
+    <record name="ErrorTypeBlob" c:type="ErrorTypeBlob">
+      <field name="pointer" bits="1">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved" bits="2">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="tag" bits="5">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved2">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="n_domains">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="domains">
+        <array c:type="guint16">
+          <type name="uint16"/>
+        </array>
+      </field>
+    </record>
+    <record name="ErrorDomainBlob" c:type="ErrorDomainBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="get_quark">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="error_codes">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved2">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+    </record>
+    <record name="ValueBlob" c:type="ValueBlob">
+      <field name="deprecated" bits="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="reserved" bits="31">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="value">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="FieldBlob" c:type="FieldBlob">
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="readable" bits="1">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="writable" bits="1">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved" bits="6">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="bits">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="struct_offset">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+    </record>
+    <record name="RegisteredTypeBlob" c:type="RegisteredTypeBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="unregistered" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="14">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_init">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="StructBlob" c:type="StructBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="unregistered" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="14">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_init">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="n_fields">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_methods">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+    </record>
+    <record name="UnionBlob" c:type="UnionBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="unregistered" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="discriminated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="13">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_init">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="n_fields">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_functions">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="discriminator_offset">
+        <type name="int32" c:type="gint32"/>
+      </field>
+      <field name="discriminator_type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+    </record>
+    <record name="EnumBlob" c:type="EnumBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="unregistered" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="14">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_init">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="n_values">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved2">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="values">
+        <array c:type="ValueBlob">
+          <type name="ValueBlob"/>
+        </array>
+      </field>
+    </record>
+    <record name="PropertyBlob" c:type="PropertyBlob">
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="readable" bits="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="writable" bits="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="construct" bits="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="construct_only" bits="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="reserved" bits="27">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+    </record>
+    <record name="SignalBlob" c:type="SignalBlob">
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="run_first" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="run_last" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="run_cleanup" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="no_recurse" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="detailed" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="action" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="no_hooks" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="has_class_closure" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="true_stops_emit" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="6">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="class_closure">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="signature">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="VFuncBlob" c:type="VFuncBlob">
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="must_chain_up" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="must_be_implemented" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="must_not_be_implemented" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="class_closure" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="12">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="signal">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="struct_offset">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved2">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="signature">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="ObjectBlob" c:type="ObjectBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_init">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="parent">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_interfaces">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_fields">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_properties">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_methods">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_signals">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_vfuncs">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_constants">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="interfaces">
+        <array c:type="guint16">
+          <type name="uint16"/>
+        </array>
+      </field>
+    </record>
+    <record name="InterfaceBlob" c:type="InterfaceBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="gtype_init">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="n_prerequisites">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_properties">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_methods">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_signals">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_vfuncs">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="n_constants">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="prerequisites">
+        <array c:type="guint16">
+          <type name="uint16"/>
+        </array>
+      </field>
+    </record>
+    <record name="ConstantBlob" c:type="ConstantBlob">
+      <field name="blob_type">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="deprecated" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="type">
+        <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
+      </field>
+      <field name="size">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="offset">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="AnnotationBlob" c:type="AnnotationBlob">
+      <field name="offset">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="name">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="value">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
+    <record name="GTypelib" c:type="_GTypelib">
+      <field name="data">
+        <array c:type="guchar*">
+          <type name="uint8"/>
+        </array>
+      </field>
+      <field name="len">
+        <type name="size_t" c:type="gsize"/>
+      </field>
+      <field name="owns_memory">
+        <type name="boolean" c:type="gboolean"/>
+      </field>
+      <field name="mfile">
+        <type name="GMappedFile" c:type="GMappedFile*"/>
+      </field>
+      <field name="modules">
+        <type name="GList" c:type="GList*"/>
+      </field>
+    </record>
+    <function name="g_typelib_get_dir_entry"
+              c:identifier="g_typelib_get_dir_entry">
+      <return-value>
+        <type name="DirEntry" c:type="DirEntry*"/>
+      </return-value>
+      <parameters>
+        <parameter name="typelib">
+          <type name="GTypelib" c:type="GTypelib*"/>
+        </parameter>
+        <parameter name="index">
+          <type name="uint16" c:type="guint16"/>
+        </parameter>
+      </parameters>
+    </function>
+    <function name="g_typelib_check_sanity"
+              c:identifier="g_typelib_check_sanity">
+      <return-value>
+        <type name="none" c:type="void"/>
+      </return-value>
+    </function>
+    <enumeration name="Error" c:type="GTypelibError">
+      <member name="invalid" value="0" c:identifier="G_TYPELIB_ERROR_INVALID"/>
+      <member name="invalidheader"
+              value="1"
+              c:identifier="G_TYPELIB_ERROR_INVALID_HEADER"/>
+      <member name="invaliddirectory"
+              value="2"
+              c:identifier="G_TYPELIB_ERROR_INVALID_DIRECTORY"/>
+      <member name="invalidentry"
+              value="3"
+              c:identifier="G_TYPELIB_ERROR_INVALID_ENTRY"/>
+      <member name="invalidblob"
+              value="4"
+              c:identifier="G_TYPELIB_ERROR_INVALID_BLOB"/>
+    </enumeration>
+    <function name="g_typelib_error_quark"
+              c:identifier="g_typelib_error_quark">
+      <return-value>
+        <type name="GQuark" c:type="GQuark"/>
+      </return-value>
+    </function>
+    <function name="g_typelib_validate" c:identifier="g_typelib_validate">
+      <return-value>
+        <type name="boolean" c:type="gboolean"/>
+      </return-value>
+      <parameters>
+        <parameter name="typelib">
+          <type name="GTypelib" c:type="GTypelib*"/>
+        </parameter>
+        <parameter name="error">
+          <type name="GError" c:type="GError**"/>
+        </parameter>
+      </parameters>
+    </function>
+    <constant name="G_IR_MAGIC" value="GOBJ&#10;METADATA&#13;&#10;">
+      <type name="utf8"/>
+    </constant>
+  </namespace>
+</repository>

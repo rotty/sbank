@@ -5,14 +5,18 @@
           stypes-ref
           stype-attribute
           stype-fetcher
-          stype-accessor-definer)
+          stype-accessor-definer
+          stype-fetcher-factory-definer)
   (import (rnrs base)
           (rnrs control)
+          (rnrs lists)
           (rnrs syntax-case)
           (rnrs io simple)
           (xitomatl srfi and-let*)
           (xitomatl sxml-tools sxpathlib)
           (xitomatl sxml-tools sxpath)
+          (only (spells lists) filter-map)
+          (only (spells strings) string-map)
           (spells alist)
           (spells tracing)
           (spells foreign)
@@ -313,4 +317,37 @@
                                   list)))
                              (map syntax->datum #'(<field-name> ...)))))
            #`(define-values (<fetcher-name> ...)
-               (values (apply c-compound-element-fetcher 'args) ...))))))))
+               (values (apply c-compound-element-fetcher 'args) ...)))))))
+
+  (define (stype-fetcher-factory-definer types)
+    (lambda (stx)
+      (syntax-case stx ()
+        ((k <name> <type-name>)
+         (with-syntax (((field ...)
+                        (filter-map
+                         (lambda (comp)
+                           (case (car comp)
+                             ((field record array)
+                              (datum->syntax
+                               #'k
+                               (cons (schemeified-symbol (sxpath-attr comp '(name)))
+                                     (call-with-values
+                                         (lambda ()
+                                           (stype-compound-element-fetcher-values comp))
+                                       list))))
+                             (else #f)))
+                         (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
+           #'(define <name>
+               (let ((fields '(field ...)))
+                 (lambda (sym)
+                   (apply c-compound-element-fetcher
+                          (cond ((assq sym fields) => cdr)
+                                (else (error '<name>
+                                             "no such field" sym fields))))))))))))
+
+  (define (schemeified-symbol string)
+    (string->symbol (string-map (lambda (c)
+                                  (case c
+                                    ((#\_) #\-)
+                                    (else c)))
+                                string))))

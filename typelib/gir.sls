@@ -44,12 +44,12 @@
                                         (list (list 'bits (string->number bits))))
                                       '()))))
        (core:array . ,(lambda array
-                        (let ((element-count (cond ((sxpath-ref array '(^ size))
+                        (let ((element-count (cond ((sxpath-attr array '(^ size))
                                                     => (lambda (size)
-                                                         `((element-count ,size))))
+                                                         `((element-count ,(string->number size)))))
                                                    (else '()))))
                           `(type (array ,@(append `((element-type
-                                                     ,((sxpath '(type)) array)))
+                                                     ,(sxpath-ref array '(type))))
                                                   element-count))))))
        (core:type *PREORDER* . ,type-pointifier)
        (^ *PREORDER* . ,list))))
