@@ -39,7 +39,12 @@
                                (name "Foo")
                                (field (name "frobotz") (type "uint"))
                                (field (name "data")
-                                      (type (array (element-type (type "uint8")))))))))
+                                      (type (array (element-type (type "uint8")))))
+                               (field (name "val")
+                                      (type (array (element-type (type "double"))
+                                                   (element-count 3)))))))
+      (vals-offset (c-type-align 'double (+ (c-type-align 'pointer (c-type-sizeof 'uint))
+                                            (c-type-sizeof 'pointer)))))
   (testeez "adjoining"
     (test/equal "resolution and annotations correctness"
       (stypes-ref stypes "Foo")
@@ -52,8 +57,15 @@
                                    (size ,(c-type-sizeof 'pointer))
                                    (alignment ,(c-type-alignof 'pointer))))
                       (offset ,(c-type-align 'pointer (c-type-sizeof 'uint))))
-               (size ,(* 2 (max (c-type-sizeof 'uint) (c-type-sizeof 'pointer))))
-               (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)))))))
+               (field (name "val")
+                      (type (array (element-type (type ,(stypes-ref stypes "double")))
+                                   (element-count 3)
+                                   (size ,(* 3 (c-type-sizeof 'double)))
+                                   (alignment ,(c-type-alignof 'double))))
+                      (offset ,vals-offset))
+               (size ,(+ vals-offset (*  (c-type-sizeof 'double) 3)))
+               (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)
+                                (c-type-alignof 'double)))))))
 
 (let ((stypes
        (stypes-adjoin
@@ -63,11 +75,30 @@
                  (field (name "tag") (type "uint") (bits 5))
                  (field (name "reserved3") (type "uint") (bits 2))
                  (field (name "pointer") (type "uint") (bits 1)))
-                (field (name "offset") (type "uint32")))))
-
+                (field (name "offset") (type "uint32")))
+        '(record (name "RecordWithArrays")
+                 (field (name "type") (type "uint"))
+                 (field (name "data") (type (array (element-type (type "uint"))
+                                                   (element-count 16))))
+                 (field (name "ptr") (type (array (element-type (type "uchar"))))))))
+      
       (stblob-mem (let ((bv (make-bytevector 4)))
                     (bytevector-u32-native-set! bv 0 #x1200cd85)
-                    (memcpy (malloc 4) bv 4))))
+                    (memcpy (malloc 4) bv 4)))
+
+      (record-mem
+       (let* ((byte-size (+ (* 17 (c-type-sizeof 'uint)) (c-type-sizeof 'pointer)))
+              (bv (make-bytevector byte-size)))
+         (do ((i 0 (+ i 1)))
+             ((>= i 17))
+           (bytevector-uint-set! bv
+                                 (* i (c-type-sizeof 'uint))
+                                 (bitwise-arithmetic-shift 1 i)
+                                 (native-endianness)
+                                 (c-type-sizeof 'uint)))
+         (bytevector-uint-set! bv (* 17 (c-type-sizeof 'uint)) 0
+                               (native-endianness) (c-type-sizeof 'pointer))
+         (memcpy (malloc byte-size) bv byte-size))))
 
   (let* ((stblob (stypes-ref stypes "SimpleTypeBlob"))
          (tag-fetcher (stype-fetcher stblob "tag"))
@@ -76,4 +107,15 @@
     (testeez "basic fetching"
       (test/equal "tag" (tag-fetcher stblob-mem) 5)
       (test/equal "pointer" (pointer-fetcher stblob-mem) 1)
-      (test/equal "offset" (offset-fetcher stblob-mem) #x1200cd85))))
+      (test/equal "offset" (offset-fetcher stblob-mem) #x1200cd85)))
+
+  (let* ((record (stypes-ref stypes "RecordWithArrays"))
+         (data-fetcher (stype-fetcher record "data"))
+         (ptr-fetcher (stype-fetcher record "ptr")))
+    (testeez "array member fetching"
+      (test/equal "pointer correct"
+        (pointer->integer (data-fetcher record-mem))
+        (+ (pointer->integer record-mem) (c-type-sizeof 'uint)))
+      (test/equal "correctness when the 'array' is really a pointer"
+        (pointer->integer (ptr-fetcher record-mem))
+        0))))

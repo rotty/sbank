@@ -24,7 +24,7 @@
   (define (gir-xml->stype-list port)
 
     (define (compound-maker tag)
-      (trace-lambda compound sxml
+      (lambda sxml
         (cons tag (append ((sxpath '(^ name)) sxml)
                           ((sxpath '((*OR* field record union))) sxml)))))
       
@@ -43,9 +43,14 @@
                                       (and-let* ((bits (sxpath-attr field '(^ bits))))
                                         (list (list 'bits (string->number bits))))
                                       '()))))
-       (core:array . ,(lambda array 
-                        `(type (array (element-type
-                                       ,((sxpath '(type)) array))))))
+       (core:array . ,(lambda array
+                        (let ((element-count (cond ((sxpath-ref array '(^ size))
+                                                    => (lambda (size)
+                                                         `((element-count ,size))))
+                                                   (else '()))))
+                          `(type (array ,@(append `((element-type
+                                                     ,((sxpath '(type)) array)))
+                                                  element-count))))))
        (core:type *PREORDER* . ,type-pointifier)
        (^ *PREORDER* . ,list))))
 

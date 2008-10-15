@@ -44,6 +44,7 @@
             (long #f)   (ulong #f)
             (int64 8)   (uint64 8)
             (llong #f)  (ullong #f)
+            (float #f)  (double #f)
 
             (size_t #f)
 
@@ -66,10 +67,10 @@
                   (list 'type (stypes-ref types (cadr type))))
                  ((pair? (cadr type))
                   (case (caadr type)
-                    ((array pointer)
-                     (list 'type (append (resolve-types (cadr type) types)
-                                         `((size ,(c-type-sizeof 'pointer))
-                                           (alignment ,(c-type-alignof 'pointer))))))
+                    ((pointer)
+                     (list 'type (append (resolve-types (cadr type) types) pointer-attrs)))
+                    ((array)
+                     (array-resolver type types))
                     (else
                      type)))
                  (error 'resolve-types "cannot resolve" type)))
@@ -97,7 +98,23 @@
                                  (cdr type)))))
         type))
 
-  
+
+
+  (define (array-resolver type types)
+    (let* ((resolved (resolve-types (cadr type) types))
+           (size (and-let* ((element-count (sxpath-attr resolved '(element-count)))
+                            (element-size (sxpath-attr resolved
+                                                       '(element-type type * size))))
+                   `((size ,(* element-size element-count)))))
+           (alignment
+            (and-let* ((alignment
+                        (sxpath-attr resolved '(element-type type * alignment))))
+              `((alignment ,alignment))))) 
+
+      (if (and size alignment)
+          (list 'type (append resolved size alignment))
+          (list 'type (append resolved pointer-attrs)))))
+                       
   (define (stypes-ref stypes name)
     (and-let* ((components ((select-component name) stypes))
                ((pair? components)))
@@ -118,6 +135,9 @@
           (else
            (lose "invalid path" path))))
 
+  (define pointer-attrs `((size ,(c-type-sizeof 'pointer))
+                          (alignment ,(c-type-alignof 'pointer))))
+  
   (define (construct-stype-fetcher component)
     (call-with-values (lambda () (stype-compound-element-fetcher-values component))
       c-compound-element-fetcher))
@@ -132,7 +152,12 @@
          (values (string->symbol (stype-attribute type 'name)) offset bit-offset bits))
         ((record union)
          (values (car type) offset #f #f))
-        ((array pointer)
+        ((array)
+         (let ((element-count (sxpath-attr type '(element-count))))
+           (if (not element-count)
+               (values 'pointer offset #f #f)
+               (values 'array offset #f #f))))
+        ((pointer)
          (values 'pointer offset #f #f))
         (else
          (error 'stype-compound-element-fetcher-values "invalid component type" component)))))
