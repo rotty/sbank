@@ -24,29 +24,26 @@
   (define-accessors "GTypelib"
     (tl-data "data"))
   
-  (define-accessors "Header"
-    (header-magic "magic")
-    (header-major-version "major_version")
-    (header-minor-version "minor_version")
-    (header-n-entries "n_entries")
-    (header-directory "directory")
-    (header-size "size")
-    (header-entry-blob-size "entry_blob_size"))
-
-  (define-accessors "DirEntry"
-    (dir-entry-blob-type "blob_type")
-    (dir-entry-local "local")
-    (dir-entry-name "name")
-    (dir-entry-offset "offset"))
-  
   (define-accessors "GError"
     (gerror-domain "domain")
     (gerror-code "code")
     (gerror-message "message"))
 
+  (define-accessors "Header"
+    ;; This needs to be reasonably fast, so we don't use let-attribute/fetchers here
+    (header-size "size")) 
+  
   (define-syntax define-fetcher (stype-fetcher-factory-definer (typelib-stypes)))
 
   (define-fetcher header-fetcher "Header")
+  (define-fetcher function-blob-fetcher "FunctionBlob")
+  (define-fetcher dir-entry-fetcher "DirEntry")
+  
+  (define-syntax let-attributes
+    (syntax-rules ()
+      ((let-attributes <fetcher> <pointer> (<name> ...) <body> ...)
+       (let ((<name> ((<fetcher> '<name>) <pointer>)) ...)
+         <body> ...))))
   
   (define libir (dlopen "libgirepository.so.0"))
   (define libgobject (dlopen "libgobject-2.0.so.0"))
@@ -56,13 +53,43 @@
   ;; Public API
   ;;
 
+  (define-condition-type &typelib-error &error
+    make-typelib-error typelib-error?)
+
+  (define (raise-typelib-error msg . irritants)
+    (raise (condition (make-typelib-error)
+                      (make-message-condition msg)
+                      (make-irritants-condition irritants))))
+  
   (define-record-type typelib
     (fields (immutable tl typelib-tl)
-            (immutable directory typelib-directory)))
+            (immutable directory typelib-directory)
+            (mutable shlib %typelib-shlib %typelib-set-shlib!)))
 
-  (define open-typelib
+  (define (typelib-shlib typelib)
+    (or (%typelib-shlib typelib)
+        (let* ((tld (tl-data (typelib-tl typelib)))
+               (name (get/validate-string tld (typelib-header typelib 'shared-library)))
+               (shlib (dlopen name #t)))
+          (or shlib
+              (raise-typelib-error "unable to open dynamic library" (dlerror) name))
+          (%typelib-set-shlib! typelib shlib)
+          shlib)))
+
+  (define (typelib-header typelib name)
+    ((header-fetcher name) (tl-data (typelib-tl typelib))))
+  
+  (define *registered-typelibs* (make-table 'equal))
+  
+  (define (open-typelib namespace version flags)
+    (or (table-ref *registered-typelibs* namespace)
+        (let ((typelib (require-typelib namespace version flags)))
+          (table-set! *registered-typelibs* namespace typelib)
+          typelib)))
+
+  (define require-typelib
     (let ((g-ir-require ((make-c-callout 'pointer '(pointer pointer pointer unsigned-int pointer))
-                         (dlsym libir "g_irepository_require"))))
+                           (dlsym libir "g_irepository_require"))))
       (lambda (namespace version flags)
         (with-validation-context namespace
           (let ((c-namespace (->c-string 'open-typelib namespace))
@@ -85,17 +112,17 @@
                              (gerror-free e))
                            (free gerror)))))))))
 
-  ;; Helper
-  (define (typelib-header fetcher)
-    (lambda (typelib)
-      (fetcher (tl-data (typelib-tl typelib)))))
-
-  (define (typelib-magic typelib)
-    (memcpy (make-bytevector 16) ((typelib-header header-magic) typelib) 16))
   
-  (define typelib-minor-version (typelib-header header-minor-version))
-  (define typelib-major-version (typelib-header header-major-version))
-
+  (define (typelib-magic typelib)
+    (memcpy (make-bytevector 16)
+            ((header-fetcher 'magic) (tl-data (typelib-tl typelib))) 16))
+  
+  (define (typelib-minor-version typelib)
+    ((header-fetcher 'minor-version) (tl-data (typelib-tl typelib))))
+  
+  (define (typelib-major-version typelib)
+    ((header-fetcher 'major-version) (tl-data (typelib-tl typelib))))
+  
   (define (typelib-get-entry-names typelib)
     (table-fold (lambda (key value result)
                   (cons key result))
@@ -105,12 +132,13 @@
   (define (typelib-get-entry typelib name)
     (and-let* ((loader (table-ref (typelib-directory typelib) name)))
       (loader)))
+
   
   ;;
   ;; Validation/Typelib construction
   ;;
 
-  (define-condition-type &validation-error &error
+  (define-condition-type &validation-error &typelib-error
     make-validation-error validation-error?
     (context validation-error-context))
 
@@ -131,14 +159,15 @@
     (define (lose msg . irritants)
       (apply raise-validation-error msg irritants))
     (let ((tld (tl-data tl)))
-      (and-let* ((magic (memcpy (make-bytevector 16) (header-magic tld) 16))
-                 ((not (bytevector=? magic (string->utf8 "GOBJ\nMETADATA\r\n\x1a;")))))
-        (lose "invalid magic" magic))
-      (or (and (= (header-major-version tld) 1)
-               (= (header-minor-version tld) 0))
-          (lose "version mismatch" (header-major-version tld) (header-minor-version tld)))
-      (validate-blob-sizes tld)
-      (make-typelib tl (make/validate-directory tld))))
+      (let-attributes header-fetcher tld
+                      (magic major-version minor-version)
+        (and-let* ((magic (memcpy (make-bytevector 16) magic 16))
+                   ((not (bytevector=? magic (string->utf8 "GOBJ\nMETADATA\r\n\x1a;")))))
+          (lose "invalid magic" magic))
+        (or (and (= major-version 1) (= minor-version 0))
+            (lose "version mismatch" major-version minor-version))
+        (validate-blob-sizes tld)
+        (make-typelib tl (make/validate-directory tld) #f))))
 
   (define (validate-blob-sizes tld)
     (for-each (lambda (blob-name/size)
@@ -168,42 +197,62 @@
 
   (define (make/validate-directory tld)
     (with-validation-context 'directory
-        (let ((entry-size (header-entry-blob-size tld))
-              (n-entries (header-n-entries tld)))
+        (let-attributes header-fetcher tld
+                        (entry-blob-size n-entries directory)
           (do ((dir (make-table 'equal))
                (i 0 (+ i 1))
                (entry-ptr
-                (validated-pointer+ tld (header-directory tld) (* n-entries entry-size))
-                (pointer+ entry-ptr entry-size)))
+                (validated-pointer+ tld directory (* n-entries entry-blob-size))
+                (pointer+ entry-ptr entry-blob-size)))
               ((>= i n-entries) dir)
-            (table-set! dir
-                        (get/validate-string tld entry-ptr dir-entry-name)
-                        (make-entry-loader tld entry-ptr))))))
+            (let-attributes dir-entry-fetcher entry-ptr
+                            (name)
+              (let ((name (get/validate-string tld name)))
+                (table-set! dir name (make-entry-loader tld name entry-ptr))))))))
   
-  (define (make-entry-loader tld entry-ptr)
-    (let ((content-ptr (validated-pointer+ tld (dir-entry-offset entry-ptr) 1)))
-      (memoize-thunk/validation-context
-       (if (= (dir-entry-local entry-ptr) 0)
-           (lambda ()
-             (list 'non-local-dir-entry (validation-context) (get/validate-string content-ptr)))
-           (lambda ()
-             (list 'local-dir-entry (validation-context) (dir-entry-offset entry-ptr)))))))
+  (define (make-entry-loader tld name entry-ptr)
+    (with-validation-context name
+        (let-attributes dir-entry-fetcher entry-ptr
+                        (offset)
+          (let ((content-ptr (validated-pointer+ tld offset 1)))
+            (thunk/validation-context
+             (if (= ((dir-entry-fetcher 'local) entry-ptr) 0)
+                 (lambda ()
+                   (list 'non-local-dir-entry (validation-context) (get/validate-string tld offset)))
+                 (case ((dir-entry-fetcher 'blob-type) entry-ptr)
+                   ((1) (validated-function-loader tld entry-ptr))
+                   (else
+                    (lambda ()
+                      (list 'local-dir-entry (validation-context) offset))))))))))
 
-  (define (memoize-thunk/validation-context thunk)
+  (define (validated-function-loader tld entry-ptr)
+    (let ((blob (validated-pointer+ tld
+                                    ((dir-entry-fetcher 'offset) entry-ptr)
+                                    ((header-fetcher 'function-blob-size) tld))))
+      (lambda ()
+        (let-attributes
+            function-blob-fetcher blob
+            (blob-type deprecated setter getter constructor wraps-vfunc index
+                       name symbol signature)
+          (unless (= blob-type 1)
+            (raise-validation-error "invalid blob type for function entry" (blob-type blob)))
+          (values (bool deprecated) (bool setter) (bool getter) (bool constructor)
+                  (bool wraps-vfunc) index (get/validate-string tld name))))))
+  
+  (define (thunk/validation-context thunk)
     (let ((context (validation-context)))
       (lambda ()
-        (let ((cache #f))
-          (unless cache
-            (parameterize ((validation-context context))
-              (set! cache (thunk))))
-          cache))))
+        (parameterize ((validation-context context))
+          (thunk)))))
   
   ;;
   ;; Helpers
   ;;
 
-  (define (get/validate-string tld ptr offset-fetcher)
-    (from-c-string (validated-pointer+ tld (offset-fetcher ptr) 1)))
+  (define (get/validate-string tld offset)
+    ;; FIXME: This should actually check we don't go beyond the data
+    ;; when assembling the string
+    (from-c-string (validated-pointer+ tld offset 1)))
   
   (define (validated-pointer+ tld offset size)
     (when (> (+ offset size) (header-size tld))
@@ -236,6 +285,9 @@
   
   (define (symbol-append . syms)
     (string->symbol (apply string-append (map symbol->string syms))))
+
+  (define (bool i)
+    (not (= 0 i)))
   
   ;; Initialize the GObject type system
   (((make-c-callout 'void '()) (dlsym libgobject "g_type_init" ))))
