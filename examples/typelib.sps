@@ -6,10 +6,10 @@
         (spells time-it)
         (sbank typelib))
 
-(let ((glib (open-typelib "GLib" #f 0)))
-  (for-each (lambda (name)
-              (println name ": " (typelib-get-entry glib name)))
-            (typelib-get-entry-names glib)))
+(time-it (let ((glib (open-typelib "GLib" #f 0)))
+           (for-each (lambda (name)
+                        (typelib-get-entry glib name)) ; (println name ": ")
+                     (typelib-get-entry-names glib))))
 
 (define (println . args)
   (for-each display args)

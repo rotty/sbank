@@ -11,6 +11,7 @@
           (spells tracing)
           (spells alist)
           (spells parameter)
+          (spells table)
           (sbank stypes)
           (for (sbank typelib stypes) run expand))
 
@@ -96,10 +97,13 @@
   (define typelib-major-version (typelib-header header-major-version))
 
   (define (typelib-get-entry-names typelib)
-    (map car (typelib-directory typelib)))
+    (table-fold (lambda (key value result)
+                  (cons key result))
+                '()
+                (typelib-directory typelib)))
 
   (define (typelib-get-entry typelib name)
-    (and-let* ((loader (assoc-ref (typelib-directory typelib) name)))
+    (and-let* ((loader (table-ref (typelib-directory typelib) name)))
       (loader)))
   
   ;;
@@ -166,18 +170,16 @@
     (with-validation-context 'directory
         (let ((entry-size (header-entry-blob-size tld))
               (n-entries (header-n-entries tld)))
-          (let loop ((dir '())
-                     (i 0)
-                     (entry-ptr
-                      (validated-pointer+ tld (header-directory tld) (* n-entries entry-size))))
-            (if (>= i n-entries)
-                (reverse dir)
-                (loop (cons (cons (get/validate-string tld entry-ptr dir-entry-name)
-                                  (make-entry-loader tld entry-ptr))
-                            dir)
-                      (+ i 1)
-                      (pointer+ entry-ptr entry-size)))))))
-
+          (do ((dir (make-table 'equal))
+               (i 0 (+ i 1))
+               (entry-ptr
+                (validated-pointer+ tld (header-directory tld) (* n-entries entry-size))
+                (pointer+ entry-ptr entry-size)))
+              ((>= i n-entries) dir)
+            (table-set! dir
+                        (get/validate-string tld entry-ptr dir-entry-name)
+                        (make-entry-loader tld entry-ptr))))))
+  
   (define (make-entry-loader tld entry-ptr)
     (let ((content-ptr (validated-pointer+ tld (dir-entry-offset entry-ptr) 1)))
       (memoize-thunk/validation-context
