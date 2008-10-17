@@ -8,7 +8,4 @@
    (rnrs bytevectors)
    (rnrs lists))
 
-  ("typelib.scm"
-   (sbank typelib)
-   (spells foreign)
-   (rnrs bytevectors))))
+  ))

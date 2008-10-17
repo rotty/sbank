@@ -34,17 +34,22 @@
            primlist)
       (make-list (length primlist) '(name #t size #t alignment #t)))))
 
-(let ((stypes (stypes-adjoin primitive-stypes
-                             '(record
-                               (name "Foo")
-                               (field (name "frobotz") (type "uint"))
-                               (field (name "val")
-                                      (type (array (element-type (type "double"))
-                                                   (element-count 3))))
-                               (field (name "data")
-                                      (type (array (element-type (type "uint8"))))))))
-      (data-offset (c-type-align 'uint (+ (c-type-align 'double (c-type-sizeof 'uint))
-                                          (* 3 (c-type-sizeof 'double))))))
+(let* ((stypes (stypes-adjoin primitive-stypes
+                              '(record
+                                (name "Foo")
+                                (field (name "frobotz") (type "uint"))
+                                (field (name "val")
+                                       (type (array (element-type (type "double"))
+                                                    (element-count 3))))
+                                (field (name "data")
+                                       (type (array (element-type (type "uint8")))))
+                                (field (name "tag") (type "uint8") (bits 5))
+                                (field (name "last") (type "boolean")))))
+       (data-offset (c-type-align 'uint (+ (c-type-align 'double (c-type-sizeof 'uint))
+                                           (* 3 (c-type-sizeof 'double)))))
+       (tag-offset (c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
+       (last-offset (c-type-align 'int (+ tag-offset 1))))
+  
   (testeez "adjoining"
     (test/equal "resolution and annotations correctness"
       (stypes-ref stypes "Foo")
@@ -63,7 +68,15 @@
                                    (size ,(c-type-sizeof 'pointer))
                                    (alignment ,(c-type-alignof 'pointer))))
                       (offset ,data-offset))
-               (size ,(c-type-align 'double (+ data-offset (c-type-sizeof 'pointer))))
+               (field (name "tag")
+                      (type ,(stypes-ref stypes "uint8"))
+                      (bits 5)
+                      (offset ,(c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
+                      (bit-offset 0))
+               (field (name "last")
+                      (type ,(stypes-ref stypes "boolean"))
+                      (offset ,last-offset))
+               (size ,(c-type-align 'double (+ last-offset (c-type-sizeof 'int))))
                (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)
                                 (c-type-alignof 'double)))))))
 

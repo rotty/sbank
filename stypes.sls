@@ -15,7 +15,7 @@
           (xitomatl srfi and-let*)
           (xitomatl sxml-tools sxpathlib)
           (xitomatl sxml-tools sxpath)
-          (only (spells lists) filter-map)
+          (only (spells lists) append-map)
           (only (spells strings) string-map)
           (spells alist)
           (spells tracing)
@@ -23,6 +23,7 @@
           (spells receive)
           (spells format)
           (for (spells define-values) run expand)
+          (sbank utils)
           (sbank sxpath-utils))
 
   (define primitive-stypes
@@ -244,15 +245,20 @@
                     (+ bit-offset (car bws))
                     (cdr comps)
                     (cdr bws)))))
+      (define (bitfield-size)
+         (if (null? bwlist) 0 (sxpath-attr (car bwcomps) '(type * size))))
+      (define (bitfield-align)
+        (if (null? bwcomps) 0 (sxpath-attr (car bwcomps) '(type * alignment))))
+      (trace-define (updated-size/bitfield size)
+        (if (= (bitfield-size) 0)
+            size
+            (updated-size size (bitfield-size) (bitfield-align))))
       (if (null? components)
           (let ((max-align (and max-align
                                 (max max-align (if (null? bwlist)
                                                    0
                                                    (component-alignment (car bwcomps))))))
-                (size (and size
-                           (+ size (if (null? bwlist)
-                                       0
-                                       (sxpath-attr (car bwcomps) '(type * size)))))))
+                (size (and size (updated-size/bitfield size))))
             (values (reverse (result-with-bitfields))
                     (and size max-align (align size max-align))
                     max-align))
@@ -260,18 +266,15 @@
                 (comp-align (component-alignment (car components)))
                 (comp-bits (sxpath-attr (car components) '(bits))))
             (define (alignment)
-              (let ((bitfields-align (if (null? bwcomps)
-                                         0
-                                         (sxpath-attr (car bwcomps) '(type * alignment)))))
-                (max max-align comp-align bitfields-align)))
-            
+              (max max-align comp-align (bitfield-align)))
             (cond ((and size comp-size comp-align)
-                   (loop (cons (apply extend (car components) (offset size comp-align))
-                               (result-with-bitfields))
-                         (updated-size size comp-size comp-align)
-                         (alignment)
-                         '() '()
-                         (cdr components)))
+                   (let ((cur-offset (updated-size/bitfield size)))
+                     (loop (cons (apply extend (car components) (offset cur-offset comp-align))
+                                 (result-with-bitfields))
+                           (updated-size cur-offset comp-size comp-align)
+                           (alignment)
+                           '() '()
+                           (cdr components))))
                   ((and comp-bits
                         (or (null? bwlist)
                             (and-let* ((bwtype (sxpath-attr (car bwcomps) '(type)))
@@ -319,24 +322,13 @@
            #`(define-values (<fetcher-name> ...)
                (values (apply c-compound-element-fetcher 'args) ...)))))))
 
-  (define (stype-fetcher-factory-definer types)
+  (trace-define (stype-fetcher-factory-definer types)
     (lambda (stx)
       (syntax-case stx ()
         ((k <name> <type-name>)
          (with-syntax (((field ...)
-                        (filter-map
-                         (lambda (comp)
-                           (case (car comp)
-                             ((field record array)
-                              (datum->syntax
-                               #'k
-                               (cons (schemeified-symbol (sxpath-attr comp '(name)))
-                                     (call-with-values
-                                         (lambda ()
-                                           (stype-compound-element-fetcher-values comp))
-                                       list))))
-                             (else #f)))
-                         (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
+                        (append-map component-fetcher-alist
+                                    (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
            #'(define <name>
                (let ((fields '(field ...)))
                  (lambda (sym)
@@ -345,9 +337,19 @@
                                 (else (error '<name>
                                              "no such field" sym fields))))))))))))
 
-  (define (schemeified-symbol string)
-    (string->symbol (string-map (lambda (c)
-                                  (case c
-                                    ((#\_) #\-)
-                                    (else c)))
-                                string))))
+  (trace-define (component-fetcher-alist comp)
+    (case (car comp)
+      ((field record array)
+       (let ((name (sxpath-attr comp '(name))))
+         (cond (name
+                (list
+                 (datum->syntax
+                  #'k
+                  (cons (scheme-ified-symbol name)
+                        (call-with-values
+                            (lambda ()
+                              (stype-compound-element-fetcher-values comp))
+                          list)))))
+               (else (append-map component-fetcher-alist (cdr comp))))))
+      (else '()))))
+
