@@ -5,798 +5,798 @@
             xmlns:glib="http://www.gtk.org/introspection/glib/1.0">
   <namespace name="gtypelib" shared-library="gobject-2.0">
     <record name="Header" c:type="Header">
-      <field name="magic">
+      <field name="magic" writable="1">
         <array c:type="gchar" size="16">
           <type name="int8"/>
         </array>
       </field>
-      <field name="major_version">
+      <field name="major_version" writable="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="minor_version">
+      <field name="minor_version" writable="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved">
+      <field name="reserved" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_entries">
+      <field name="n_entries" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_local_entries">
+      <field name="n_local_entries" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="directory">
+      <field name="directory" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="n_annotations">
+      <field name="n_annotations" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="annotations">
+      <field name="annotations" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="dependencies">
+      <field name="dependencies" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="size">
+      <field name="size" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="namespace">
+      <field name="namespace" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="nsversion">
+      <field name="nsversion" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="shared_library">
+      <field name="shared_library" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="entry_blob_size">
+      <field name="entry_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="function_blob_size">
+      <field name="function_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="callback_blob_size">
+      <field name="callback_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="signal_blob_size">
+      <field name="signal_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="vfunc_blob_size">
+      <field name="vfunc_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="arg_blob_size">
+      <field name="arg_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="property_blob_size">
+      <field name="property_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="field_blob_size">
+      <field name="field_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="value_blob_size">
+      <field name="value_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="annotation_blob_size">
+      <field name="annotation_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="constant_blob_size">
+      <field name="constant_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="error_domain_blob_size">
+      <field name="error_domain_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="signature_blob_size">
+      <field name="signature_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="enum_blob_size">
+      <field name="enum_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="struct_blob_size">
+      <field name="struct_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="object_blob_size">
+      <field name="object_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="interface_blob_size">
+      <field name="interface_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="union_blob_size">
+      <field name="union_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="padding">
+      <field name="padding" writable="1">
         <array c:type="guint16" size="7">
           <type name="uint16"/>
         </array>
       </field>
     </record>
     <record name="DirEntry" c:type="DirEntry">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="local" bits="1">
+      <field name="local" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="offset">
+      <field name="offset" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <union name="SimpleTypeBlob" c:type="SimpleTypeBlob">
       <record>
-        <field name="reserved" bits="8">
+        <field name="reserved" writable="1" bits="8">
           <type name="uint" c:type="guint"/>
         </field>
-        <field name="reserved2" bits="16">
+        <field name="reserved2" writable="1" bits="16">
           <type name="uint" c:type="guint"/>
         </field>
-        <field name="pointer" bits="1">
+        <field name="pointer" writable="1" bits="1">
           <type name="uint" c:type="guint"/>
         </field>
-        <field name="reserved3" bits="2">
+        <field name="reserved3" writable="1" bits="2">
           <type name="uint" c:type="guint"/>
         </field>
-        <field name="tag" bits="5">
+        <field name="tag" writable="1" bits="5">
           <type name="uint" c:type="guint"/>
         </field>
       </record>
-      <field name="offset">
+      <field name="offset" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </union>
     <record name="ArgBlob" c:type="ArgBlob">
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="in" bits="1">
+      <field name="in" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="out" bits="1">
+      <field name="out" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="dipper" bits="1">
+      <field name="dipper" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="null_ok" bits="1">
+      <field name="null_ok" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="optional" bits="1">
+      <field name="optional" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="transfer_ownership" bits="1">
+      <field name="transfer_ownership" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="transfer_container_ownership" bits="1">
+      <field name="transfer_container_ownership" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="return_value" bits="1">
+      <field name="return_value" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="reserved" bits="24">
+      <field name="reserved" writable="1" bits="24">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="arg_type">
+      <field name="arg_type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
     </record>
     <record name="SignatureBlob" c:type="SignatureBlob">
-      <field name="return_type">
+      <field name="return_type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
-      <field name="may_return_null" bits="1">
+      <field name="may_return_null" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="caller_owns_return_value" bits="1">
+      <field name="caller_owns_return_value" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="caller_owns_return_container" bits="1">
+      <field name="caller_owns_return_container" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="13">
+      <field name="reserved" writable="1" bits="13">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_arguments">
+      <field name="n_arguments" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="arguments">
-        <array c:type="ArgBlob">
+      <field name="arguments" writable="1">
+        <array c:type="ArgBlob" size="0">
           <type name="ArgBlob"/>
         </array>
       </field>
     </record>
     <record name="CommonBlob" c:type="CommonBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="FunctionBlob" c:type="FunctionBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="setter" bits="1">
+      <field name="setter" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="getter" bits="1">
+      <field name="getter" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="constructor" bits="1">
+      <field name="constructor" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="wraps_vfunc" bits="1">
+      <field name="wraps_vfunc" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="1">
+      <field name="reserved" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="index" bits="10">
+      <field name="index" writable="1" bits="10">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="symbol">
+      <field name="symbol" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="signature">
+      <field name="signature" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="CallbackBlob" c:type="CallbackBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="signature">
+      <field name="signature" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="InterfaceTypeBlob" c:type="InterfaceTypeBlob">
-      <field name="pointer" bits="1">
+      <field name="pointer" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved" bits="2">
+      <field name="reserved" writable="1" bits="2">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="tag" bits="5">
+      <field name="tag" writable="1" bits="5">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved2">
+      <field name="reserved2" writable="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="interface">
+      <field name="interface" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
     </record>
     <record name="ArrayTypeBlob" c:type="ArrayTypeBlob">
-      <field name="pointer" bits="1">
+      <field name="pointer" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="2">
+      <field name="reserved" writable="1" bits="2">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="tag" bits="5">
+      <field name="tag" writable="1" bits="5">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="zero_terminated" bits="1">
+      <field name="zero_terminated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="has_length" bits="1">
+      <field name="has_length" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="has_size" bits="1">
+      <field name="has_size" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved2" bits="5">
+      <field name="reserved2" writable="1" bits="5">
         <type name="uint16" c:type="guint16"/>
       </field>
       <union>
-        <field name="length">
+        <field name="length" writable="1">
           <type name="uint16" c:type="guint16"/>
         </field>
-        <field name="size">
+        <field name="size" writable="1">
           <type name="uint16" c:type="guint16"/>
         </field>
       </union>
-      <field name="type">
+      <field name="type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
     </record>
     <record name="ParamTypeBlob" c:type="ParamTypeBlob">
-      <field name="pointer" bits="1">
+      <field name="pointer" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved" bits="2">
+      <field name="reserved" writable="1" bits="2">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="tag" bits="5">
+      <field name="tag" writable="1" bits="5">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved2">
+      <field name="reserved2" writable="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="n_types">
+      <field name="n_types" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="type">
-        <array c:type="SimpleTypeBlob">
+      <field name="type" writable="1">
+        <array c:type="SimpleTypeBlob" size="0">
           <type name="SimpleTypeBlob"/>
         </array>
       </field>
     </record>
     <record name="ErrorTypeBlob" c:type="ErrorTypeBlob">
-      <field name="pointer" bits="1">
+      <field name="pointer" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved" bits="2">
+      <field name="reserved" writable="1" bits="2">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="tag" bits="5">
+      <field name="tag" writable="1" bits="5">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved2">
+      <field name="reserved2" writable="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="n_domains">
+      <field name="n_domains" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="domains">
-        <array c:type="guint16">
+      <field name="domains" writable="1">
+        <array c:type="guint16" size="0">
           <type name="uint16"/>
         </array>
       </field>
     </record>
     <record name="ErrorDomainBlob" c:type="ErrorDomainBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="get_quark">
+      <field name="get_quark" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="error_codes">
+      <field name="error_codes" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved2">
+      <field name="reserved2" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
     </record>
     <record name="ValueBlob" c:type="ValueBlob">
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="reserved" bits="31">
+      <field name="reserved" writable="1" bits="31">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="value">
+      <field name="value" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="FieldBlob" c:type="FieldBlob">
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="readable" bits="1">
+      <field name="readable" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="writable" bits="1">
+      <field name="writable" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved" bits="6">
+      <field name="reserved" writable="1" bits="6">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="bits">
+      <field name="bits" writable="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="struct_offset">
+      <field name="struct_offset" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="type">
+      <field name="type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
     </record>
     <record name="RegisteredTypeBlob" c:type="RegisteredTypeBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="unregistered" bits="1">
+      <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="14">
+      <field name="reserved" writable="1" bits="14">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_name">
+      <field name="gtype_name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_init">
+      <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="StructBlob" c:type="StructBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="unregistered" bits="1">
+      <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="14">
+      <field name="reserved" writable="1" bits="14">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_name">
+      <field name="gtype_name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_init">
+      <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="n_fields">
+      <field name="n_fields" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_methods">
+      <field name="n_methods" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
     </record>
     <record name="UnionBlob" c:type="UnionBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="unregistered" bits="1">
+      <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="discriminated" bits="1">
+      <field name="discriminated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="13">
+      <field name="reserved" writable="1" bits="13">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_name">
+      <field name="gtype_name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_init">
+      <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="n_fields">
+      <field name="n_fields" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_functions">
+      <field name="n_functions" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="discriminator_offset">
+      <field name="discriminator_offset" writable="1">
         <type name="int32" c:type="gint32"/>
       </field>
-      <field name="discriminator_type">
+      <field name="discriminator_type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
     </record>
     <record name="EnumBlob" c:type="EnumBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="unregistered" bits="1">
+      <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="14">
+      <field name="reserved" writable="1" bits="14">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_name">
+      <field name="gtype_name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_init">
+      <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="n_values">
+      <field name="n_values" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved2">
+      <field name="reserved2" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="values">
-        <array c:type="ValueBlob">
+      <field name="values" writable="1">
+        <array c:type="ValueBlob" size="0">
           <type name="ValueBlob"/>
         </array>
       </field>
     </record>
     <record name="PropertyBlob" c:type="PropertyBlob">
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="readable" bits="1">
+      <field name="readable" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="writable" bits="1">
+      <field name="writable" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="construct" bits="1">
+      <field name="construct" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="construct_only" bits="1">
+      <field name="construct_only" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="reserved" bits="27">
+      <field name="reserved" writable="1" bits="27">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="type">
+      <field name="type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
     </record>
     <record name="SignalBlob" c:type="SignalBlob">
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="run_first" bits="1">
+      <field name="run_first" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="run_last" bits="1">
+      <field name="run_last" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="run_cleanup" bits="1">
+      <field name="run_cleanup" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="no_recurse" bits="1">
+      <field name="no_recurse" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="detailed" bits="1">
+      <field name="detailed" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="action" bits="1">
+      <field name="action" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="no_hooks" bits="1">
+      <field name="no_hooks" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="has_class_closure" bits="1">
+      <field name="has_class_closure" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="true_stops_emit" bits="1">
+      <field name="true_stops_emit" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="6">
+      <field name="reserved" writable="1" bits="6">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="class_closure">
+      <field name="class_closure" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="signature">
+      <field name="signature" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="VFuncBlob" c:type="VFuncBlob">
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="must_chain_up" bits="1">
+      <field name="must_chain_up" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="must_be_implemented" bits="1">
+      <field name="must_be_implemented" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="must_not_be_implemented" bits="1">
+      <field name="must_not_be_implemented" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="class_closure" bits="1">
+      <field name="class_closure" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="12">
+      <field name="reserved" writable="1" bits="12">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="signal">
+      <field name="signal" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="struct_offset">
+      <field name="struct_offset" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved2">
+      <field name="reserved2" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="signature">
+      <field name="signature" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="ObjectBlob" c:type="ObjectBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_name">
+      <field name="gtype_name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_init">
+      <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="parent">
+      <field name="parent" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_interfaces">
+      <field name="n_interfaces" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_fields">
+      <field name="n_fields" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_properties">
+      <field name="n_properties" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_methods">
+      <field name="n_methods" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_signals">
+      <field name="n_signals" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_vfuncs">
+      <field name="n_vfuncs" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_constants">
+      <field name="n_constants" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="interfaces">
-        <array c:type="guint16">
+      <field name="interfaces" writable="1">
+        <array c:type="guint16" size="0">
           <type name="uint16"/>
         </array>
       </field>
     </record>
     <record name="InterfaceBlob" c:type="InterfaceBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_name">
+      <field name="gtype_name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="gtype_init">
+      <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="n_prerequisites">
+      <field name="n_prerequisites" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_properties">
+      <field name="n_properties" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_methods">
+      <field name="n_methods" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_signals">
+      <field name="n_signals" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_vfuncs">
+      <field name="n_vfuncs" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="n_constants">
+      <field name="n_constants" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="prerequisites">
-        <array c:type="guint16">
+      <field name="prerequisites" writable="1">
+        <array c:type="guint16" size="0">
           <type name="uint16"/>
         </array>
       </field>
     </record>
     <record name="ConstantBlob" c:type="ConstantBlob">
-      <field name="blob_type">
+      <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="deprecated" bits="1">
+      <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" bits="15">
+      <field name="reserved" writable="1" bits="15">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="type">
+      <field name="type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
-      <field name="size">
+      <field name="size" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="offset">
+      <field name="offset" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="AnnotationBlob" c:type="AnnotationBlob">
-      <field name="offset">
+      <field name="offset" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="name">
+      <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="value">
+      <field name="value" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
     <record name="GTypelib" c:type="_GTypelib">
-      <field name="data">
+      <field name="data" writable="1">
         <array c:type="guchar*">
           <type name="uint8"/>
         </array>
       </field>
-      <field name="len">
+      <field name="len" writable="1">
         <type name="size_t" c:type="gsize"/>
       </field>
-      <field name="owns_memory">
+      <field name="owns_memory" writable="1">
         <type name="boolean" c:type="gboolean"/>
       </field>
-      <field name="mfile">
+      <field name="mfile" writable="1">
         <type name="GMappedFile" c:type="GMappedFile*"/>
       </field>
-      <field name="modules">
+      <field name="modules" writable="1">
         <type name="GList" c:type="GList*"/>
       </field>
     </record>
