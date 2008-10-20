@@ -44,11 +44,15 @@
                                 (field (name "data")
                                        (type (array (element-type (type "uint8")))))
                                 (field (name "tag") (type "uint8") (bits 5))
+                                (union
+                                 (field (name "u1") (type "double"))
+                                 (field (name "u2") (type "uint16")))
                                 (field (name "last") (type "boolean")))))
        (data-offset (c-type-align 'uint (+ (c-type-align 'double (c-type-sizeof 'uint))
                                            (* 3 (c-type-sizeof 'double)))))
        (tag-offset (c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
-       (last-offset (c-type-align 'int (+ tag-offset 1))))
+       (u-offset (c-type-align 'double (+ tag-offset 1)))
+       (last-offset (c-type-align 'int (+ u-offset (c-type-sizeof 'double)))))
   
   (testeez "adjoining"
     (test/equal "resolution and annotations correctness"
@@ -73,12 +77,19 @@
                       (bits 5)
                       (offset ,(c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
                       (bit-offset 0))
+               (union (field (name "u1") (type ,(stypes-ref stypes "double")) (offset 0))
+                      (field (name "u2") (type ,(stypes-ref stypes "uint16")) (offset 0))
+                      (size ,(c-type-sizeof 'double))
+                      (alignment ,(c-type-alignof 'double))
+                      (offset ,u-offset))
                (field (name "last")
                       (type ,(stypes-ref stypes "boolean"))
                       (offset ,last-offset))
                (size ,(c-type-align 'double (+ last-offset (c-type-sizeof 'int))))
                (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)
-                                (c-type-alignof 'double)))))))
+                                (c-type-alignof 'double)))))
+    (test-eval "u1" (procedure? (stype-fetcher (stypes-ref stypes "Foo") "u1")))
+    (test-eval "u2" (procedure? (stype-fetcher (stypes-ref stypes "Foo") "u2")))))
 
 (let ((stypes
        (stypes-adjoin
