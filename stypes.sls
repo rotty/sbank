@@ -339,7 +339,7 @@
 
   (define (component-fetcher-alist comp)
     (case (car comp)
-      ((field record array)
+      ((field record array union)
        (let ((name (sxpath-attr comp '(name))))
          (cond (name
                 (list
