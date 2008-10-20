@@ -12,7 +12,7 @@
         (sbank typelib gobject)
         (spells foreign))
 
-(typelib-import (prefix (only ("Gtk" #f) <window> main) gtk-))
+(typelib-import (prefix (only ("Gtk" #f) <window> main init) gtk-))
 
 (let* ((libgtk (dlopen "libgtk-x11-2.0.so"))
        (gtk-init ((make-c-callout 'void '(pointer pointer)) (dlsym libgtk "gtk_init"))))

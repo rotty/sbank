@@ -35,7 +35,7 @@
                            ((sxpath '(// core:namespace (*OR* core:record core:union))) top)))
        (core:record . ,(compound-maker 'record))
        (core:union . ,(compound-maker 'union))
-       (core:field . ,(lambda field field
+       (core:field . ,(lambda field
                               (cons* 'field
                                      (sxpath-ref field '(^ name))
                                      (sxpath-ref field '(type))

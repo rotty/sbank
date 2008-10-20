@@ -327,7 +327,8 @@
       (syntax-case stx ()
         ((k <name> <type-name>)
          (with-syntax (((field ...)
-                        (append-map component-fetcher-alist
+                        (append-map (lambda (comp)
+                                      (component-fetcher-alist comp 0))
                                     (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
            #'(define <name>
                (let ((fields '(field ...)))
@@ -337,19 +338,21 @@
                                 (else (error '<name>
                                              "no such field" sym fields))))))))))))
 
-  (define (component-fetcher-alist comp)
+  (define (component-fetcher-alist comp base-offset)
     (case (car comp)
       ((field record array union)
-       (let ((name (sxpath-attr comp '(name))))
+       (let ((name (sxpath-attr comp '(name)))
+             (offset (sxpath-attr comp '(offset))))
          (cond (name
                 (list
                  (datum->syntax
                   #'k
                   (cons (scheme-ified-symbol name)
-                        (call-with-values
-                            (lambda ()
-                              (stype-compound-element-fetcher-values comp))
-                          list)))))
-               (else (append-map component-fetcher-alist (cdr comp))))))
+                        (receive (type offset bit-offset bit-size)
+                            (stype-compound-element-fetcher-values comp)
+                          (list type (+ base-offset offset) bit-offset bit-size))))))
+               (else (append-map (lambda (nested-comp)
+                                   (component-fetcher-alist nested-comp offset))
+                                 (cdr comp))))))
       (else '()))))
 
