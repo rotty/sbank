@@ -9,14 +9,19 @@
         (spells receive)
 ;;         (sbank typelib base)
         (sbank typelib)
-        (sbank typelib gobject))
+        (sbank typelib gobject)
+        (spells foreign))
 
-(receive (<gtk-window>) (time-it
-                         (let ()
-                           (typelib-import (prefix (only ("Gtk" #f) <window>) gtk-))
-                           (values <gtk-window>)))
-  (let ((w (send <gtk-window> (new))))
-    (println w)))
+(typelib-import (prefix (only ("Gtk" #f) <window> main) gtk-))
+
+(let* ((libgtk (dlopen "libgtk-x11-2.0.so"))
+       (gtk-init ((make-c-callout 'void '(pointer pointer)) (dlsym libgtk "gtk_init"))))
+  (gtk-init (integer->pointer 0) (integer->pointer 0)))
+
+(let ((w (send <gtk-window> (new 'toplevel))))
+  (send w (show)))
+
+(gtk-main)
 
 ;;(gtk-main)
 

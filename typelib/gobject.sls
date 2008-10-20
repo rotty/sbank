@@ -2,7 +2,8 @@
   (export make-gobject-class
           gobject-class?
           send-message
-          send)
+          send
+          make-genum genum? genum-lookup genum-values genum-symbols)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
@@ -12,6 +13,10 @@
           (spells tracing)
           (sbank utils))
 
+  ;;
+  ;; Object system
+  ;;
+  
   (define-record-type ginstance
     (fields (immutable class ginstance-class)
             (immutable ptr ginstance-ptr)))
@@ -33,7 +38,7 @@
                                              (lookup-method parent name)))
           (else #f)))
   
-  (trace-define (send-message obj msg . args)
+  (define (send-message obj msg . args)
     (if (ginstance? obj)
         (let ((method (send-message (ginstance-class obj) msg)))
           (apply method (ginstance-ptr obj) args))
@@ -53,4 +58,27 @@
   (define-syntax send
     (syntax-rules ()
       ((send obj (msg arg ...) ...)
-       (begin (send-message obj 'msg arg ...) ...)))))
+       (begin (send-message obj 'msg arg ...) ...))))
+
+
+  ;;
+  ;; Enumerations and flags
+  ;;
+  (define-record-type (genum make-genum% genum?)
+    (fields
+     (immutable syms genum-symbols)
+     (immutable vals genum-values)))
+
+  ;; Note: this could be made more efficient by using sorted vectors
+  ;; (but only in one direction)
+  (define (genum-lookup enum sym-or-val)
+    (if (symbol? sym-or-val)
+        (cond ((vector-index eq? (genum-symbols enum) sym-or-val)
+               => (lambda (i) (vector-ref (genum-values enum) i)))
+              (else #f))
+        (cond ((vector-index eqv? (genum-values enum) sym-or-val)
+               => (lambda (i) (vector-ref (genum-symbols enum) i)))
+              (else #f))))
+
+  (define (make-genum alist)
+    (make-genum% (list->vector (map car alist)) (list->vector (map cdr alist)))))

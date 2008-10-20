@@ -1,5 +1,6 @@
 (library (sbank utils)
-  (export make-lazy-entry lazy-entry? lazy-entry-proc
+  (export vector-index
+          make-lazy-entry lazy-entry? lazy-entry-proc
           symbol-append
           scheme-ified-symbol
           c-ified-string
@@ -11,6 +12,12 @@
           (spells char-set)
           (only (spells strings) string-map string-tokenize))
 
+  (define (vector-index equal vec val)
+    (let loop ((i 0))
+      (cond ((>= i (vector-length vec)) #f)
+            ((equal (vector-ref vec i) val) i)
+            (else (loop (+ i 1))))))
+  
   (define-record-type lazy-entry
     (fields
      (immutable proc lazy-entry-proc)))  

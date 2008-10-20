@@ -51,6 +51,9 @@
   (define-fetcher simple-type-blob-fetcher "SimpleTypeBlob")
   (define-fetcher object-blob-fetcher "ObjectBlob")
   (define-fetcher arg-blob-fetcher "ArgBlob")
+  (define-fetcher constant-blob-fetcher "ConstantBlob")
+  (define-fetcher enum-blob-fetcher "EnumBlob")
+  (define-fetcher value-blob-fetcher "ValueBlob")
   
   (define-syntax let-attributes
     (syntax-rules ()
@@ -63,10 +66,14 @@
       ((let-accessors <fetcher> ((<accessor-name> <field>) ...) <body> ...)
        (let ((<accessor-name> (<fetcher> '<field>)) ...)
          <body> ...))))
+
+  (define (checked-dlopen name)
+    (or (dlopen name)
+        (error 'checked-dlopen "unable to open shared library" name (dlerror))))
   
-  (define libir (dlopen "libgirepository.so.0"))
-  (define libgobject (dlopen "libgobject-2.0.so.0"))
-  (define libglib (dlopen "libglib-2.0.so.0"))
+  (define libir (checked-dlopen "libgirepository.so.0"))
+  (define libgobject (checked-dlopen "libgobject-2.0.so.0"))
+  (define libglib (checked-dlopen "libglib-2.0.so.0"))
 
   ;;
   ;; Public API
@@ -270,10 +277,10 @@
   (define (make-entry-loader typelib tld entry-name entry-ptr)
     (with-validation-context entry-name
         (let-attributes dir-entry-fetcher entry-ptr
-                        (name offset)
+                        (name offset local blob-type)
           (let ((content-ptr (validated-pointer+ tld offset 1)))
             (thunk/validation-context
-             (if (= ((dir-entry-fetcher 'local) entry-ptr) 0)
+             (if (= local 0)
                  (lambda ()
                    (let ((namespace (get/validate-string tld offset))
                          (name (get/validate-string tld name)))
@@ -281,12 +288,13 @@
                       (and-let* ((tl (require-typelib namespace #f 0)))
                         (typelib-get-entry tl name))
                       (raise-validation-error "invalid reference to other namespace" namespace name))))
-                 (case ((dir-entry-fetcher 'blob-type) entry-ptr)
+                 (case blob-type
                    ((1) (make-function-loader typelib tld entry-ptr entry-name))
+                   ((5) (make-enum-loader typelib tld entry-ptr entry-name))
                    ((7) (make-class-loader typelib tld entry-ptr entry-name))
                    (else
                     (lambda ()
-                      (list 'local-dir-entry (validation-context) offset))))))))))
+                      (raise-validation-error "unknown entry type encountered" blob-type))))))))))
 
   (define (make-function-loader typelib tld entry-ptr name)
     (let ((blob (validated-pointer+ tld
@@ -310,7 +318,7 @@
             (if (= wraps-vfunc 1)
                 (make/validate-vfunc-caller tld index callout)
                 (let ((proc (callout (typelib-dlsym typelib (get/validate-string tld symbol)))))
-                  (if deprecated
+                  (if (= deprecated 1)
                       (mark-deprecated typelib tld name proc)
                       proc))))))))
   
@@ -321,7 +329,7 @@
         (return-type n-arguments arguments)
       (receive (return-type pointer?) (simple-type-blob/type+pointer typelib tld return-type)
         (receive (prim-types setup collect)
-            (arg-blobs/prim-types+setup+collect typelib tld arguments n-arguments)
+            (arg-blobs/prim-types+setup+collect typelib tld arguments n-arguments method?)
           (cond ((symbol? return-type)
                  (case return-type
                    ((void) (make-callout 'void prim-types setup collect))
@@ -335,18 +343,21 @@
   (define arg-blobs/prim-types+setup+collect
     (let-accessors arg-blob-fetcher ((arg-in in) (arg-out out) (arg-null-ok null-ok)
                                      (arg-type arg-type) (arg-name name))
-      (lambda (typelib tld arg-blobs n-args)
+      (lambda (typelib tld arg-blobs n-args method?)
         (let ((arg-blob-size ((header-fetcher 'arg-blob-size) tld)))
           (let loop ((prim-types '()) (setup-steps '()) (i (- n-args 1)))
-            (write (list 'prim-types: prim-types 'steps: setup-steps 'i: i)) (newline)
             (if (< i 0)
-                (values prim-types (args-setup-procedure setup-steps) #f)
+                (values (if method?
+                            (cons 'pointer prim-types)
+                            prim-types)
+                        (args-setup-procedure n-args setup-steps) #f)
                 (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                        (name (get/validate-string tld (arg-name arg-blob)))
                        (in? (bool (arg-in arg-blob)))
                        (out? (bool (arg-out arg-blob)))
                        (null-ok? (bool (arg-null-ok arg-blob))))
-                  (receive (type pointer?) (simple-type-blob/type+pointer (arg-type arg-blob))
+                  (receive (type pointer?)
+                      (simple-type-blob/type+pointer typelib tld (arg-type arg-blob))
                     (cond (out?
                            (raise-validation-error "out arguments not yet implemented" name))
                           ((not in?)
@@ -357,37 +368,66 @@
                            (loop (cons (type-tag-symbol->prim-type type) prim-types)
                                  (cons #t setup-steps)
                                  (- i 1)))
+                          ((genum? type)
+                           (loop (cons 'signed-int prim-types) ; Is this always OK?
+                                 (cons (enum-arg-setup type i) setup-steps)
+                                 (- i 1)))
                           (else
                            (raise-validation-error
                             "complex argument types not yet implemented"
                             type name)))))))))))
 
+  (define (enum-arg-setup type i)
+    (lambda (in-args arg-vec)
+      (vector-set! arg-vec i
+                   (if (symbol? (car in-args))
+                       (or (genum-lookup type (car in-args))
+                           (error 'g-i-callout "invalid enumeration value"
+                                  (car in-args) (genum-symbols type)))
+                       (car in-args)))
+      (cdr in-args)))
+  
   (define (args-setup-procedure n-args steps)
+    (define (lose msg . irritants)
+      (apply error 'g-i-callout msg irritants))
     (if (for-all (lambda (x) (eqv? x #t)) steps)
         #f
         (lambda (in-args)
           (let ((arg-vec (make-vector n-args)))
-            (let loop ((in-args in-args) (steps steps))
+            (let loop ((args in-args) (steps steps))
               (cond ((null? steps)
-                     (unless (null? in-args)
-                       (assertion-violation (validation-context) "unprocessed arguments" in-args))
+                     (unless (null? args)
+                       (lose "unprocessed arguments" args))
                      arg-vec)
+                    ((null? args)
+                     (lose "too few arguments" in-args))
                     (else
                      (loop ((car steps) in-args arg-vec) (cdr steps)))))))))
   
   (define (make-callout prim-ret prim-args setup collect)
     (let ((prim-callout (make-c-callout prim-ret prim-args)))
-      (assert (or (and setup collect) (and (not setup) (not collect))))
-      (if (and setup collect)
-          (lambda (ptr)
-            (lambda args
-              (let* ((arg-vec (setup args))
-                     (ret-val (apply prim-callout (vector->list arg-vec)))
-                     (out-vals (collect arg-vec)))
-                (if (eq? prim-ret 'void)
-                    (apply values out-vals)
-                    (apply values ret-val out-vals)))))
-          prim-callout)))
+      (cond ((and setup collect)
+             (lambda (ptr)
+               (let ((do-callout (prim-callout ptr)))
+                 (lambda args
+                   (let* ((arg-vec (setup args))
+                          (ret-val (apply do-callout (vector->list arg-vec)))
+                          (out-vals (collect arg-vec)))
+                     (if (eq? prim-ret 'void)
+                         (apply values out-vals)
+                         (apply values ret-val out-vals)))))))
+            (setup
+             (lambda (ptr)
+               (let ((do-callout (prim-callout ptr)))
+                 (lambda args
+                   (let* ((arg-vec (setup args))
+                          (ret-val (apply do-callout (vector->list arg-vec))))
+                     (if (eq? prim-ret 'void)
+                         (values)
+                         ret-val))))))
+            (else
+             (assert (and (not setup) (not collect)))
+             prim-callout))))
   
   (define (make/validate-vfunc-caller tld index callout)
     (raise-typelib-error "vfunc calling not yet implemented"))
@@ -441,12 +481,50 @@
                                                  (constructor)
                                    (= constructor 1)))
                                (make-array-pointers methods n-methods function-blob-size))
-                  (write (list 'constructors: constructors 'methods: methods)) (newline)
                   (make-gobject-class (typelib-namespace typelib)
                                       name
                                       parent
                                       (filter-map (member-func-maker #f) constructors)
                                       (filter-map (member-func-maker #t) methods))))))))))
+
+  (define (make-enum-loader typelib tld entry-ptr entry-name)
+    (lambda ()
+      (let ((blob (validated-pointer+ tld
+                                      ((dir-entry-fetcher 'offset) entry-ptr)
+                                      ((header-fetcher 'enum-blob-size) tld))))
+        (let-attributes enum-blob-fetcher blob
+                        (blob-type n-values values)
+          (unless (= blob-type 5)
+            (raise-validation-error "invalid blob type for enum entry" blob-type))
+          (make-genum
+           (map (lambda (val-ptr)
+                  (let-attributes value-blob-fetcher val-ptr
+                                  (name value)
+                    (cons (scheme-ified-symbol (get/validate-string tld name))
+                          value)))
+                (make-array-pointers values n-values ((header-fetcher 'value-blob-size) tld))))))))
+  
+  (define (make-constant-loader typelib tld entry-ptr entry-name)
+    (lambda ()
+      (let ((blob (validated-pointer+ tld
+                                      ((dir-entry-fetcher 'offset) entry-ptr)
+                                      ((header-fetcher 'constant-blob-size) tld))))
+        (let-attributes enum-blob-fetcher blob
+                        (blob-type deprecated name type size offset)
+          (unless (= blob-type 9)
+            (raise-validation-error "invalid blob type for constant entry" blob-type))
+          (receive (type pointer?) (simple-type-blob/type+pointer typelib tld blob-type)
+            (when pointer?
+              (raise-validation-error "pointer constants not yet supported"))
+            (unless (symbol? type)
+              (raise-validation-error "non-simple constanst not yet supported"))
+            (unless (= (c-type-sizeof type) size)
+              (raise-validation-error "constant size mismatch" type size))
+            (fetch-constant typelib tld type offset))))))
+
+  (define (fetch-constant typelib tld type offset)
+    (let ((mem (validated-pointer+ tld offset (c-type-sizeof type))))
+      ((make-pointer-ref (type-tag-symbol->prim-type type)) mem 0)))
   
   (define (thunk/validation-context thunk)
     (let ((context (validation-context)))
@@ -460,7 +538,7 @@
         (cond (encountered? (apply proc args))
               (else
                (set! encountered? #t)
-               ((typelib-deprecation-handler) typelib (get/validate-string tld name))
+               ((typelib-deprecation-handler) typelib name)
                (apply proc args))))))
   
   ;;
@@ -487,7 +565,7 @@
                        (interface)
          (typelib-get-entry/index typelib interface)))
       (else
-       (raise-validation-error "non-simple type of this type not yet implemented" tag))))
+       (raise-validation-error "non-simple type of this kind not yet implemented" tag))))
   
   (define-syntax define-enum
     (syntax-rules ()
@@ -505,12 +583,6 @@
 
   (define type-tag-utf8 (symbol->type-tag 'utf8))
   (define type-tag-array (symbol->type-tag 'array))
-  
-  (define (vector-index equal vec val)
-    (let loop ((i 0))
-      (cond ((>= i (vector-length vec)) #f)
-            ((equal (vector-ref vec i) val) i)
-            (else (loop (+ i 1))))))
   
   (define (get/validate-string tld offset)
     ;; FIXME: This should actually check we don't go beyond the data
