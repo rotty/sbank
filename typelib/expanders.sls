@@ -23,12 +23,14 @@
     (receive (namespace version prefix bindings) (destructure-import-spec who import-spec)
       (let ((bindings (or bindings (get-bindings who namespace version)))
             (typelib #'typelib))
-        (cons #`(define #,typelib (open-typelib #,(datum->syntax k namespace)
-                                                #,(datum->syntax k version)
-                                                0))
+        (cons #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
+                                                   #,(datum->syntax k version)
+                                                   0))
               (map (lambda (name)
-                     #`(define #,(datum->syntax k (if prefix (symbol-append prefix name) name))
-                         (typelib-get-entry #,typelib #,(datum->syntax k (c-ified-string name)))))
+                     #`(define #,(datum->syntax k (if prefix (name-symbol/prefix name prefix) name))
+                         (or (typelib-get-entry #,typelib #,(datum->syntax k (c-ified-string name)))
+                             (error '#,(datum->syntax #'k who) "unable to import binding"
+                                    '#,(datum->syntax #'k name)))))
                    bindings)))))
 
   (define (destructure-import-spec who import-spec)
@@ -62,7 +64,7 @@
               (lose "bad keyword" (car import-spec)))))))
 
   (define (get-bindings who namespace version)
-    (let* ((tl (open-typelib namespace version 0))
+    (let* ((tl (require-typelib namespace version 0))
            (names (typelib-get-entry-names tl)))
       (map scheme-ified-symbol names))))
 

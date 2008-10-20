@@ -1,11 +1,16 @@
 (library (sbank typelib gobject)
   (export make-gobject-class
+          gobject-class?
           send-message
           send)
   (import (rnrs base)
           (rnrs control)
+          (rnrs lists)
           (rnrs records syntactic)
-          (spells alist))
+          (rnrs mutable-pairs)
+          (spells alist)
+          (spells tracing)
+          (sbank utils))
 
   (define-record-type ginstance
     (fields (immutable class ginstance-class)
@@ -19,18 +24,24 @@
             (immutable methods gobject-class-methods)))
 
   (define (lookup-method class name)
-    (cond ((assq-ref (gobject-class-methods class) name) => values)
+    (cond ((assq name (gobject-class-methods class))
+           => (lambda (entry)
+                (when (lazy-entry? (cdr entry))
+                  (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
+                (cdr entry)))
           ((gobject-class-parent class) => (lambda (parent)
                                              (lookup-method parent name)))
           (else #f)))
   
-  (define (send-message obj msg . args)
+  (trace-define (send-message obj msg . args)
     (if (ginstance? obj)
         (let ((method (send-message (ginstance-class obj) msg)))
           (apply method (ginstance-ptr obj) args))
-        (cond ((assq-ref (gobject-class-constructors obj) msg)
-               => (lambda (proc)
-                    (make-ginstance obj (apply proc args))))
+        (cond ((assq msg (gobject-class-constructors obj))
+               => (lambda (entry)
+                    (when (lazy-entry? (cdr entry))
+                      (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
+                    (make-ginstance obj (apply (cdr entry) args))))
               ((lookup-method obj msg)
                => (lambda (proc)
                     (unless (null? args)

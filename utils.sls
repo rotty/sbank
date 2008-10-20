@@ -1,16 +1,35 @@
 (library (sbank utils)
-  (export symbol-append
+  (export make-lazy-entry lazy-entry? lazy-entry-proc
+          symbol-append
           scheme-ified-symbol
           c-ified-string
-          string-split)
+          string-split
+          name-symbol/prefix)
   (import (rnrs base)
           (rnrs unicode)
+          (rnrs records syntactic)
           (spells char-set)
           (only (spells strings) string-map string-tokenize))
+
+  (define-record-type lazy-entry
+    (fields
+     (immutable proc lazy-entry-proc)))  
 
   (define (symbol-append . syms)
     (string->symbol (apply string-append (map symbol->string syms))))
 
+  (define (name-symbol/prefix sym prefix)
+    (let ((s (symbol->string sym)))
+      (cond ((or (enclosed-by? s #\* #\*)
+                 (enclosed-by? s #\< #\>))
+             (string->symbol
+              (string-append (string (string-ref s 0))
+                             (symbol->string prefix)
+                             (strip-enclosers s)
+                             (string (string-ref s (- (string-length s) 1))))))
+            (else
+             (symbol-append prefix sym)))))
+  
   (define scheme-ified-symbol
     (let ((upper-id-cs (char-set-union char-set:upper-case (char-set #\_ #\-))))
       (lambda (s)

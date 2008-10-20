@@ -249,7 +249,7 @@
          (if (null? bwlist) 0 (sxpath-attr (car bwcomps) '(type * size))))
       (define (bitfield-align)
         (if (null? bwcomps) 0 (sxpath-attr (car bwcomps) '(type * alignment))))
-      (trace-define (updated-size/bitfield size)
+      (define (updated-size/bitfield size)
         (if (= (bitfield-size) 0)
             size
             (updated-size size (bitfield-size) (bitfield-align))))
@@ -322,7 +322,7 @@
            #`(define-values (<fetcher-name> ...)
                (values (apply c-compound-element-fetcher 'args) ...)))))))
 
-  (trace-define (stype-fetcher-factory-definer types)
+  (define (stype-fetcher-factory-definer types)
     (lambda (stx)
       (syntax-case stx ()
         ((k <name> <type-name>)
@@ -337,7 +337,7 @@
                                 (else (error '<name>
                                              "no such field" sym fields))))))))))))
 
-  (trace-define (component-fetcher-alist comp)
+  (define (component-fetcher-alist comp)
     (case (car comp)
       ((field record array)
        (let ((name (sxpath-attr comp '(name))))

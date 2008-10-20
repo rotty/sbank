@@ -11,3 +11,8 @@
   (test/equal "stars" (c-ified-string '*this-is-a-constant*) "THIS_IS_A_CONSTANT")
   (test/equal "angle brackets - one word" (c-ified-string '<window>) "Window")
   (test/equal "angle brackets - 3 words" (c-ified-string '<foo-dialog-bar>) "FooDialogBar"))
+
+(testeez "name-symbol/prefix"
+  (test/equal "plain" (name-symbol/prefix 'main 'gtk-) 'gtk-main)
+  (test/equal "stars" (name-symbol/prefix '*a-constant* 'gtk-) '*gtk-a-constant*)
+  (test/equal "angle brackets" (name-symbol/prefix '<window> 'gtk-) '<gtk-window>))

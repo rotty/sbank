@@ -1,16 +1,24 @@
 #!r6rs
 (import (rnrs base)
-        (rnrs lists)
+        (rnrs control)
+;;         (rnrs lists)
         (rnrs io simple)
-        (spells pretty-print)
+        (only (ikarus) collect nanosleep)
+;;         (spells pretty-print)
         (spells time-it)
         (spells receive)
-        (sbank typelib base)
-        (sbank typelib))
+;;         (sbank typelib base)
+        (sbank typelib)
+        (sbank typelib gobject))
 
-(typelib-import (prefix (only ("Gtk" #f) main) gtk-))
+(receive (<gtk-window>) (time-it
+                         (let ()
+                           (typelib-import (prefix (only ("Gtk" #f) <window>) gtk-))
+                           (values <gtk-window>)))
+  (let ((w (send <gtk-window> (new))))
+    (println w)))
 
-(gtk-main)
+;;(gtk-main)
 
 ;; (let* ((tl (time-it (open-typelib "Gtk" #f 0)))
 ;;        (names (typelib-get-entry-names tl)))
