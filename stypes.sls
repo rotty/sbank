@@ -1,4 +1,40 @@
+;;; stypes.sls --- SXML-compatible representation of C types.
+
+;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+
+;; Author: Andreas Rottmann <a.rottmann@gmx.at>
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License
+;; as published by the Free Software Foundation; either version 3
+;; of the License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; This library provides functions to create and access a data
+;; structure called "stypes", which is SXML-compatible and contains
+;; information about C types, such as size and alignment.
+
+;; Using `stypes-adjoin', one can add new compound types (records, aka
+;; structs) and unions, which will have their field offset, size, and
+;; alignment information calculated when added.
+
+;; Via the `stype-fetcher` procedure and the `stype-accessor-definer`
+;; and `stype-fetcher-factory-definer' syntax-expander procedures, one
+;; can access the fields of compound types given a pointer to an
+;; instance of the compound type.
+
+;;; Code:
 #!r6rs
+
 (library (sbank stypes)
   (export primitive-stypes
           stypes-adjoin

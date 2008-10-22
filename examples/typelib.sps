@@ -1,3 +1,9 @@
+;;; typelib.sps --- Example for using typelib
+
+;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+
+;; This file is placed in the public domain.
+
 #!r6rs
 (import (rnrs base)
         (rnrs control)
