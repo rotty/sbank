@@ -7,7 +7,7 @@
         (spells time-it)
         (spells receive)
         (sbank typelib)
-        (sbank typelib gobject)
+        (sbank gobject)
         (spells foreign))
 
 (typelib-import (prefix (only ("Gtk" #f) <window> main init) gtk-))

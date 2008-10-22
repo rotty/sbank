@@ -2,7 +2,7 @@
  (files
   ("utils.scm" (sbank utils))
 
-  ("gobject.scm" (sbank typelib gobject))
+  ("gobject.scm" (sbank gobject))
   
   ("stypes.scm"
    (sbank stypes) (spells foreign)

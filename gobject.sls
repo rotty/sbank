@@ -1,4 +1,4 @@
-(library (sbank typelib gobject)
+(library (sbank gobject)
   (export make-gobject-class
           gobject-class?
           send-message
