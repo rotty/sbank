@@ -16,15 +16,16 @@
         (sbank gobject)
         (spells foreign))
 
-(typelib-import (prefix (only ("Gtk" #f) <window> main init) gtk-))
+(typelib-import (prefix (only ("Gtk" #f) <window> main init-check) gtk-))
 
-(let ((args (gtk-init (list->vector (command-line)))))
-  (println "arguments after gtk-init: " args))
+(receive (ok? args) (gtk-init-check (list->vector (command-line)))
+  (println "gtk-init: ok: " ok? ", remaining args: " args)
+  (or ok? (exit #f)))
 
 (let ((w (send <gtk-window> (new 'toplevel))))
   (send w (show)))
 
-(gtk-main)
+;;(gtk-main)
 
 (define (println . args)
   (for-each display args)
