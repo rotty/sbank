@@ -217,7 +217,7 @@
     (and-let* ((index (table-ref (typelib-name-table typelib) name)))
       (typelib-get-entry/index typelib index)))
 
-  (trace-define (typelib-get-entry/index typelib index)
+  (define (typelib-get-entry/index typelib index)
     (let* ((dir (typelib-directory typelib))
            (entry (vector-ref dir (- index 1))))
       (if (lazy-entry? entry)
@@ -340,7 +340,7 @@
       (lambda ()
         (make/validate-function typelib tld blob #f))))
 
-  (trace-define (make/validate-function typelib tld blob container)
+  (define (make/validate-function typelib tld blob container)
     (let-attributes
             function-blob-fetcher blob
             (blob-type deprecated wraps-vfunc index name symbol signature
@@ -373,12 +373,14 @@
                        (mark-deprecated typelib tld name proc)
                        proc))))))))
   
-  (trace-define (make/validate-callout typelib tld signature-offset constructor? container)
+  (define (make/validate-callout typelib tld signature-offset constructor? container)
     (let-attributes signature-blob-fetcher
         (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
         (return-type n-arguments arguments may-return-null)
       (let-values (((ret-type ret-pointer?)
-                    (simple-type-blob/type+pointer typelib tld return-type))
+                    (if constructor?
+                        (values container #t)
+                        (simple-type-blob/type+pointer typelib tld return-type)))
                    ((arg-types setup collect cleanup flags)
                     (arg-blobs-values typelib tld arguments n-arguments constructor? container)))
         (when (and constructor? (not (gobject-class? ret-type)))
@@ -454,9 +456,9 @@
 
   (define (make/validate-vfunc-caller tld index callout)
     (raise-sbank-error "vfunc calling not yet implemented"))
-
+  
   (define (make-class-loader typelib tld entry-ptr name)
-    (define (member-func-maker constructor?)
+    (define (member-func-maker container)
       (lambda (blob)
         (let ((name (scheme-ified-symbol
                      (get/validate-string tld ((function-blob-fetcher 'name) blob)))))
@@ -465,7 +467,7 @@
                   (make-lazy-entry
                    (thunk/validation-context
                     (lambda ()
-                      (make/validate-function typelib tld blob 'class)))))))))
+                      (make/validate-function typelib tld blob container)))))))))
     (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
            (blob (validated-pointer+ tld offset ((header-fetcher 'object-blob-size) tld))))
       (lambda ()
@@ -506,11 +508,17 @@
                                                  (constructor)
                                    (= constructor 1)))
                                (make-array-pointers methods n-methods function-blob-size))
-                  (make-gobject-class (typelib-namespace typelib)
-                                      name
-                                      parent
-                                      (map (member-func-maker #t) constructors)
-                                      (map (member-func-maker #f) methods))))))))))
+                  (let ((class 
+                          (make-gobject-class (typelib-namespace typelib)
+                                              name
+                                              parent
+                                              #f
+                                              #f)))
+                    (gobject-class-set-constructors! class (map (member-func-maker class)
+                                                                constructors))
+                    (gobject-class-set-methods! class (map (member-func-maker class)
+                                                           methods))
+                    class)))))))))
 
   (define (make-enum-loader typelib tld entry-ptr entry-name)
     (lambda ()
@@ -581,7 +589,7 @@
             (else
              (values (make/validate-type typelib tld offset) #f)))))
 
-  (trace-define (make/validate-type typelib tld offset)
+  (define (make/validate-type typelib tld offset)
     (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
                     (tag)
       (case (type-tag->symbol tag)

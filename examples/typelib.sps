@@ -25,7 +25,7 @@
 (let ((w (send <gtk-window> (new 'toplevel))))
   (send w (show)))
 
-;;(gtk-main)
+(gtk-main)
 
 (define (println . args)
   (for-each display args)

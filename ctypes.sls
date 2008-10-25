@@ -128,7 +128,7 @@
             (raise-sbank-callout-error "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
 
-  (trace-define (type/prim-type+procs type null-ok? out?)
+  (define (type/prim-type+procs type null-ok? out?)
     (cond
      ((symbol? type)
       (let ((prim-type (type-tag-symbol->prim-type type)))
@@ -171,7 +171,7 @@
      ((gobject-class? type)
       (values 'pointer
               (out-converter/null ginstance-ptr null-ok? #f)
-              (back-converter/null (trace-lambda make-inst (ptr)
+              (back-converter/null (lambda (ptr)
                                      (make-ginstance type ptr))
                                    null-ok?
                                    #f)
@@ -179,7 +179,7 @@
      (else
       (raise-sbank-callout-error "argument/return type not yet implemented" type))))
   
-  (trace-define (cleanup-step i cleanup-proc)
+  (define (cleanup-step i cleanup-proc)
     (lambda (arg-vec)
       (cleanup-proc (vector-ref arg-vec i))))
 
@@ -233,7 +233,7 @@
       (apply raise-sbank-callout-error msg irritants))
     (if (equal? steps (iota n-args))
         #f
-        (trace-lambda args-setup (in-args)
+        (lambda (in-args)
           (let ((arg-vec (make-vector n-args)))
             (let loop ((args in-args) (steps steps))
               (cond ((null? steps)
@@ -262,10 +262,10 @@
   (define (args-cleanup-procedure steps)
     (if (null? steps)
         #f
-        (trace-lambda args-cleanup (arg-vec)
+        (lambda (arg-vec)
           (for-each (lambda (step) (step arg-vec)) steps))))
 
-  (trace-define (make-callout rtype-info arg-types setup-steps collect-steps cleanup-steps flags)
+  (define (make-callout rtype-info arg-types setup-steps collect-steps cleanup-steps flags)
     (let ((prim-callout
            (make-c-callout (type->prim-type (rtype-info-type rtype-info) #f)
                            (map (lambda (type flag)
@@ -280,7 +280,6 @@
       (cond ((and setup collect out-args?)
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
-                 (debug "full callout " ptr)
                  (lambda args
                    (let ((arg-vec (setup args)))
                      (args-pre-call! arg-vec arg-types flags)
@@ -297,10 +296,9 @@
              (assert (not (or collect out-args?)))
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
-                 (trace-lambda setup-callout args
+                 (lambda args
                    (let* ((arg-vec (setup args))
                           (ret-val (apply do-callout (vector->list arg-vec))))
-                     (debug "ret-val: " ret-val " consume: " ret-consume " " (procedure? ret-consume))
                      (if cleanup (cleanup arg-vec))
                      (if (eqv? ret-consume #f)
                          (values)
@@ -313,14 +311,14 @@
              (assert (not (or setup collect out-args?)))
              prim-callout))))
 
-  (trace-define (ret-type-consumer rti)
+  (define (ret-type-consumer rti)
     (cond ((eq? (rtype-info-type rti) 'void)
            #f)
           (else
            (receive (prim-type out-convert back-convert cleanup)
                     (type/prim-type+procs (rtype-info-type rti) (rtype-info-null-ok? rti) #f)
              (cond (back-convert
-                    (trace-lambda ret-type-consume (val)
+                    (lambda (val)
                       (let ((result (back-convert val)))
                         (if cleanup (cleanup val))
                         result)))

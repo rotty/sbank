@@ -24,6 +24,11 @@
 
 (library (sbank gobject internals)
   (export make-gobject-class gobject-class?
+          ;; this only need because some constructor return types are
+          ;; wrong in the typelib, e.g for gtk_window_new()
+          gobject-class-set-constructors!
+          gobject-class-set-methods!
+          
           make-ginstance ginstance? ginstance-ptr ginstance-class
           send-message
           send
@@ -49,12 +54,12 @@
     (fields (immutable namespace gobject-class-namespace)
             (immutable name gobject-class-name)
             (immutable parent gobject-class-parent)
-            (immutable constructors gobject-class-constructors)
-            (immutable methods gobject-class-methods)))
+            (mutable constructors gobject-class-constructors gobject-class-set-constructors!)
+            (mutable methods gobject-class-methods gobject-class-set-methods!)))
 
-  (trace-define (lookup-method class name)
+  (define (lookup-method class name)
     (cond ((assq name (gobject-class-methods class))
-           => (trace-lambda lookup-found (entry)
+           => (lambda (entry)
                 (when (lazy-entry? (cdr entry))
                   (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
                 (cdr entry)))
@@ -62,7 +67,7 @@
                                              (lookup-method parent name)))
           (else #f)))
   
-  (trace-define (send-message obj msg . args)
+  (define (send-message obj msg . args)
     (if (ginstance? obj)
         (let ((method (send-message (ginstance-class obj) msg)))
           (apply method (ginstance-ptr obj) args))
