@@ -29,6 +29,8 @@
           (rnrs control)
           (rnrs lists)
           (rnrs io simple)
+          (spells find-file)
+          (spells pathname)
           (sbank stypes)
           (sbank typelib gir))
   
@@ -44,6 +46,13 @@
                                              (field (name "code") (type "int"))
                                              (field (name "message")
                                                     (type (array (element-type (type "char")))))))
-                                   (call-with-input-file "../../systems/sbank/data/typelib.gir"
-                                     gir-xml->stype-list)))))
+                                   (let* ((relpath '((sbank data) "typelib.gir"))
+                                          (filename (find-file relpath (library-search-paths))))
+                                     (unless filename
+                                       (error 'typelib-stypes
+                                              "typelib GIR data file not found"
+                                              (x->namestring relpath)
+                                              (library-search-paths)))
+                                     (call-with-input-file (x->namestring filename)
+                                       gir-xml->stype-list))))))
         stypes))))
