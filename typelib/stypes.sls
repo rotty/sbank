@@ -31,8 +31,7 @@
           (rnrs io simple)
           (spells find-file)
           (spells pathname)
-          (sbank stypes)
-          (sbank typelib gir))
+          (sbank stypes))
   
   (define typelib-stypes
     (let ((stypes #f))
@@ -46,13 +45,12 @@
                                              (field (name "code") (type "int"))
                                              (field (name "message")
                                                     (type (array (element-type (type "char")))))))
-                                   (let* ((relpath '((sbank data) "typelib.gir"))
+                                   (let* ((relpath '((sbank data) "typelib.scm"))
                                           (filename (find-file relpath (library-search-paths))))
                                      (unless filename
                                        (error 'typelib-stypes
                                               "typelib GIR data file not found"
                                               (x->namestring relpath)
                                               (library-search-paths)))
-                                     (call-with-input-file (x->namestring filename)
-                                       gir-xml->stype-list))))))
+                                     (call-with-input-file (x->namestring filename) read))))))
         stypes))))
