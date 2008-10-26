@@ -24,7 +24,14 @@
 
 (library (sbank gobject internals)
   (export make-gobject-class gobject-class?
+          gobject-class-namespace
+          gobject-class-name
+          gobject-class-parent
+          gobject-class-constructors
+          gobject-class-methods
+          gobject-class-signals
           gobject-class-get-signal-callback
+          gobject-class-decorate
           ;; this only need because some constructor return types are
           ;; wrong in the typelib, e.g for gtk_window_new()
           gobject-class-set-constructors!
@@ -53,30 +60,28 @@
             (immutable ptr ginstance-ptr)))
 
   (define-record-type gobject-class
+    (opaque #t)
     (fields (immutable namespace gobject-class-namespace)
             (immutable name gobject-class-name)
             (immutable parent gobject-class-parent)
             (mutable constructors gobject-class-constructors gobject-class-set-constructors!)
             (mutable methods gobject-class-methods gobject-class-set-methods!)
-            (immutable signal-signatures gobject-class-signal-signatures))
-    (protocol (lambda (p)
-                (lambda (namespace name parent constructors methods signals)
-                  (p namespace
-                     name
-                     parent
-                     constructors
-                     methods
-                     (map lazify signals))))))
-
-  (define (lazify entry)
-    (cons (car entry) (make-lazy-entry (cdr entry))))
+            (immutable signals gobject-class-signals)))
 
   (define gobject-class-get-signal-callback
-    (let ((lookup (make-gobject-class-lookup gobject-class-signal-signatures)))
+    (let ((lookup (make-gobject-class-lookup gobject-class-signals)))
       (lambda (class signal)
         (let ((signature (lookup class signal)))
           (and signature (signature-callback signature))))))
-    
+
+  (define (gobject-class-decorate class constructors-decorator methods-decorator signals-decorator)
+    (make-gobject-class (gobject-class-namespace class)
+                        (gobject-class-name class)
+                        (gobject-class-parent class)
+                        (constructors-decorator (gobject-class-constructors class))
+                        (methods-decorator (gobject-class-methods class))
+                        (signals-decorator (gobject-class-signals class))))
+
   (define lookup-method (make-gobject-class-lookup gobject-class-methods))
   
   (define (make-gobject-class-lookup accessor)

@@ -424,7 +424,8 @@
                               (receive (type pointer?)
                                   (simple-type-blob/type+pointer typelib tld (arg-type arg-blob))
                                 (and (array-type? type) (array-length-index type))))
-                     (make-array-pointers arg-blobs n-args arg-blob-size))))
+                     (make-array-pointers arg-blobs n-args arg-blob-size)))
+               (has-self-ptr? (and container (not constructor?))))
           (let loop ((arg-types '())
                      (setup-steps '())
                      (collect-steps '())
@@ -435,7 +436,7 @@
                      (flags '())
                      (i (- n-args 1)))
             (if (< i 0)
-                (if (and container (not constructor?)) ; augment args with instance pointer
+                (if has-self-ptr?
                     (values (cons 'pointer arg-types)
                             (cons 0 setup-steps)
                             collect-steps
@@ -457,7 +458,7 @@
                   (let*-values (((type pointer?)
                                  (simple-type-blob/type+pointer typelib tld (arg-type arg-blob)))
                                 ((setup! collect cleanup)
-                                 (arg-steps type i null-ok? out?)))                    
+                                 (arg-steps type (if has-self-ptr? (+ i 1) i) null-ok? out?)))
                     (cond (length?
                            (loop (cons type arg-types)
                                  (cons #f setup-steps)

@@ -31,14 +31,35 @@
           send
           install-gobject-decorators)
   (import (rnrs base)
+          (rnrs lists)
           (only (spells assert) cout)
+          (spells alist)
+          (spells tracing)
           (sbank typelib decorators)
           (sbank gobject signals)
           (sbank gobject internals))
+  
 
   (define (gobject-decorator class)
-    ;; IMPLEMENTME
-    class)
+    (gobject-class-decorate class values (method-overrider `((connect . ,gobject-connect))) values))
 
+  (define (gobject-connect instance signal callback)
+    (cout (list "gobject-connect: " instance " " signal " " callback) "\n"))
+  
+  (define (method-overrider overrides)
+    (lambda (methods)
+      (let loop ((result methods) (overrides overrides))
+        (if (null? overrides)
+            result
+            (cond ((assq (caar overrides) methods)
+                   => (lambda (method)
+                        (loop (cons (car overrides) (filter (lambda (m)
+                                                              (not (eq? m method)))
+                                                            result))
+                              (cdr overrides))))
+                  (else
+                   (loop (cons (car overrides) result) (cdr overrides))))))))
+  
   (define (install-gobject-decorators)
-    (register-typelib-decorator "GObject" "Object" gobject-decorator)))
+    (register-typelib-decorator "GObject" "Object" gobject-decorator))
+)

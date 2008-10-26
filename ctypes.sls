@@ -103,8 +103,8 @@
      (else
       (receive (prim-type out-convert back-convert cleanup)
                (type/prim-type+procs type null-ok? out?)
-        (values (converter-setup i out-convert)
-                (and out? (converter-collect i back-convert))
+        (values (if out-convert (converter-setup i out-convert) i)
+                (and out? (if back-convert (converter-collect i back-convert) i))
                 (and cleanup (cleanup-step i cleanup)))))))
 
   ;; This returns and expects a converter that returns a pointer
