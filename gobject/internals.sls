@@ -27,15 +27,8 @@
           gobject-class-namespace
           gobject-class-name
           gobject-class-parent
-          gobject-class-constructors
-          gobject-class-methods
-          gobject-class-signals
           gobject-class-get-signal-callback
           gobject-class-decorate
-          ;; this only need because some constructor return types are
-          ;; wrong in the typelib, e.g for gtk_window_new()
-          gobject-class-set-constructors!
-          gobject-class-set-methods!
           
           make-ginstance ginstance? ginstance-ptr ginstance-class
           send-message
@@ -47,6 +40,7 @@
           (rnrs records syntactic)
           (rnrs mutable-pairs)
           (spells alist)
+          (spells receive)
           (spells tracing)
           (sbank type-data)
           (sbank utils))
@@ -60,13 +54,18 @@
             (immutable ptr ginstance-ptr)))
 
   (define-record-type gobject-class
-    (opaque #t)
-    (fields (immutable namespace gobject-class-namespace)
-            (immutable name gobject-class-name)
-            (immutable parent gobject-class-parent)
-            (mutable constructors gobject-class-constructors gobject-class-set-constructors!)
-            (mutable methods gobject-class-methods gobject-class-set-methods!)
-            (immutable signals gobject-class-signals)))
+    ;;(opaque #t)
+    (fields namespace
+            name
+            (mutable load-members) 
+            (mutable parent)
+            (mutable constructors)
+            (mutable methods)
+            (mutable signals))
+    (protocol (lambda (p)
+                (lambda (namespace name load-members)
+                  (p namespace name load-members #f #f #f #f)))))
+
 
   (define gobject-class-get-signal-callback
     (let ((lookup (make-gobject-class-lookup gobject-class-signals)))
@@ -77,10 +76,13 @@
   (define (gobject-class-decorate class constructors-decorator methods-decorator signals-decorator)
     (make-gobject-class (gobject-class-namespace class)
                         (gobject-class-name class)
-                        (gobject-class-parent class)
-                        (constructors-decorator (gobject-class-constructors class))
-                        (methods-decorator (gobject-class-methods class))
-                        (signals-decorator (gobject-class-signals class))))
+                        (lambda (new-class)
+                          (gobject-class-force! class)
+                          (values
+                           (gobject-class-parent class)
+                           (constructors-decorator (gobject-class-constructors class))
+                           (methods-decorator (gobject-class-methods class))
+                           (signals-decorator (gobject-class-signals class))))))
 
   (define lookup-method (make-gobject-class-lookup gobject-class-methods))
   
@@ -92,26 +94,39 @@
                     (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
                   (cdr entry)))
             ((gobject-class-parent class) => (lambda (parent)
+                                               (gobject-class-force! parent)
                                                (lookup parent name)))
             (else #f)))
     lookup)
+
+  (define (gobject-class-force! class)
+    (cond ((gobject-class-load-members class)
+           => (lambda (loader)
+                (receive (parent constructors methods signals) (loader class)
+                  (gobject-class-parent-set! class parent)
+                  (gobject-class-constructors-set! class constructors)
+                  (gobject-class-methods-set! class methods)
+                  (gobject-class-signals-set! class signals)
+                  (gobject-class-load-members-set! class #f))))))
   
   (define (send-message obj msg . args)
-    (if (ginstance? obj)
-        (let ((method (send-message (ginstance-class obj) msg)))
-          (apply method (ginstance-ptr obj) args))
-        (cond ((assq msg (gobject-class-constructors obj))
-               => (lambda (entry)
-                    (when (lazy-entry? (cdr entry))
-                      (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
-                    (apply (cdr entry) args)))
-              ((lookup-method obj msg)
-               => (lambda (proc)
-                    (unless (null? args)
-                      (error 'send-message "cannot send message with arguments to class" obj msg args))
-                    proc))
-              (else
-               (error 'send-message "message not understood" obj msg args)))))
+    (cond ((ginstance? obj)
+           (let ((method (send-message (ginstance-class obj) msg)))
+             (apply method (ginstance-ptr obj) args)))
+          (else
+           (gobject-class-force! obj)
+           (cond ((assq msg (gobject-class-constructors obj))
+                  => (lambda (entry)
+                       (when (lazy-entry? (cdr entry))
+                         (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
+                       (apply (cdr entry) args)))
+                 ((lookup-method obj msg)
+                  => (lambda (proc)
+                       (unless (null? args)
+                         (error 'send-message "cannot send message with arguments to class" obj msg args))
+                       proc))
+                 (else
+                  (error 'send-message "message not understood" obj msg args))))))
 
   (define-syntax send
     (syntax-rules ()

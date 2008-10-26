@@ -60,8 +60,8 @@
   
 
   (define (array-element-size atype)
-    (cond ((array-elements-pointers? atype) (c-type-sizeof 'pointer))
-          (else (c-type-sizeof (type->prim-type (array-element-type atype))))))
+    (let ((eti (array-element-type-info atype)))
+      (c-type-sizeof (type-info->prim-type eti #f))))
 
   (define null-ok-always-on? (make-parameter #f))
   
@@ -80,10 +80,12 @@
          (arg-types arg-types (cdr arg-types))
          (flags flags (cdr flags)))
         ((>= i (vector-length arg-vec)))
-      (case (car flags)
-        ((in-out) (vector-set! arg-vec i (malloc/set! (car arg-types) (vector-ref arg-vec i))))
-        ((out) (vector-set! arg-vec i
-                            (malloc (c-type-sizeof (type-tag-symbol->prim-type (car arg-types)))))))))
+      (let* ((ti (car arg-types))
+             (prim-type (type-info-type ti)))
+        (case (car flags)
+          ((in-out) (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
+          ((out) (vector-set! arg-vec i
+                              (malloc (c-type-sizeof (type-tag-symbol->prim-type prim-type)))))))))
 
   (define (args-post-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
@@ -94,18 +96,19 @@
         ((in-out out)
          (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
   
-  (define (arg-steps type i null-ok? out?)
-    (cond
-     ((array-type? type)
-      (values (array-arg-setup type i null-ok?)
-              (and out? (array-arg-collect type i))
-              (array-arg-cleanup type i)))
-     (else
-      (receive (prim-type out-convert back-convert cleanup)
-               (type/prim-type+procs type null-ok? out?)
-        (values (if out-convert (converter-setup i out-convert) i)
-                (and out? (if back-convert (converter-collect i back-convert) i))
-                (and cleanup (cleanup-step i cleanup)))))))
+  (define (arg-steps ti i out?)
+    (let ((type (type-info-type ti)))
+      (cond
+       ((array-type? type)
+        (values (array-arg-setup type i (type-info-null-ok? ti))
+                (and out? (array-arg-collect type i))
+                (array-arg-cleanup type i)))
+       (else
+        (receive (prim-type out-convert back-convert cleanup)
+                 (type-info/prim-type+procs ti out?)
+          (values (if out-convert (converter-setup i out-convert) i)
+                  (and out? (if back-convert (converter-collect i back-convert) i))
+                  (and cleanup (cleanup-step i cleanup))))))))
 
   ;; This returns and expects a converter that returns a pointer
   ;; (i.e. a converter for calling *out* to C); don't confuse this
@@ -130,56 +133,62 @@
             (raise-sbank-callout-error "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
 
-  (define (type/prim-type+procs type null-ok? out?)
-    (cond
-     ((symbol? type)
-      (let ((prim-type (type-tag-symbol->prim-type type)))
-        (case type
-          ((int8 uint8 int16 uint16 int32 uint32
-                 int64 uint64 int uint long ulong ssize size
-                 float double)
-           (values prim-type #f #f #f))
-          ((boolean)
-           (values prim-type
-                   (lambda (val) (if val 1 0))
-                   (lambda (val) (not (= val 0)))
-                   #f))
-          ((utf8)
-           (values prim-type
-                   (out-converter/null string->utf8z-ptr null-ok? #f)
-                   (back-converter/null utf8z-ptr->string null-ok? #f)
-                   free))
-          (else
-           (raise-sbank-callout-error "argument passing for this type not implemented" type)))))
-     ((genum? type)
-      (values 'int ; Is int always OK?
-              (lambda (val)
-                (if (symbol? val)
-                    (or (genum-lookup type val)
-                        (raise-sbank-callout-error
-                         "invalid enumeration value" val (genum-symbols type)))
-                    val))
-              (and out? (lambda (val)
-                          (or (genum-lookup type val) val)))
-              #f))
-     ((array-type? type)
-      (unless (or (array-size type) (array-is-zero-terminated? type))
-        (raise-sbank-callout-error "cannot handle array without size information" type))
-      (values 'pointer
-              (out-converter/null ->c-array null-ok? #f)
-              (back-converter/null c-array->vector null-ok? #f)
-              (lambda (ptr)
-                (free-c-array ptr type #f))))
-     ((gobject-class? type)
-      (values 'pointer
-              (out-converter/null ginstance-ptr null-ok? #f)
-              (back-converter/null (lambda (ptr)
-                                     (make-ginstance type ptr))
-                                   null-ok?
-                                   #f)
-              #f))
-     (else
-      (raise-sbank-callout-error "argument/return type not yet implemented" type))))
+  (define (type-info/prim-type+procs ti out?)
+    (let ((type (type-info-type ti))
+          (null-ok? (type-info-null-ok? ti)))
+      (cond
+       ((symbol? type)
+        (let ((prim-type (type-tag-symbol->prim-type type)))
+          (case type
+            ((int8 uint8 int16 uint16 int32 uint32
+                   int64 uint64 int uint long ulong ssize size
+                   float double)
+             (values prim-type #f #f #f))
+            ((boolean)
+             (values prim-type
+                     (lambda (val) (if val 1 0))
+                     (lambda (val) (not (= val 0)))
+                     #f))
+            ((utf8)
+             (values prim-type
+                     (out-converter/null string->utf8z-ptr null-ok? #f)
+                     (back-converter/null utf8z-ptr->string null-ok? #f)
+                     free))
+            ((void)
+             (unless pointer?
+               (raise-sbank-callout-error "cannot pass void"))
+             (values 'pointer #f #f #f))
+            (else
+             (raise-sbank-callout-error "argument passing for this type not implemented" type)))))
+       ((genum? type)
+        (values 'int                    ; Is int always OK?
+                (lambda (val)
+                  (if (symbol? val)
+                      (or (genum-lookup type val)
+                          (raise-sbank-callout-error
+                           "invalid enumeration value" val (genum-symbols type)))
+                      val))
+                (and out? (lambda (val)
+                            (or (genum-lookup type val) val)))
+                #f))
+       ((array-type? type)
+        (unless (or (array-size type) (array-is-zero-terminated? type))
+          (raise-sbank-callout-error "cannot handle array without size information" type))
+        (values 'pointer
+                (out-converter/null ->c-array null-ok? #f)
+                (back-converter/null c-array->vector null-ok? #f)
+                (lambda (ptr)
+                  (free-c-array ptr type #f))))
+       ((gobject-class? type)
+        (values 'pointer
+                (out-converter/null ginstance-ptr null-ok? #f)
+                (back-converter/null (lambda (ptr)
+                                       (make-ginstance type ptr))
+                                     null-ok?
+                                     #f)
+                #f))
+       (else
+        (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
   
   (define (cleanup-step i cleanup-proc)
     (lambda (arg-vec)
@@ -267,18 +276,19 @@
         (lambda (arg-vec)
           (for-each (lambda (step) (step arg-vec)) steps))))
 
-  (define (make-callout rtype-info arg-types setup-steps collect-steps cleanup-steps flags)
+
+  (define (make-callout rti arg-types setup-steps collect-steps cleanup-steps flags)
     (let ((prim-callout
-           (make-c-callout (type->prim-type (rtype-info-type rtype-info) #f)
+           (make-c-callout (type-info->prim-type rti #f)
                            (map (lambda (type flag)
-                                  (type->prim-type type (memq flag '(out in-out))))
+                                  (type-info->prim-type type (memq flag '(out in-out))))
                                 arg-types
                                 flags)))
           (out-args? (exists (lambda (flag) (memq flag '(out in-out))) flags))
           (setup (args-setup-procedure (length arg-types) setup-steps))
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
-          (ret-consume (ret-type-consumer rtype-info)))
+          (ret-consume (ret-type-consumer rti)))
       (cond ((and setup collect out-args?)
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
@@ -300,7 +310,9 @@
                (let ((do-callout (prim-callout ptr)))
                  (lambda args
                    (let* ((arg-vec (setup args))
-                          (ret-val (apply do-callout (vector->list arg-vec))))
+                          (ret-val (begin (cout (list 'after-setup: arg-vec) "\n")
+                                          (apply do-callout (vector->list arg-vec)))))
+                     
                      (if cleanup (cleanup arg-vec))
                      (if (eqv? ret-consume #f)
                          (values)
@@ -313,17 +325,13 @@
              (assert (not (or setup collect out-args?)))
              prim-callout))))
 
-  (define (make-callback rtype-info arg-types prepare-steps collect-steps flags)
+  (define (make-callback rti arg-types prepare-steps collect-steps flags)
     (receive (prim-ret ret-out-convert ret-back-convert cleanup)
-             (if (eq? (rtype-info-type rtype-info) 'void)
-                 (values 'void #f #f #f)
-                 (type/prim-type+procs (rtype-info-type rtype-info)
-                                       (rtype-info-null-ok? rtype-info)
-                                       #f))
+             (type-info/prim-type+procs rti)
       (let ((prim-callback
              (make-c-callback prim-ret
                               (map (lambda (type flag)
-                                     (type->prim-type type (memq flag '(out in-out))))
+                                     (type-info->prim-type type (memq flag '(out in-out))))
                                    arg-types
                                    flags))))
         (cond ((and (not ret-out-convert) (equal? prepare-steps (iota (length arg-types))))
@@ -365,11 +373,11 @@
                      (loop ((car steps) (car vals) arg-vec))))))))))
   
   (define (ret-type-consumer rti)
-    (cond ((eq? (rtype-info-type rti) 'void)
+    (cond ((eq? (type-info-type rti) 'void)
            #f)
           (else
            (receive (prim-type out-convert back-convert cleanup)
-                    (type/prim-type+procs (rtype-info-type rti) (rtype-info-null-ok? rti) #f)
+                    (type-info/prim-type+procs rti #f)
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))
@@ -379,15 +387,17 @@
                     (assert (not cleanup))
                     #t))))))
   
-  (define (type->prim-type type out?)
-    (cond ((or out?
-               (array-type? type)
-               (gobject-class? type))
-           'pointer)
-          ((genum? type)
-           'int)
-          (else
-           (type-tag-symbol->prim-type type))))
+  (define (type-info->prim-type ti out?)
+    (let ((type (type-info-type ti)))
+      (cond ((or out?
+                 (type-info-is-pointer? ti)
+                 (array-type? type)
+                 (gobject-class? type))
+             'pointer)
+            ((genum? type)
+             'int)
+            (else
+             (type-tag-symbol->prim-type type)))))
     
   ;; Allocate memory as needed for the type @2, store a representation
   ;; of @1 in it, and return a pointer to the allocated memory
@@ -406,13 +416,14 @@
 
   ;; Retrieve a Scheme representation of the memory pointed to by @1,
   ;; according to the type @2.
-  (define (deref-pointer ptr type)
-    (cond ((symbol? type)
-           ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))
-          ((array-type? type)
-           (pointer-ref-c-pointer ptr 0))
-          (else
-           (error 'deref-pointer "not implemented for that type" ptr type))))
+  (define (deref-pointer ptr ti)
+    (let ((type (type-info-type ti)))
+      (cond ((symbol? type)
+             ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))
+            ((array-type? type)
+             (pointer-ref-c-pointer ptr 0))
+            (else
+             (error 'deref-pointer "not implemented for that type" ptr type)))))
   
   (define-syntax define-enum
     (syntax-rules ()
@@ -457,19 +468,21 @@
       result))
 
   (define (array-type-values atype)
-    (cond ((symbol? (array-element-type atype))
-           (let* ((prim-type (type-tag-symbol->prim-type (array-element-type atype)))
-                  (elt-size (c-type-sizeof prim-type)))
-             (case (array-element-type atype)
-               ((utf8)
-                (values prim-type elt-size pointer-utf8z-ptr-ref pointer-utf8z-ptr-set!))
-               (else
-                (values prim-type
-                        elt-size
-                        (make-pointer-c-getter prim-type)
-                        (make-pointer-c-setter prim-type))))))
-          (else
-           (raise-sbank-callout-error "non-simple array element types not yet supported"))))
+    (let* ((eti (array-element-type-info atype))
+           (et (type-info-type eti)))
+      (cond ((symbol? et)
+             (let* ((prim-type (type-tag-symbol->prim-type et))
+                    (elt-size (c-type-sizeof prim-type)))
+               (case et
+                 ((utf8)
+                  (values prim-type elt-size pointer-utf8z-ptr-ref pointer-utf8z-ptr-set!))
+                 (else
+                  (values prim-type
+                          elt-size
+                          (make-pointer-c-getter prim-type)
+                          (make-pointer-c-setter prim-type))))))
+            (else
+             (raise-sbank-callout-error "non-simple array element types not yet supported")))))
   
   (define (vector->c-array vec atype)
     (let ((len (vector-length vec)))
@@ -528,17 +541,17 @@
   
   (define (c-array-for-each proc ptr atype size)
     (let ((element-size (array-element-size atype))
-          (element-type (array-element-type atype)))
+          (element-ti (array-element-type-info atype)))
       (cond ((or size (array-size atype))
              => (lambda (size)
                   (do ((i 0 (+ i 1)))
                       ((>= i size))
-                    (proc (deref-pointer (pointer+ ptr (* i element-size)) element-type)))))
+                    (proc (deref-pointer (pointer+ ptr (* i element-size)) element-ti)))))
             ((array-is-zero-terminated? atype)
              (let ((terminator? (array-terminator-predicate atype)))
                (let loop ((offset 0) (elts '()))
                  (unless (terminator? ptr offset)
-                   (proc (deref-pointer (pointer+ ptr offset) element-type))
+                   (proc (deref-pointer (pointer+ ptr offset) element-ti))
                    (loop (+ offset element-size))))))
             (else
              (raise-sbank-callout-error "cannot iterate over array of unknown size" ptr atype)))))

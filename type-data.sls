@@ -25,9 +25,9 @@
 
 (library (sbank type-data)
   (export array-type?
-          array-elements-pointers?
           array-is-zero-terminated?
           array-size
+          array-element-type-info
           array-element-type
           make-array-type
           array-length-index
@@ -37,11 +37,11 @@
           signature-callout
           signature-callback
           
-          make-rtype-info
-          rtype-info?
-          rtype-info-type
-          rtype-info-is-pointer?
-          rtype-info-null-ok?)
+          make-type-info
+          type-info?
+          type-info-type
+          type-info-is-pointer?
+          type-info-null-ok?)
   (import (rnrs base)
           (rnrs records syntactic)
           (spells foreign)
@@ -49,16 +49,18 @@
           (sbank utils))
 
   (define-record-type array-type
-    (fields (immutable element-type array-element-type)
-            (immutable elements-pointers? array-elements-pointers?)
-            (immutable is-zero-terminated array-is-zero-terminated?)
+    (fields (immutable element-type-info array-element-type-info)
+            (immutable zero-terminated array-is-zero-terminated?)
             (immutable size array-size)
             (immutable length-index array-length-index)))
 
-    (define-record-type rtype-info
-    (fields (immutable type rtype-info-type)
-            (immutable is-pointer? rtype-info-is-pointer?)
-            (immutable null-ok? rtype-info-null-ok?)))
+  (define (array-element-type atype)
+    (type-info-type (array-element-type-info atype)))
+  
+  (define-record-type type-info
+    (fields (immutable type type-info-type)
+            (immutable is-pointer? type-info-is-pointer?)
+            (immutable null-ok? type-info-null-ok?)))
 
   (define-record-type signature
     (fields (mutable callout signature-callout% signature-set-callout%!)
