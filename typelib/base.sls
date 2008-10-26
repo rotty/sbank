@@ -47,19 +47,23 @@
           (only (spells misc) or-map)
           (only (spells assert) cerr cout)
           (sbank utils)
+          (sbank type-data)
           (sbank stypes)
           (sbank ctypes)
+          (sbank shlibs)
           (sbank gobject internals)
           (sbank conditions)
+          (sbank typelib decorators)
           (for (sbank typelib stypes) run expand))
 
+  (define-syntax debug (syntax-rules () ((debug <expr> ...) (begin))))
+  #|
   (define-syntax debug
     (syntax-rules ()
       ((debug <expr> ...)
        (for-each display (list "DEBUG: " <expr> ... "\n")))))
+  |#
   
-  ;;(define-syntax debug (syntax-rules () (begin)))
-
   
   ;;
   ;; Typelib accessors and fetcher factories
@@ -93,6 +97,7 @@
   (define-fetcher enum-blob-fetcher "EnumBlob")
   (define-fetcher value-blob-fetcher "ValueBlob")
   (define-fetcher array-type-blob-fetcher "ArrayTypeBlob")
+  (define-fetcher signal-blob-fetcher "SignalBlob")
   
   (define-syntax let-attributes
     (syntax-rules ()
@@ -105,14 +110,6 @@
       ((let-accessors <fetcher> ((<accessor-name> <field>) ...) <body> ...)
        (let ((<accessor-name> (<fetcher> '<field>)) ...)
          <body> ...))))
-
-  (define (checked-dlopen name)
-    (or (dlopen name)
-        (error 'checked-dlopen "unable to open shared library" name (dlerror))))
-  
-  (define libir (checked-dlopen "libgirepository.so.0"))
-  (define libgobject (checked-dlopen "libgobject-2.0.so.0"))
-  (define libglib (checked-dlopen "libglib-2.0.so.0"))
 
   ;;
   ;; Public API
@@ -128,7 +125,7 @@
     (fields (immutable tl typelib-tl)
             (immutable namespace)
             (immutable name-table typelib-name-table)
-            (immutable callouts typelib-callouts)
+            (immutable signatures typelib-signatures)
             (immutable directory typelib-directory)
             (mutable shlibs %typelib-shlibs %typelib-set-shlibs!)))
 
@@ -173,7 +170,7 @@
 
   (define require-typelib%
     (let ((g-ir-require ((make-c-callout 'pointer '(pointer pointer pointer uint pointer))
-                           (dlsym libir "g_irepository_require"))))
+                           (dlsym libgir "g_irepository_require"))))
       (lambda (who namespace version flags)
         (with-validation-context namespace
           (let ((c-namespace (->utf8z-ptr/null who namespace))
@@ -313,25 +310,30 @@
   
   (define (make-entry-loader typelib tld entry-name entry-ptr)
     (with-validation-context entry-name
-        (let-attributes dir-entry-fetcher entry-ptr
-                        (name offset local blob-type)
-          (let ((content-ptr (validated-pointer+ tld offset 1)))
-            (thunk/validation-context
-             (if (= local 0)
-                 (lambda ()
-                   (let ((namespace (get/validate-string tld offset))
-                         (name (get/validate-string tld name)))
-                     (or
-                      (and-let* ((tl (require-typelib namespace #f 0)))
-                        (typelib-get-entry tl name))
-                      (raise-validation-error "invalid reference to other namespace" namespace name))))
-                 (case blob-type
-                   ((1) (make-function-loader typelib tld entry-ptr entry-name))
-                   ((5) (make-enum-loader typelib tld entry-ptr entry-name))
-                   ((7) (make-class-loader typelib tld entry-ptr entry-name))
-                   (else
-                    (lambda ()
-                      (raise-validation-error "unknown entry type encountered" blob-type))))))))))
+      (let-attributes dir-entry-fetcher entry-ptr
+                      (name offset local blob-type)
+        (let ((content-ptr (validated-pointer+ tld offset 1)))
+          (thunk/validation-context
+           (decorated-loader
+            (typelib-namespace typelib)
+            entry-name
+            (if (= local 0)
+                (lambda ()
+                  (let ((namespace (get/validate-string tld offset))
+                        (name (get/validate-string tld name)))
+                    (or
+                     (and-let* ((tl (require-typelib namespace #f 0)))
+                       (typelib-get-entry tl name))
+                     (raise-validation-error
+                      "invalid reference to other namespace"
+                      namespace name))))
+                (case blob-type
+                  ((1) (make-function-loader typelib tld entry-ptr entry-name))
+                  ((5) (make-enum-loader typelib tld entry-ptr entry-name))
+                  ((7) (make-class-loader typelib tld entry-ptr entry-name))
+                  (else
+                   (lambda ()
+                     (raise-validation-error "unknown entry type encountered" blob-type)))))))))))
 
   (define (make-function-loader typelib tld entry-ptr name)
     (let ((blob (validated-pointer+ tld
@@ -340,6 +342,13 @@
       (lambda ()
         (make/validate-function typelib tld blob #f))))
 
+
+  (define (get-signature typelib tld signature callout callback)
+    (or (table-ref (typelib-signatures typelib) signature)
+        (let ((result (make-signature callout callback)))
+          (table-set! (typelib-signatures typelib) signature result)
+          result)))
+                                                  
   (define (make/validate-function typelib tld blob container)
     (let-attributes
             function-blob-fetcher blob
@@ -352,23 +361,30 @@
           (raise-validation-error "constructor without container"))
         (unless (or (= index 0) (bool setter) (bool getter) (bool wraps-vfunc))
           (raise-validation-error "indexed function blob must be setter getter or wrapper"))
-        (let ((callout (or (table-ref (typelib-callouts typelib) signature)
-                           (let ((callout
-                                  (make/validate-callout typelib
-                                                         tld
-                                                         signature
-                                                         (bool constructor)
-                                                         container)))
-                             (table-set! (typelib-callouts typelib) signature callout)
-                             callout))))
+        (let ((signature (get-signature typelib
+                                        tld
+                                        signature
+                                        (lambda ()
+                                          (make/validate-callout typelib
+                                                                 tld
+                                                                 signature
+                                                                 (bool constructor)
+                                                                 container))
+                                        (lambda ()
+                                          (make/validate-callback typelib
+                                                                  tld
+                                                                  signature
+                                                                  (not (bool constructor))
+                                                                  container)))))
           (cond ((= wraps-vfunc 1)
-                 (make/validate-vfunc-caller tld index callout))
+                 (make/validate-vfunc-caller tld index (signature-callout signature)))
                 ((= getter 1)
                  (raise-validation-error "getters not yet supported"))
                 ((= setter 1)
                  (raise-validation-error "setters not yet supported"))
                 (else
-                 (let ((proc (callout (typelib-dlsym typelib (get/validate-string tld symbol)))))
+                 (let ((proc ((signature-callout signature)
+                              (typelib-dlsym typelib (get/validate-string tld symbol)))))
                    (if (= deprecated 1)
                        (mark-deprecated typelib tld name proc)
                        proc))))))))
@@ -382,7 +398,12 @@
                         (values container #t)
                         (simple-type-blob/type+pointer typelib tld return-type)))
                    ((arg-types setup collect cleanup flags)
-                    (arg-blobs-values typelib tld arguments n-arguments constructor? container)))
+                    (arg-blobs-callout-values typelib
+                                              tld
+                                              arguments
+                                              n-arguments
+                                              constructor?
+                                              container)))
         (when (and constructor? (not (gobject-class? ret-type)))
           (raise-validation-error "constructor does not return a class type"))
         (make-callout (make-rtype-info ret-type ret-pointer? (bool may-return-null))
@@ -390,7 +411,7 @@
                       setup collect cleanup
                       flags))))
 
-  (define arg-blobs-values
+  (define arg-blobs-callout-values
     (let-accessors arg-blob-fetcher ((arg-in in)
                                      (arg-out out)
                                      (arg-null-ok null-ok)
@@ -454,6 +475,28 @@
                                  (cons (flag) flags)
                                  (- i 1))))))))))))
 
+  (define (arg-blobs-callback-values typelib tld arguments n-arguments method? container)
+    ;; IMPLEMENTME
+    (values '() '() '() '()))
+  
+  (define (make/validate-callback typelib tld signature-offset method? container)
+    (let-attributes signature-blob-fetcher
+        (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
+        (return-type n-arguments arguments may-return-null)
+      (let-values (((ret-type ret-pointer?)
+                    (simple-type-blob/type+pointer typelib tld return-type))
+                   ((arg-types prepare collect flags)
+                    (arg-blobs-callback-values typelib
+                                               tld
+                                               arguments
+                                               n-arguments
+                                               method?
+                                               container)))
+        (make-callback (make-rtype-info ret-type ret-pointer? (bool may-return-null))
+                       arg-types
+                       prepare collect
+                       flags))))
+  
   (define (make/validate-vfunc-caller tld index callout)
     (raise-sbank-error "vfunc calling not yet implemented"))
   
@@ -468,9 +511,24 @@
                    (thunk/validation-context
                     (lambda ()
                       (make/validate-function typelib tld blob container)))))))))
+    (define (signal-maker blob)
+      (let-attributes signal-blob-fetcher blob
+                      (name signature)
+        (let ((name (scheme-ified-symbol
+                     (get/validate-string tld name))))
+          (with-validation-context name
+            (cons name
+                  (make-signature
+                   (thunk/validation-context
+                    (lambda ()
+                      (make/validate-callout typelib tld signature)))
+                   (thunk/validation-context
+                    (lambda ()
+                      (make/validate-callback typelib tld signature)))))))))
     (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
            (blob (validated-pointer+ tld offset ((header-fetcher 'object-blob-size) tld))))
       (lambda ()
+        (debug (list 'class-loader: name))
         (let-attributes header-fetcher tld
                         (object-blob-size field-blob-size property-blob-size
                                           function-blob-size signal-blob-size
@@ -508,12 +566,15 @@
                                                  (constructor)
                                    (= constructor 1)))
                                (make-array-pointers methods n-methods function-blob-size))
-                  (let ((class 
-                          (make-gobject-class (typelib-namespace typelib)
-                                              name
-                                              parent
-                                              #f
-                                              #f)))
+                  (let* ((signals (map signal-maker
+                                       (make-array-pointers signals n-signals signal-blob-size)))
+                         (class 
+                           (make-gobject-class (typelib-namespace typelib)
+                                               (get/validate-string tld name)
+                                               parent
+                                               #f
+                                               #f
+                                               signals)))
                     (gobject-class-set-constructors! class (map (member-func-maker class)
                                                                 constructors))
                     (gobject-class-set-methods! class (map (member-func-maker class)
@@ -573,6 +634,12 @@
                (set! encountered? #t)
                ((typelib-deprecation-handler) typelib name)
                (apply proc args))))))
+
+  (define (decorated-loader namespace name loader)
+    (lambda ()
+      (let ((decorator (lookup-typelib-decorator namespace name)))
+        (debug (list 'decorated-loader: namespace name decorator))
+        (if decorator (decorator (loader)) (loader)))))
   
   ;;
   ;; Helpers

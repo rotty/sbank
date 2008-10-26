@@ -24,6 +24,7 @@
 
 (library (sbank gobject internals)
   (export make-gobject-class gobject-class?
+          gobject-class-get-signal-callback
           ;; this only need because some constructor return types are
           ;; wrong in the typelib, e.g for gtk_window_new()
           gobject-class-set-constructors!
@@ -40,6 +41,7 @@
           (rnrs mutable-pairs)
           (spells alist)
           (spells tracing)
+          (sbank type-data)
           (sbank utils))
 
   ;;
@@ -55,17 +57,39 @@
             (immutable name gobject-class-name)
             (immutable parent gobject-class-parent)
             (mutable constructors gobject-class-constructors gobject-class-set-constructors!)
-            (mutable methods gobject-class-methods gobject-class-set-methods!)))
+            (mutable methods gobject-class-methods gobject-class-set-methods!)
+            (immutable signal-signatures gobject-class-signal-signatures))
+    (protocol (lambda (p)
+                (lambda (namespace name parent constructors methods signals)
+                  (p namespace
+                     name
+                     parent
+                     constructors
+                     methods
+                     (map lazify signals))))))
 
-  (define (lookup-method class name)
-    (cond ((assq name (gobject-class-methods class))
-           => (lambda (entry)
-                (when (lazy-entry? (cdr entry))
-                  (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
-                (cdr entry)))
-          ((gobject-class-parent class) => (lambda (parent)
-                                             (lookup-method parent name)))
-          (else #f)))
+  (define (lazify entry)
+    (cons (car entry) (make-lazy-entry (cdr entry))))
+
+  (define gobject-class-get-signal-callback
+    (let ((lookup (make-gobject-class-lookup gobject-class-signal-signatures)))
+      (lambda (class signal)
+        (let ((signature (lookup class signal)))
+          (and signature (signature-callback signature))))))
+    
+  (define lookup-method (make-gobject-class-lookup gobject-class-methods))
+  
+  (define (make-gobject-class-lookup accessor)
+    (define (lookup class name)
+      (cond ((assq name (accessor class))
+             => (lambda (entry)
+                  (when (lazy-entry? (cdr entry))
+                    (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
+                  (cdr entry)))
+            ((gobject-class-parent class) => (lambda (parent)
+                                               (lookup parent name)))
+            (else #f)))
+    lookup)
   
   (define (send-message obj msg . args)
     (if (ginstance? obj)

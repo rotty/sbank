@@ -16,6 +16,7 @@
         (sbank gobject)
         (spells foreign))
 
+(install-gobject-decorators)
 (typelib-import (prefix (only ("Gtk" #f) <window> main init-check) gtk-))
 
 (receive (ok? args) (gtk-init-check (list->vector (command-line)))

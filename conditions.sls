@@ -30,7 +30,11 @@
           
           &sbank-callout-error
           make-sbank-callout-error
-          sbank-callout-error?)
+          sbank-callout-error?
+
+          &sbank-callback-error
+          make-sbank-callback-error
+          sbank-callback-error?)
 
   (import (rnrs base)
           (rnrs conditions))
@@ -39,4 +43,7 @@
     make-sbank-error sbank-error?)
 
   (define-condition-type &sbank-callout-error &sbank-error
-    make-sbank-callout-error sbank-callout-error?))
+    make-sbank-callout-error sbank-callout-error?)
+
+  (define-condition-type &sbank-callback-error &sbank-error
+    make-sbank-callback-error sbank-callback-error?))

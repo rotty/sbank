@@ -28,6 +28,17 @@
 (library (sbank gobject)
   (export gobject-class? ginstance?
           genum? genum-lookup
-          send)
+          send
+          install-gobject-decorators)
   (import (rnrs base)
-          (sbank gobject internals)))
+          (only (spells assert) cout)
+          (sbank typelib decorators)
+          (sbank gobject signals)
+          (sbank gobject internals))
+
+  (define (gobject-decorator class)
+    ;; IMPLEMENTME
+    class)
+
+  (define (install-gobject-decorators)
+    (register-typelib-decorator "GObject" "Object" gobject-decorator)))

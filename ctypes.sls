@@ -25,17 +25,13 @@
 
 (library (sbank ctypes)
   (export make-callout
+          make-callback
           arg-steps
           
           utf8z-ptr->string
+          string->utf8z-ptr
           ->utf8z-ptr/null
 
-          array-type?
-          make-array-type
-          array-length-index
-
-          make-rtype-info
-          
           type-tag-symbol->prim-type
           type-tag->symbol
           symbol->type-tag
@@ -51,6 +47,7 @@
           (only (spells assert) cerr cout)
           (spells tracing)
           (sbank utils)
+          (sbank type-data)
           (sbank gobject internals)
           (sbank conditions))
 
@@ -61,15 +58,20 @@
   
   ;;(define-syntax debug (syntax-rules () (begin)))
   
-  (define-record-type rtype-info
-    (fields (immutable type rtype-info-type)
-            (immutable is-pointer? rtype-info-is-pointer?)
-            (immutable null-ok? rtype-info-null-ok?)))
-  
+
+  (define (array-element-size atype)
+    (cond ((array-elements-pointers? atype) (c-type-sizeof 'pointer))
+          (else (c-type-sizeof (type->prim-type (array-element-type atype))))))
+
   (define null-ok-always-on? (make-parameter #f))
   
   (define (raise-sbank-callout-error msg . irritants)
     (raise (condition (make-sbank-callout-error)
+                      (make-message-condition msg)
+                      (make-irritants-condition irritants))))
+
+  (define (raise-sbank-callback-error msg . irritants)
+    (raise (condition (make-sbank-callback-error)
                       (make-message-condition msg)
                       (make-irritants-condition irritants))))
   
@@ -311,6 +313,57 @@
              (assert (not (or setup collect out-args?)))
              prim-callout))))
 
+  (define (make-callback rtype-info arg-types prepare-steps collect-steps flags)
+    (receive (prim-ret ret-out-convert ret-back-convert cleanup)
+             (if (eq? (rtype-info-type rtype-info) 'void)
+                 (values 'void #f #f #f)
+                 (type/prim-type+procs (rtype-info-type rtype-info)
+                                       (rtype-info-null-ok? rtype-info)
+                                       #f))
+      (let ((prim-callback
+             (make-c-callback prim-ret
+                              (map (lambda (type flag)
+                                     (type->prim-type type (memq flag '(out in-out))))
+                                   arg-types
+                                   flags))))
+        (cond ((and (not ret-out-convert) (equal? prepare-steps (iota (length arg-types))))
+               prim-callback)
+              (else
+               (let ((arg-len (length arg-types)))
+                 (lambda (proc)
+                   (prim-callback
+                    (make-callback-wrapper proc prim-ret ret-out-convert arg-types
+                                           prepare-steps collect-steps flags)))))))))
+
+
+  (define (make-callback-wrapper proc prim-ret ret-out-convert arg-types
+                                 prepare-steps collect-steps flags)
+    (let ((arg-len (length arg-types)))
+      (lambda args
+        (assert (= arg-len (length args)))
+        (let* ((arg-vec (list->vector args))
+               (args (let loop ((args '()) (steps prepare-steps))
+                       (if (null? steps)
+                           (reverse args)
+                           (loop (cons ((car steps) arg-vec) args))))))
+          (receive ret-values (apply proc args)
+            (let loop ((vals (if (eq? prim-ret 'void)
+                                 ret-values
+                                 (cdr ret-values)))
+                       (steps collect-steps))
+              (cond ((null? vals)
+                     (unless (null? steps)
+                       (raise-sbank-callback-error "called procedure returned not enough values"
+                                                   ret-values prim-ret))
+                     (if (eq? prim-ret 'void)
+                         (values)
+                         (ret-out-convert (car ret-values))))
+                    ((null? steps)
+                     (raise-sbank-callback-error "called procedure returned too many values"
+                                                 ret-values prim-ret))
+                    (else
+                     (loop ((car steps) (car vals) arg-vec))))))))))
+  
   (define (ret-type-consumer rti)
     (cond ((eq? (rtype-info-type rti) 'void)
            #f)
@@ -360,17 +413,6 @@
            (pointer-ref-c-pointer ptr 0))
           (else
            (error 'deref-pointer "not implemented for that type" ptr type))))
-  
-  (define-record-type array-type
-    (fields (immutable element-type array-element-type)
-            (immutable elements-pointers? array-elements-pointers?)
-            (immutable is-zero-terminated array-is-zero-terminated?)
-            (immutable size array-size)
-            (immutable length-index array-length-index)))
-
-  (define (array-element-size atype)
-    (cond ((array-elements-pointers? atype) (c-type-sizeof 'pointer))
-          (else (c-type-sizeof (type->prim-type (array-element-type atype))))))
   
   (define-syntax define-enum
     (syntax-rules ()
