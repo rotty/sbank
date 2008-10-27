@@ -425,11 +425,14 @@
                      (i (- n-args 1)))
             (if (< i 0)
                 (if has-self-ptr?
-                    (values (cons (make-type-info 'pointer #f #f) arg-types)
-                            (cons 0 setup-steps)
-                            collect-steps
-                            cleanup-steps
-                            (cons 'in flags))
+                    (receive (setup! collect cleanup)
+                             (arg-steps (make-type-info container #t #f) 0 #f)
+                      (assert (not (or collect cleanup)))
+                      (values (cons (make-type-info 'pointer #f #f) arg-types)
+                              (cons setup! setup-steps)
+                              collect-steps
+                              cleanup-steps
+                              (cons 'in flags)))
                     (values arg-types setup-steps collect-steps cleanup-steps flags))
                 (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                        (name (get/validate-string tld (arg-name arg-blob)))

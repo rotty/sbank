@@ -118,7 +118,7 @@
   (define (send-message obj msg . args)
     (cond ((ginstance? obj)
            (let ((method (send-message (ginstance-class obj) msg)))
-             (apply method (ginstance-ptr obj) args)))
+             (apply method obj args)))
           (else
            (gobject-class-force! obj)
            (cond ((assq msg (gobject-class-constructors obj))
