@@ -44,7 +44,7 @@
     (gobject-class-decorate class values (method-overrider `((connect . ,gobject-connect))) values))
 
   (define (gobject-connect instance signal callback)
-    (cout (list "gobject-connect: " instance " " signal " " callback) "\n"))
+    (signal-connect instance signal callback))
   
   (define (method-overrider overrides)
     (lambda (methods)

@@ -57,6 +57,7 @@
           (for (sbank typelib stypes) run expand))
 
   (define-syntax debug (syntax-rules () ((debug <expr> ...) (begin))))
+
   #|
   (define-syntax debug
     (syntax-rules ()
@@ -500,20 +501,21 @@
                    (thunk/validation-context
                     (lambda ()
                       (make/validate-function typelib tld blob container)))))))))
-    (define (signal-maker blob)
-      (let-attributes signal-blob-fetcher blob
-                      (name signature)
-        (let ((name (scheme-ified-symbol
-                     (get/validate-string tld name))))
-          (with-validation-context name
-            (cons name
-                  (make-signature
-                   (thunk/validation-context
-                    (lambda ()
-                      (make/validate-callout typelib tld signature)))
-                   (thunk/validation-context
-                    (lambda ()
-                      (make/validate-callback typelib tld signature)))))))))
+    (define (signal-maker container)
+      (lambda (blob)
+        (let-attributes signal-blob-fetcher blob
+                        (name signature)
+          (let ((name (scheme-ified-symbol
+                       (get/validate-string tld name))))
+            (with-validation-context name
+              (cons name
+                    (make-signature
+                     (thunk/validation-context
+                      (lambda ()
+                        (make/validate-callout typelib tld signature)))
+                     (thunk/validation-context
+                      (lambda ()
+                        (make/validate-callback typelib tld signature #t container))))))))))
     (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
            (blob (validated-pointer+ tld offset ((header-fetcher 'object-blob-size) tld))))
       (lambda ()
@@ -559,12 +561,11 @@
                                                          (constructor)
                                            (= constructor 1)))
                                        (make-array-pointers methods n-methods function-blob-size))
-                     (let ((signals (map signal-maker
-                                         (make-array-pointers signals n-signals signal-blob-size))))
-                       (values parent
-                               (map (member-func-maker class) constructors)
-                               (map (member-func-maker class) methods)
-                               signals))))))))))))
+                     (values parent
+                             (map (member-func-maker class) constructors)
+                             (map (member-func-maker class) methods)
+                             (map (signal-maker class)
+                                  (make-array-pointers signals n-signals signal-blob-size)))))))))))))
 
   (define (make-enum-loader typelib tld entry-ptr entry-name)
     (lambda ()

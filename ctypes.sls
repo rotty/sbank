@@ -383,7 +383,7 @@
 
   (define (make-callback rti arg-types prepare-steps collect-steps flags)
     (receive (prim-ret ret-out-convert ret-back-convert cleanup)
-             (type-info/prim-type+procs rti)
+             (type-info/prim-type+procs rti #f)
       (let ((prim-callback
              (make-c-callback prim-ret
                               (map (lambda (type flag)
@@ -401,7 +401,7 @@
 
 
   (define (make-callback-wrapper proc prim-ret ret-out-convert arg-types
-                                 prepare-steps collect-steps flags)
+                                  prepare-steps collect-steps flags)
     (let ((arg-len (length arg-types)))
       (lambda args
         (assert (= arg-len (length args)))

@@ -28,6 +28,8 @@
   (import (rnrs base)
           (spells receive)
           (spells foreign)
+          (spells tracing)
+          (only (spells assert) cout)
           (xitomatl srfi and-let*)
           (xitomatl srfi let-values)
           (sbank utils)
@@ -36,13 +38,18 @@
           (sbank typelib)
           (sbank gobject internals))
 
+  (define signal-destroy-notify-ptr ((make-c-callback 'void '(pointer pointer))
+                                     (lambda (data closure)
+                                       (cout (list 'signal-destroyed: data closure) "\n"))))
+  
   (define signal-connect
-    (let ((g-signal-connect-data ((make-c-callout 'ulong '(pointer pointer pointer pointer int))
+    (let ((g-signal-connect-data ((make-c-callout 'ulong
+                                                  '(pointer pointer pointer pointer pointer int))
                                   (dlsym libgobject "g_signal_connect_data"))))
       (define (lose msg . irritants)
         (apply error 'signal-connect msg irritants))
-      (lambda (instance detailed-signal callback)
-        (let*-values (((signal detail) (parse-detailed-signal detailed-signal lose))
+      (lambda (instance signal callback)
+        (let*-values (((signal detail detailed-signal) (parse-signal-spec signal lose))
                       ((detailed-signal-ptr) (string->utf8z-ptr detailed-signal)))
           (let ((id (g-signal-connect-data
                      (ginstance-ptr instance)
@@ -51,14 +58,22 @@
                              (ginstance-class instance)
                              signal) => (lambda (wrap) (wrap callback)))
                            (else
-                            (lose "no such signal" detailed-signal))))))
+                            (lose "no such signal" detailed-signal)))
+                     (integer->pointer 0)
+                     signal-destroy-notify-ptr
+                     0)))
             (free detailed-signal-ptr)
             id)))))
 
-  (define (parse-detailed-signal detailed-signal lose)
-    (let ((parts (string-split detailed-signal #\:)))
-      (case (length parts)
-        ((1) (values (car parts)))
-        ((2) (values (car parts) (cadr parts)))
-        (else
-         (lose "invalid signal name" detailed-signal))))))
+  (define (parse-signal-spec signal lose)
+    (cond ((string? signal)
+           (let ((parts (string-split signal #\:)))
+             (case (length parts)
+               ((1) (values (string->symbol (car parts)) #f signal))
+               ((2) (values (string->symbol (car parts)) (cadr parts) signal))
+               (else
+                (lose "invalid signal name" signal)))))
+          ((symbol? signal)
+           (values signal #f (symbol->string signal)))
+          (else
+           (lose "invalid signal specification" signal)))))
