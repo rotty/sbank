@@ -64,7 +64,6 @@
        (for-each display (list "DEBUG: " <expr> ... "\n")))))
   |#
   
-  
   ;;
   ;; Typelib accessors and fetcher factories
   ;;
@@ -74,11 +73,6 @@
   (define-accessors "GTypelib"
     (tl-data "data"))
   
-  (define-accessors "GError"
-    (gerror-domain "domain")
-    (gerror-code "code")
-    (gerror-message "message"))
-
   (define-accessors "Header"
     ;; This needs to be reasonably fast, so we don't use let-attribute/fetchers here
     (header-size "size")) 
@@ -176,23 +170,15 @@
         (with-validation-context namespace
           (let ((c-namespace (->utf8z-ptr/null who namespace))
                 (c-version (->utf8z-ptr/null who version))
-                (gerror (malloc (c-type-sizeof 'pointer))))
-            (pointer-set-c-pointer! gerror 0 (integer->pointer 0))
-            (dynamic-wind
-              (lambda () #t)
-              (lambda ()
-                (let ((result 
-                       (g-ir-require (integer->pointer 0) c-namespace c-version flags gerror)))
-                  (cond ((= 0 (pointer->integer result))
-                         (error 'open-typelib
-                                "unable to require library"
-                                (utf8z-ptr->string (gerror-message (pointer-ref-c-pointer gerror 0)))))
-                        (else
-                         (make/validate-typelib result namespace)))))
-              (lambda () (let ((e (pointer-ref-c-pointer gerror 0)))
-                           (when (not (= 0 (pointer->integer e)))
-                             (gerror-free e))
-                           (free gerror)))))))))
+                (gerror (malloc/set! 'pointer (integer->pointer 0))))
+            (let ((result 
+                   (g-ir-require (integer->pointer 0) c-namespace c-version flags gerror)))
+              (cond ((= 0 (pointer->integer result))
+                     (let ((e (pointer-ref-c-pointer gerror 0)))
+                       (free gerror)
+                       (raise-gerror/free 'require-typelib #f e namespace version)))
+                    (else
+                     (make/validate-typelib result namespace)))))))))
 
   
   (define (typelib-magic typelib)
@@ -423,7 +409,7 @@
                                                     tld
                                                     (arg-type blob)
                                                     (bool (arg-null-ok blob))))
-                                (make-array-pointers arg-blobs n-args arg-blob-size)))
+                                (reverse (make-array-pointers arg-blobs n-args arg-blob-size))))
                (length-indices (filter-map (lambda (ti)
                                              (let ((type (type-info-type ti)))
                                                (and (array-type? type)
@@ -434,10 +420,8 @@
                      (setup-steps '())
                      (collect-steps '())
                      (cleanup-steps '())
-                     ;; "virtual" argument types, without the
-                     ;; conversion to a pointer for out arguments and
-                     ;; alias resolution
                      (flags '())
+                     (tis type-infos)
                      (i (- n-args 1)))
             (if (< i 0)
                 (if has-self-ptr?
@@ -451,7 +435,6 @@
                        (name (get/validate-string tld (arg-name arg-blob)))
                        (in? (bool (arg-in arg-blob)))
                        (out? (bool (arg-out arg-blob)))
-                       (null-ok? (bool (arg-null-ok arg-blob)))
                        (length? (memv i length-indices)))
                   (define (flag)
                     (cond ((and in? out?) 'in-out)
@@ -459,25 +442,25 @@
                           (in? 'in)
                           (else
                            (raise-validation-error "argument has no direction" i))))
-                  (let*-values (((ti)
-                                 (stblob-type-info typelib tld (arg-type arg-blob) null-ok?))
-                                ((setup! collect cleanup)
-                                 (arg-steps ti (if has-self-ptr? (+ i 1) i) out?)))
+                  (receive (setup! collect cleanup)
+                           (arg-steps (car tis) (if has-self-ptr? (+ i 1) i) out?)
                     (cond (length?
-                           (loop (cons ti arg-types)
+                           (loop (cons (car tis) arg-types)
                                  (cons #f setup-steps)
                                  collect-steps
                                  cleanup-steps
                                  (cons (flag) flags)
+                                 (cdr tis)
                                  (- i 1)))
                           (else
-                           (loop (cons ti arg-types)
+                           (loop (cons (car tis) arg-types)
                                  (cons setup! setup-steps)
                                  (if collect
                                      (cons collect collect-steps)
                                      collect-steps)
                                  (if cleanup (cons cleanup cleanup-steps) cleanup-steps)
                                  (cons (flag) flags)
+                                 (cdr tis)
                                  (- i 1))))))))))))
 
   (define (arg-blobs-callback-values typelib tld arguments n-arguments method? container)
@@ -690,11 +673,12 @@
                          (interface)
            (let* ((entry (typelib-get-entry/index typelib interface))
                   (pointer? (not (genum? entry))))
+             (debug (list "entry:" entry))
              (make-type-info entry pointer? null-ok?))))
         ((error)
-         (let-attributes error-type-blob-fetcher (validated-pointer+ tld 4)
+         (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
                          (tag n-domains domains)
-           (raise-validation-error "error type not yet implemented")))
+           (make-type-info (make-gerror-type) #t #f)))
         (else
          (raise-validation-error "non-simple type of this kind not yet implemented"
                                  (type-tag->symbol tag))))))
@@ -711,9 +695,6 @@
     (when (> (+ offset size) (header-size tld))
       (raise-validation-error "offset/size out of bounds" offset size (header-size tld)))
     (pointer+ tld offset))
-
-  (define gerror-free
-    ((make-c-callout 'void '(pointer)) (dlsym libglib "g_error_free")))
 
   (define (pointer+ p n)
     (integer->pointer (+ (pointer->integer p) n)))

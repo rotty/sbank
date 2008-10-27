@@ -31,10 +31,14 @@
           utf8z-ptr->string
           string->utf8z-ptr
           ->utf8z-ptr/null
+          malloc/set!
 
           type-tag-symbol->prim-type
           type-tag->symbol
           symbol->type-tag
+
+          gerror? make-gerror gerror-domain gerror-code
+          raise-gerror/free
 
           null-ok-always-on?)
   
@@ -48,6 +52,9 @@
           (spells tracing)
           (sbank utils)
           (sbank type-data)
+          (sbank stypes)
+          (sbank shlibs)
+          (sbank typelib stypes)
           (sbank gobject internals)
           (sbank conditions))
 
@@ -57,7 +64,18 @@
        (for-each display (list "DEBUG: " <expr> ... "\n")))))
   
   ;;(define-syntax debug (syntax-rules () (begin)))
-  
+
+  (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
+
+  (define-accessors "GError"
+    (c-gerror-domain "domain")
+    (c-gerror-code "code")
+    (c-gerror-message "message"))
+
+  (define-condition-type &gerror &error
+    make-gerror gerror?
+    (domain gerror-domain)
+    (code gerror-code))
 
   (define (array-element-size atype)
     (let ((eti (array-element-type-info atype)))
@@ -103,6 +121,10 @@
         (values (array-arg-setup type i (type-info-null-ok? ti))
                 (and out? (array-arg-collect type i))
                 (array-arg-cleanup type i)))
+       ((gerror-type? type)
+        (values (gerror-arg-setup type i)
+                #f
+                (gerror-arg-cleanup type i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti out?)
@@ -133,7 +155,7 @@
             (raise-sbank-callout-error "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
 
-  (define (type-info/prim-type+procs ti out?)
+  (trace-define (type-info/prim-type+procs ti out?)
     (let ((type (type-info-type ti))
           (null-ok? (type-info-null-ok? ti)))
       (cond
@@ -239,6 +261,41 @@
     (lambda (arg-vec)
       (free-c-array (vector-ref arg-vec i) atype (get-array-length atype arg-vec))))
 
+  (define (gerror-arg-setup etype i)
+    (lambda (args arg-vec)
+      (vector-set! arg-vec i (malloc/set! 'pointer (integer->pointer 0)))
+      args))
+
+  (define (gerror-arg-cleanup etype i)
+    (lambda (arg-vec)
+      (let* ((gerror-ptr (vector-ref arg-vec i))
+             (gerror (pointer-ref-c-pointer gerror-ptr 0)))
+        (free gerror-ptr)
+        (unless (= (pointer->integer gerror) 0)
+          (raise (apply condition
+                        (make-sbank-callout-error)
+                        (gerror-conditions/free etype gerror)))))))
+
+  (define (raise-gerror/free who etype gerror . irritants)
+    (let ((conditions (gerror-conditions/free etype gerror)))
+      (raise (apply condition
+                    (make-who-condition who)
+                    (make-irritants-condition irritants)
+                    conditions))))
+
+  (define (gerror-conditions/free etype gerror)
+    (let ((domain (c-gerror-domain gerror))  
+          (code (c-gerror-code gerror))
+          (message (utf8z-ptr->string (c-gerror-message gerror))))
+      (gerror-free gerror)
+      (list
+       (make-message-condition message)
+       (make-gerror domain code))))
+  
+  (define gerror-free
+    ((make-c-callout 'void '(pointer)) (dlsym libglib "g_error_free")))
+
+
   (define (args-setup-procedure n-args steps)
     (define (lose msg . irritants)
       (apply raise-sbank-callout-error msg irritants))
@@ -251,8 +308,6 @@
                      (unless (null? args)
                        (lose "unprocessed arguments" args))
                      arg-vec)
-                    ((null? args)
-                     (lose "too few arguments" in-args))
                     ((integer? (car steps))
                      (vector-set! arg-vec (car steps) (car args))
                      (loop (cdr args) (cdr steps)))
@@ -289,6 +344,7 @@
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
           (ret-consume (ret-type-consumer rti)))
+      (write (list 'make-callout setup collect out-args? ret-consume)) (newline)
       (cond ((and setup collect out-args?)
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
@@ -317,12 +373,12 @@
                      (if (eqv? ret-consume #f)
                          (values)
                          (if (procedure? ret-consume) (ret-consume ret-val) ret-val)))))))
-            (ret-consume
+            ((procedure? ret-consume)
              (assert (not (or setup collect out-args?)))
              (lambda (ptr)
                (ret-consume ptr)))
             (else
-             (assert (not (or setup collect out-args?)))
+             (assert (and (not (or setup collect out-args?)) (boolean? ret-consume)))
              prim-callout))))
 
   (define (make-callback rti arg-types prepare-steps collect-steps flags)

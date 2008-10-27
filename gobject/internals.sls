@@ -29,11 +29,15 @@
           gobject-class-parent
           gobject-class-get-signal-callback
           gobject-class-decorate
-          
+
           make-ginstance ginstance? ginstance-ptr ginstance-class
+
           send-message
           send
-          make-genum genum? genum-lookup genum-values genum-symbols)
+          
+          make-genum genum? genum-lookup genum-values genum-symbols
+
+          gerror-type? make-gerror-type)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
@@ -67,6 +71,8 @@
                   (p namespace name load-members #f #f #f #f)))))
 
 
+  (define-record-type gerror-type)
+  
   (define gobject-class-get-signal-callback
     (let ((lookup (make-gobject-class-lookup gobject-class-signals)))
       (lambda (class signal)
@@ -123,7 +129,9 @@
                  ((lookup-method obj msg)
                   => (lambda (proc)
                        (unless (null? args)
-                         (error 'send-message "cannot send message with arguments to class" obj msg args))
+                         (error 'send-message
+                                "cannot send message with arguments to class"
+                                obj msg args))
                        proc))
                  (else
                   (error 'send-message "message not understood" obj msg args))))))
