@@ -381,9 +381,11 @@
                          (unspecific)
                          (if (procedure? ret-consume) (ret-consume ret-val) ret-val)))))))
             ((procedure? ret-consume)
-             (assert (not (or setup collect out-args?)))
+             (assert (not (or setup collect out-args? cleanup)))
              (lambda (ptr)
-               (ret-consume ptr)))
+               (lambda args
+                 (let ((do-callout (prim-callout ptr)))
+                   (ret-consume (apply do-callout args))))))
             (else
              (assert (and (not (or setup collect out-args?)) (boolean? ret-consume)))
              prim-callout))))
