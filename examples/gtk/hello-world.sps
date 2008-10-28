@@ -1,4 +1,4 @@
-;;; typelib.sps --- Example for using typelib
+;;; hello-world.sps --- Example translated from the GTK+ tutorial
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -27,6 +27,8 @@
   (send window
         (connect 'delete-event (lambda (widget event)
                                  (println "delete-event: " widget " " event)
+                                 ;; returning #t to prevent further
+                                 ;; propogation of this signal...
                                  #t))
         (connect 'destroy (lambda (widget) (gtk-main-quit)))
         (set-border-width 10)
