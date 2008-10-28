@@ -26,7 +26,8 @@
 (library (sbank ctypes)
   (export make-callout
           make-callback
-          arg-steps
+          arg-callout-steps
+          arg-callback-steps
           
           utf8z-ptr->string
           string->utf8z-ptr
@@ -49,6 +50,7 @@
           (spells foreign)
           (only (spells lists) iota)
           (only (spells assert) cerr cout)
+          (only (spells misc) unspecific)
           (spells tracing)
           (sbank utils)
           (sbank type-data)
@@ -114,7 +116,7 @@
         ((in-out out)
          (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
   
-  (define (arg-steps ti i out?)
+  (define (arg-callout-steps ti i out?)
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
@@ -127,11 +129,22 @@
                 (gerror-arg-cleanup type i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
-                 (type-info/prim-type+procs ti out?)
+                 (type-info/prim-type+procs ti)
           (values (if out-convert (converter-setup i out-convert) i)
                   (and out? (if back-convert (converter-collect i back-convert) i))
                   (and cleanup (cleanup-step i cleanup))))))))
 
+  (define (arg-callback-steps ti i)
+    (let ((type (type-info-type ti)))
+      (receive (prim-type out-convert back-convert cleanup)
+               (type-info/prim-type+procs ti)
+        (values (if back-convert
+                    (lambda (arg-vec)
+                      (back-convert (vector-ref arg-vec i)))
+                    i)
+                (lambda (arg-vec val)
+                  (set-pointer (vector-ref arg-vec i) ti (if out-convert (out-convert val) val)))))))
+  
   ;; This returns and expects a converter that returns a pointer
   ;; (i.e. a converter for calling *out* to C); don't confuse this
   ;; with out-arguments, which are collected using a "back-converter"
@@ -155,7 +168,7 @@
             (raise-sbank-callout-error "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
 
-  (trace-define (type-info/prim-type+procs ti out?)
+  (define (type-info/prim-type+procs ti)
     (let ((type (type-info-type ti))
           (null-ok? (type-info-null-ok? ti)))
       (cond
@@ -177,9 +190,7 @@
                      (back-converter/null utf8z-ptr->string null-ok? #f)
                      free))
             ((void)
-             (unless pointer?
-               (raise-sbank-callout-error "cannot pass void"))
-             (values 'pointer #f #f #f))
+             (values 'void #f #f #f))
             (else
              (raise-sbank-callout-error "argument passing for this type not implemented" type)))))
        ((genum? type)
@@ -190,8 +201,8 @@
                           (raise-sbank-callout-error
                            "invalid enumeration value" val (genum-symbols type)))
                       val))
-                (and out? (lambda (val)
-                            (or (genum-lookup type val) val)))
+                (lambda (val)
+                  (or (genum-lookup type val) val))
                 #f))
        ((array-type? type)
         (unless (or (array-size type) (array-is-zero-terminated? type))
@@ -295,7 +306,6 @@
   (define gerror-free
     ((make-c-callout 'void '(pointer)) (dlsym libglib "g_error_free")))
 
-
   (define (args-setup-procedure n-args steps)
     (define (lose msg . irritants)
       (apply raise-sbank-callout-error msg irritants))
@@ -344,7 +354,6 @@
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
           (ret-consume (ret-type-consumer rti)))
-      (write (list 'make-callout setup collect out-args? ret-consume)) (newline)
       (cond ((and setup collect out-args?)
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
@@ -366,12 +375,10 @@
                (let ((do-callout (prim-callout ptr)))
                  (lambda args
                    (let* ((arg-vec (setup args))
-                          (ret-val (begin (cout (list 'after-setup: arg-vec) "\n")
-                                          (apply do-callout (vector->list arg-vec)))))
-                     
+                          (ret-val (apply do-callout (vector->list arg-vec))))
                      (if cleanup (cleanup arg-vec))
                      (if (eqv? ret-consume #f)
-                         (values)
+                         (unspecific)
                          (if (procedure? ret-consume) (ret-consume ret-val) ret-val)))))))
             ((procedure? ret-consume)
              (assert (not (or setup collect out-args?)))
@@ -381,9 +388,9 @@
              (assert (and (not (or setup collect out-args?)) (boolean? ret-consume)))
              prim-callout))))
 
-  (define (make-callback rti arg-types prepare-steps collect-steps flags)
+  (define (make-callback rti arg-types prepare-steps store-steps flags)
     (receive (prim-ret ret-out-convert ret-back-convert cleanup)
-             (type-info/prim-type+procs rti #f)
+             (type-info/prim-type+procs rti)
       (let ((prim-callback
              (make-c-callback prim-ret
                               (map (lambda (type flag)
@@ -397,31 +404,41 @@
                  (lambda (proc)
                    (prim-callback
                     (make-callback-wrapper proc prim-ret ret-out-convert arg-types
-                                           prepare-steps collect-steps flags)))))))))
+                                           prepare-steps store-steps flags)))))))))
 
 
   (define (make-callback-wrapper proc prim-ret ret-out-convert arg-types
-                                  prepare-steps collect-steps flags)
-    (let ((arg-len (length arg-types)))
+                                  prepare-steps store-steps flags)
+    (let ((arg-len (length arg-types))
+          (out-args? (exists (lambda (flag) (memq flag '(out in-out))) flags)))
       (lambda args
         (assert (= arg-len (length args)))
         (let* ((arg-vec (list->vector args))
                (args (let loop ((args '()) (steps prepare-steps))
                        (if (null? steps)
                            (reverse args)
-                           (loop (cons ((car steps) arg-vec) args))))))
+                           (loop (cons
+                                  (cond ((integer? (car steps))
+                                         (vector-ref arg-vec ))
+                                        (else
+                                         ((car steps) arg-vec)))
+                                  args)
+                                 (cdr steps))))))
           (receive ret-values (apply proc args)
-            (let loop ((vals (if (eq? prim-ret 'void)
+            (let loop ((vals (if (and (eq? prim-ret 'void) out-args?)
                                  ret-values
                                  (cdr ret-values)))
-                       (steps collect-steps))
+                       (steps store-steps))
               (cond ((null? vals)
                      (unless (null? steps)
                        (raise-sbank-callback-error "called procedure returned not enough values"
                                                    ret-values prim-ret))
-                     (if (eq? prim-ret 'void)
-                         (values)
-                         (ret-out-convert (car ret-values))))
+                     (cond ((eq? prim-ret 'void)
+                            (unspecific))
+                           (ret-out-convert
+                            (ret-out-convert (car ret-values)))
+                           (else
+                            (car ret-values))))
                     ((null? steps)
                      (raise-sbank-callback-error "called procedure returned too many values"
                                                  ret-values prim-ret))
@@ -433,7 +450,7 @@
            #f)
           (else
            (receive (prim-type out-convert back-convert cleanup)
-                    (type-info/prim-type+procs rti #f)
+                    (type-info/prim-type+procs rti)
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))
@@ -480,6 +497,13 @@
              (pointer-ref-c-pointer ptr 0))
             (else
              (error 'deref-pointer "not implemented for that type" ptr type)))))
+
+  (define (set-pointer ptr ti val)
+    (let ((type (type-info-type ti)))
+      (cond ((symbol? type)
+             ((make-pointer-c-setter (type-tag-symbol->prim-type type)) ptr 0 val))
+            (else
+             (error 'set-pointer "not implemented for that type" ptr ti)))))
   
   (define-syntax define-enum
     (syntax-rules ()

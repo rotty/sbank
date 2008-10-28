@@ -5,7 +5,7 @@
 (typelib-import (only ("GdkPixbuf" #f) <pixbuf>))
 
 (define (main argv)
-  (when (not (= (length argv) 2))
+  (unless (= (length argv) 2)
     (println "Usage: " (car argv) " <image-file>")
     (exit #f))
   (let ((p (send <pixbuf> (new-from-file (cadr argv)))))

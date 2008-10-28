@@ -77,7 +77,14 @@
   (define-accessors "Header"
     ;; This needs to be reasonably fast, so we don't use let-attribute/fetchers here
     (header-size "size")) 
-  
+
+  (define-accessors "ArgBlob"
+    (arg-in "in")
+    (arg-out "out")
+    (arg-null-ok "null_ok")
+    (arg-type "arg_type")
+    (arg-name "name"))
+
   (define-syntax define-fetcher (stype-fetcher-factory-definer (typelib-stypes)))
 
   (define-fetcher header-fetcher "Header")
@@ -321,6 +328,7 @@
                   ((5) (make-enum-loader typelib tld entry-ptr entry-name))
                   ((7) (make-class-loader typelib tld entry-ptr entry-name))
                   ((9) (make-constant-loader typelib tld entry-ptr entry-name))
+                  ((11) (make-union-loader typelib tld entry-ptr entry-name))
                   (else
                    (lambda ()
                      (raise-validation-error "unknown entry type encountered" blob-type)))))))))))
@@ -397,85 +405,129 @@
           (raise-validation-error "constructor does not return a class type"))
         (make-callout rti arg-types setup collect cleanup flags))))
 
-  (define arg-blobs-callout-values
-    (let-accessors arg-blob-fetcher ((arg-in in)
-                                     (arg-out out)
-                                     (arg-null-ok null-ok)
-                                     (arg-type arg-type)
-                                     (arg-name name))
-      (lambda (typelib tld arg-blobs n-args constructor? container)
-        (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
-               (type-infos (map (lambda (blob)
-                                  (stblob-type-info typelib
-                                                    tld
-                                                    (arg-type blob)
-                                                    (bool (arg-null-ok blob))))
-                                (reverse (make-array-pointers arg-blobs n-args arg-blob-size))))
-               (length-indices (filter-map (lambda (ti)
-                                             (let ((type (type-info-type ti)))
-                                               (and (array-type? type)
-                                                    (array-length-index type))))
-                                           type-infos))
-               (has-self-ptr? (and container (not constructor?))))
-          (let loop ((arg-types '())
-                     (setup-steps '())
-                     (collect-steps '())
-                     (cleanup-steps '())
-                     (flags '())
-                     (tis type-infos)
-                     (i (- n-args 1)))
-            (if (< i 0)
-                (if has-self-ptr?
-                    (receive (setup! collect cleanup)
-                             (arg-steps (make-type-info container #t #f) 0 #f)
-                      (assert (not (or collect cleanup)))
-                      (values (cons (make-type-info 'pointer #f #f) arg-types)
-                              (cons setup! setup-steps)
-                              collect-steps
-                              cleanup-steps
-                              (cons 'in flags)))
-                    (values arg-types setup-steps collect-steps cleanup-steps flags))
-                (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
-                       (name (get/validate-string tld (arg-name arg-blob)))
-                       (in? (bool (arg-in arg-blob)))
-                       (out? (bool (arg-out arg-blob)))
-                       (length? (memv i length-indices)))
-                  (define (flag)
-                    (cond ((and in? out?) 'in-out)
-                          (out? 'out)
-                          (in? 'in)
-                          (else
-                           (raise-validation-error "argument has no direction" i))))
-                  (receive (setup! collect cleanup)
-                           (arg-steps (car tis) (if has-self-ptr? (+ i 1) i) out?)
-                    (cond (length?
-                           (loop (cons (car tis) arg-types)
-                                 (cons #f setup-steps)
-                                 collect-steps
-                                 cleanup-steps
-                                 (cons (flag) flags)
-                                 (cdr tis)
-                                 (- i 1)))
-                          (else
-                           (loop (cons (car tis) arg-types)
-                                 (cons setup! setup-steps)
-                                 (if collect
-                                     (cons collect collect-steps)
-                                     collect-steps)
-                                 (if cleanup (cons cleanup cleanup-steps) cleanup-steps)
-                                 (cons (flag) flags)
-                                 (cdr tis)
-                                 (- i 1))))))))))))
+  (define (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size)
+    (map (lambda (blob)
+           (stblob-type-info typelib
+                             tld
+                             (arg-type blob)
+                             (bool (arg-null-ok blob))))
+         (reverse (make-array-pointers arg-blobs n-args arg-blob-size))))
 
-  (define (arg-blobs-callback-values typelib tld arguments n-arguments method? container)
-    ;; IMPLEMENTME
-    (values '() '() '() '()))
+  (define (type-infos-length-indices type-infos)
+    (filter-map (lambda (ti)
+                  (let ((type (type-info-type ti)))
+                    (and (array-type? type)
+                         (array-length-index type))))
+                type-infos))
+  
+  (define (arg-blobs-callout-values typelib tld arg-blobs n-args constructor? container)
+    (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
+           (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
+           (length-indices (type-infos-length-indices type-infos))
+           (has-self-ptr? (and container (not constructor?))))
+      (let loop ((arg-types '())
+                 (setup-steps '())
+                 (collect-steps '())
+                 (cleanup-steps '())
+                 (flags '())
+                 (tis type-infos)
+                 (i (- n-args 1)))
+        (if (< i 0)
+            (if has-self-ptr?
+                (receive (setup! collect cleanup)
+                         (arg-callout-steps (make-type-info container #t #f) 0 #f)
+                  (assert (not (or collect cleanup)))
+                  (values (cons (make-type-info 'pointer #f #f) arg-types)
+                          (cons setup! setup-steps)
+                          collect-steps
+                          cleanup-steps
+                          (cons 'in flags)))
+                (values arg-types setup-steps collect-steps cleanup-steps flags))
+            (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
+                   (in? (bool (arg-in arg-blob)))
+                   (out? (bool (arg-out arg-blob)))
+                   (length? (memv i length-indices)))
+              (define (flag)
+                (cond ((and in? out?) 'in-out)
+                      (out? 'out)
+                      (in? 'in)
+                      (else
+                       (raise-validation-error "argument has no direction" i))))
+              (receive (setup! collect cleanup)
+                       (arg-callout-steps (car tis) (if has-self-ptr? (+ i 1) i) out?)
+                (cond (length?
+                       (loop (cons (car tis) arg-types)
+                             (cons #f setup-steps)
+                             collect-steps
+                             cleanup-steps
+                             (cons (flag) flags)
+                             (cdr tis)
+                             (- i 1)))
+                      (else
+                       (loop (cons (car tis) arg-types)
+                             (cons setup! setup-steps)
+                             (if collect
+                                 (cons collect collect-steps)
+                                 collect-steps)
+                             (if cleanup (cons cleanup cleanup-steps) cleanup-steps)
+                             (cons (flag) flags)
+                             (cdr tis)
+                             (- i 1))))))))))
+
+  (define (arg-blobs-callback-values typelib tld arg-blobs n-args method? container)
+    (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
+           (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
+           (length-indices (type-infos-length-indices type-infos))
+           (has-self-ptr? (and method? container)))
+      (let loop ((arg-types '())
+                 (prepare-steps '())
+                 (store-steps '())
+                 (flags '())
+                 (tis type-infos)
+                 (i (- n-args 1)))
+        (if (< i 0)
+            (if has-self-ptr?
+                (receive (prepare store)
+                         (arg-callback-steps (make-type-info container #t #f) 0)
+                  (values (cons (make-type-info 'pointer #f #f) arg-types)
+                          (cons prepare prepare-steps)
+                          store-steps
+                          (cons 'in flags)))
+                (values arg-types prepare-steps store-steps flags))
+            (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
+                   (in? (bool (arg-in arg-blob)))
+                   (out? (bool (arg-out arg-blob)))
+                   (length? (memv i length-indices)))
+              (define (flag)
+                (cond ((and in? out?) 'in-out)
+                      (out? 'out)
+                      (in? 'in)
+                      (else
+                       (raise-validation-error "argument has no direction" i))))
+              (receive (prepare store)
+                       (arg-callback-steps (car tis) (if has-self-ptr? (+ i 1) i))
+                (cond (length?
+                       (loop (cons (car tis) arg-types)
+                             prepare-steps
+                             store-steps
+                             (cons (flag) flags)
+                             (cdr tis)
+                             (- i 1)))
+                      (else
+                       (loop (cons (car tis) arg-types)
+                             (cons prepare prepare-steps)
+                             (if out?
+                                 (cons store store-steps)
+                                 store-steps)
+                             (cons (flag) flags)
+                             (cdr tis)
+                             (- i 1))))))))))
   
   (define (make/validate-callback typelib tld signature-offset method? container)
     (let-attributes signature-blob-fetcher
         (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
         (return-type n-arguments arguments may-return-null)
-      (receive (arg-types prepare collect flags)
+      (receive (arg-types prepare store flags)
                (arg-blobs-callback-values typelib
                                           tld
                                           arguments
@@ -484,7 +536,8 @@
                                           container)
         (make-callback (stblob-type-info typelib tld return-type (bool may-return-null))
                        arg-types
-                       prepare collect
+                       prepare
+                       store
                        flags))))
   
   (define (make/validate-vfunc-caller tld index callout)
@@ -614,6 +667,13 @@
          ((make-pointer-c-getter (type-tag-symbol->prim-type type)) mem 0)))))
 
   (define (make-record-loader typelib tld entry-ptr entry-name)
+    (lambda ()
+      (make-gobject-class (typelib-namespace typelib)
+                          entry-name
+                          (lambda (class)
+                            (values #f '() '() '())))))
+
+  (define (make-union-loader typelib tld entry-ptr entry-name)
     (lambda ()
       (make-gobject-class (typelib-namespace typelib)
                           entry-name

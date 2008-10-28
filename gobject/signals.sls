@@ -29,7 +29,7 @@
           (spells receive)
           (spells foreign)
           (spells tracing)
-          (only (spells assert) cout)
+          (only (spells assert) cerr)
           (xitomatl srfi and-let*)
           (xitomatl srfi let-values)
           (sbank utils)
@@ -38,9 +38,12 @@
           (sbank typelib)
           (sbank gobject internals))
 
-  (define signal-destroy-notify-ptr ((make-c-callback 'void '(pointer pointer))
-                                     (lambda (data closure)
-                                       (cout (list 'signal-destroyed: data closure) "\n"))))
+  (define signal-destroy-notify-ptr
+    ((make-c-callback 'void '(pointer pointer))
+     (lambda (data closure)
+       ;; TODO: we should somehow free the callback here, but the
+       ;; current ikarus FFI doesn't allow us doing that
+       #f)))
   
   (define signal-connect
     (let ((g-signal-connect-data ((make-c-callout 'ulong

@@ -5,25 +5,16 @@
 ;; This file is placed in the public domain.
 
 #!r6rs
-(import (rnrs base)
-        (rnrs control)
-        (rnrs io simple)
-        (rnrs programs)
-        (only (ikarus) collect nanosleep)
-        (spells time-it)
-        (spells receive)
+(import (rnrs)
         (sbank typelib)
-        (sbank gobject)
-        (spells foreign))
+        (sbank gobject))
 
 (install-gobject-decorators)
 (typelib-import (prefix (only ("Gtk" #f)
                               <window> <button>
-                              init-check main main-quit) gtk-))
+                              init main main-quit) gtk-))
 
-(receive (ok? args) (gtk-init-check (list->vector (command-line)))
-  (println "gtk-init: ok: " ok? ", remaining args: " args)
-  (or ok? (exit #f)))
+(gtk-init (command-line))
 
 (let ((window (send <gtk-window> (new 'toplevel)))
       (button (send <gtk-button> (new-with-label "Hello World"))))
