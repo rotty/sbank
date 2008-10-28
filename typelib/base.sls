@@ -576,7 +576,6 @@
          (typelib-namespace typelib)
          name 
          (lambda (class)
-           (debug (list 'class-loader: class))
            (let-attributes header-fetcher tld
                            (object-blob-size field-blob-size property-blob-size
                                              function-blob-size signal-blob-size
@@ -698,7 +697,6 @@
   (define (decorated-loader namespace name loader)
     (lambda ()
       (let ((decorator (lookup-typelib-decorator namespace name)))
-        (debug (list 'decorated-loader: namespace name decorator))
         (if decorator (decorator (loader)) (loader)))))
   
   ;;
@@ -737,7 +735,6 @@
                          (interface)
            (let* ((entry (typelib-get-entry/index typelib interface))
                   (pointer? (not (genum? entry))))
-             (debug (list "entry:" entry))
              (make-type-info entry pointer? null-ok?))))
         ((error)
          (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
