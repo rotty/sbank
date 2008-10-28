@@ -71,9 +71,12 @@
 
   (define (lazy-forcer accessor setter)
     (lambda (obj)
-      (if (lazy-entry? (accessor obj))
-          (setter obj ((lazy-entry-proc (accessor obj)))))
-      (accessor obj)))
+      (let ((val (accessor obj)))
+        (if (lazy-entry? val)
+            (let ((new-val ((lazy-entry-proc val))))
+              (setter obj new-val)
+              new-val)
+            val))))
   
   (define signature-callout (lazy-forcer signature-callout% signature-set-callout%!))
   (define signature-callback (lazy-forcer signature-callback% signature-set-callback%!)))
