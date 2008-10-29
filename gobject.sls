@@ -38,14 +38,26 @@
           (spells tracing)
           (sbank typelib decorators)
           (sbank gobject signals)
+          (sbank gobject properties)
           (sbank gobject internals))
   
 
   (define (gobject-decorator class)
-    (gobject-class-decorate class values (method-overrider `((connect . ,gobject-connect))) values))
-
-  (define (gobject-connect instance signal callback)
+    (gobject-class-decorate class
+                            values
+                            (method-overrider `((connect . ,g-object-connect)
+                                                (set . ,g-object-set)))
+                            values))
+  
+  (define (g-object-connect instance signal callback)
     (signal-connect instance signal callback))
+
+  (define (g-object-set instance . args)
+    (do ((args args (cddr args)))
+        ((null? args))
+      (when (null? (cdr args))
+        (error 'g-object-set "uneven number of arguments" args))
+      (g-object-set-property instance (car args) (cadr args))))
   
   (define (method-overrider overrides)
     (lambda (methods)
@@ -66,5 +78,4 @@
       (lambda ()
         (unless installed?
           (register-typelib-decorator "GObject" "Object" gobject-decorator)
-          (set! installed? #t)))))
-)
+          (set! installed? #t))))))

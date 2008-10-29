@@ -1,4 +1,4 @@
-;;; shlibs.sls --- Shared libraries needed in sbank.
+;;; properties.sls --- GObject property support.
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -22,24 +22,23 @@
 
 ;;; Code:
 
-(library (sbank shlibs)
-  (export libgir libgobject libglib
-          let-callouts)
+
+(library (sbank gobject properties)
+  (export g-object-set-property)
   (import (rnrs base)
-          (spells foreign))
-
-  (define-syntax let-callouts
-    (syntax-rules ()
-      ((let-callouts shlib ((name ret-type c-name arg-types) ...) body ...)
-       (let ((name ((make-c-callout 'ret-type 'arg-types)
-                    (dlsym shlib c-name)))
-             ...)
-         body ...))))
-
-  (define (checked-dlopen name)
-    (or (dlopen name)
-        (error 'checked-dlopen "unable to open shared library" name (dlerror))))
+          (spells receive)
+          (spells foreign)
+          (sbank shlibs)
+          (sbank ctypes)
+          (sbank gobject gvalue)
+          (sbank gobject internals))
   
-  (define libgir (checked-dlopen "libgirepository.so.0"))
-  (define libgobject (checked-dlopen "libgobject-2.0.so.0"))
-  (define libglib (checked-dlopen "libglib-2.0.so.0")))
+  (define g-object-set-property
+    (let-callouts libgobject
+        ((set-property% void "g_object_set_property" (pointer pointer pointer)))
+      (lambda (obj property value)
+        (let ((gvalue (->g-value value))
+              (name-ptr (string->utf8z-ptr (symbol->string property))))
+          (set-property% (ginstance-ptr obj) name-ptr gvalue)
+          (free name-ptr)
+          (g-value-free gvalue))))))

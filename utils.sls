@@ -24,7 +24,8 @@
 
 
 (library (sbank utils)
-  (export vector-index
+  (export define-enum
+          vector-index
           make-lazy-entry lazy-entry? lazy-entry-proc
           symbol-append
           scheme-ified-symbol
@@ -34,8 +35,17 @@
   (import (rnrs base)
           (rnrs unicode)
           (rnrs records syntactic)
+          (spells define-values)
           (spells char-set)
           (only (spells strings) string-map string-tokenize))
+
+  (define-syntax define-enum
+    (syntax-rules ()
+      ((define-enum (val->symbol symbol->val) (symbol ...))
+       (define-values (val->symbol symbol->val)
+         (let ((sym-vec '#(symbol ...)))
+           (values (lambda (val) (vector-ref sym-vec val))
+                   (lambda (sym) (vector-index eq? sym-vec sym))))))))
 
   (define (vector-index equal vec val)
     (let loop ((i 0))

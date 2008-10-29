@@ -507,16 +507,8 @@
             (else
              (error 'set-pointer "not implemented for that type" ptr ti)))))
   
-  (define-syntax define-enum
-    (syntax-rules ()
-      ((define-enum val->symbol symbol->val (symbol ...))
-       (define-values (val->symbol symbol->val)
-         (let ((sym-vec '#(symbol ...)))
-           (values (lambda (val) (vector-ref sym-vec val))
-                   (lambda (sym) (vector-index eq? sym-vec sym))))))))
-
   ;; Note that these must match with gobject-introspection
-  (define-enum type-tag->symbol symbol->type-tag
+  (define-enum (type-tag->symbol symbol->type-tag)
     (void boolean int8 uint8 int16 uint16 int32 uint32
           int64 uint64 int uint long ulong ssize size
           float double time_t gtype utf8 filename
@@ -671,4 +663,7 @@
           (utf8z-ptr->string utf8z-ptr))))
   
   (define (pointer+ p n)
-    (integer->pointer (+ (pointer->integer p) n))))
+    (integer->pointer (+ (pointer->integer p) n)))
+
+  ;; register a type alias for 'GType'
+  (c-type-aliases (cons '(gtype . size_t) (c-type-aliases))))

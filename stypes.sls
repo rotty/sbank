@@ -41,6 +41,7 @@
           stypes-ref
           stype-attribute
           stype-fetcher
+          stype-attribute-definer
           stype-accessor-definer
           stype-fetcher-factory-definer)
   (import (rnrs base)
@@ -94,7 +95,7 @@
   (define (stypes-adjoin stypes . new-types)
     (cons (car stypes) (append (cdr stypes)
                                (map (lambda (new-type)
-                                          (resolve-types new-type stypes))
+                                      (resolve-types new-type stypes))
                                     new-types))))
 
   (define (stype-attribute stype name)
@@ -133,6 +134,13 @@
                                                          `((size ,size)
                                                            (alignment ,alignment)))
                                                        '()))))))
+          ((alias)
+           (let ((name (cadr type))
+                 (aliased-type (stypes-ref types (caddr type))))
+             (cons (car aliased-type)
+                   (append `((name ,name)) (filter (lambda (comp)
+                                                     (not (eq? (car comp) 'name)))
+                                                   (cdr aliased-type))))))
           (else
            (cons (car type) (map (lambda (t)
                                    (resolve-types t types))
@@ -344,19 +352,19 @@
     (lambda (stx)
       (syntax-case stx ()
         ((k <type-name> (<fetcher-name> <field-name>) ...)
-         (with-syntax (((args ...)
-                        (map (lambda (field-name)
-                               (datum->syntax
-                                #'k
-                                (call-with-values
-                                    (lambda ()
-                                      (stype-compound-element-fetcher-values
-                                       (stype-ref (stypes-ref types (syntax->datum #'<type-name>))
-                                                  field-name)))
-                                  list)))
-                             (map syntax->datum #'(<field-name> ...)))))
-           #`(define-values (<fetcher-name> ...)
-               (values (apply c-compound-element-fetcher 'args) ...)))))))
+         (let ((stype (stypes-ref types (syntax->datum #'<type-name>))))
+           (with-syntax (((args ...)
+                          (map (lambda (field-name)
+                                 (datum->syntax
+                                  #'k
+                                  (call-with-values
+                                      (lambda ()
+                                        (stype-compound-element-fetcher-values
+                                         (stype-ref stype field-name)))
+                                    list)))
+                               (map syntax->datum #'(<field-name> ...)))))
+             #`(define-values (<fetcher-name> ...)
+                 (values (apply c-compound-element-fetcher 'args) ...))))))))
 
   (define (stype-fetcher-factory-definer types)
     (lambda (stx)
@@ -374,6 +382,20 @@
                                 (else (error '<name>
                                              "no such field" sym fields))))))))))))
 
+  (define (stype-attribute-definer types)
+    (lambda (stx)
+      (syntax-case stx ()
+        ((k <type-name> (<name> <attribute-name>) ...)
+         (let ((stype (stypes-ref types (syntax->datum #'<type-name>))))
+           (with-syntax (((attribute-value ...)
+                          (map (lambda (attr-name)
+                                 (datum->syntax
+                                  #'k
+                                  (stype-attribute stype attr-name)))
+                               (map syntax->datum #'(<attribute-name> ...)))))
+             #`(define-values (<name> ...)
+                 (values attribute-value ...))))))))
+  
   (define (component-fetcher-alist comp base-offset)
     (case (car comp)
       ((field record array union)

@@ -1,8 +1,12 @@
-* GObject construction via g_object_new
-  - New method 'newv' in each class deriving from GObject.Object
-  -> via "child decorators"? how do these compose/nest?
+-*- Mode: org; -*-
+
+* GObject features
+
+** TODO GObject construction via g_object_new
+
+   New method 'newv' in each class deriving from GObject.Object
+   via "child decorators"? how do these compose/nest?
   
-* Properties
-  - New method 'set' in GOBject.Object
-
-
+** TODO Properties
+*** TODO GValue access
+*** TODO New method 'set' in GOBject.Object
