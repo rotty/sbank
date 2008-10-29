@@ -31,6 +31,7 @@
           send
           install-gobject-decorators)
   (import (rnrs base)
+          (rnrs control)
           (rnrs lists)
           (only (spells assert) cout)
           (spells alist)
@@ -60,6 +61,10 @@
                   (else
                    (loop (cons (car overrides) result) (cdr overrides))))))))
   
-  (define (install-gobject-decorators)
-    (register-typelib-decorator "GObject" "Object" gobject-decorator))
+  (define install-gobject-decorators
+    (let ((installed? #f))
+      (lambda ()
+        (unless installed?
+          (register-typelib-decorator "GObject" "Object" gobject-decorator)
+          (set! installed? #t)))))
 )
