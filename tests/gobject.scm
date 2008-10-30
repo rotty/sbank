@@ -23,7 +23,7 @@
 ;;; Code:
 
 
-(testeez "basic"
+(testeez "object system"
   (test-define "widget" <gtk-widget>
                (make-gobject-class "Gtk" "Widget"
                                    (lambda (class)
@@ -46,3 +46,7 @@
   (test/equal "construct/show"
     (send (send <gtk-window> (new)) (show))
     'show-result))
+
+(testeez "GValue"
+  (test-define "creating gvalue (int)" int-gv (g-value-new 'int))
+  (test-eval "setting gvalue (int)" (g-value-set! int-gv 42 #f)))

@@ -27,7 +27,11 @@
  (files
   ("utils.scm" (sbank utils))
 
-  ("gobject.scm" (sbank gobject internals))
+  ("gobject.scm"
+   (sbank gobject gtype)
+   (sbank gobject gvalue)
+   (sbank gobject internals)
+   (spells foreign))
   
   ("stypes.scm"
    (sbank stypes) (spells foreign)

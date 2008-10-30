@@ -62,20 +62,19 @@
         (unset% gvalue)
         (free gvalue))))
 
-  (define (value-gtype value pinfo)
+  (define (value-gtype value type)
     (cond ((ginstance? value) 'object)
           ((boolean? value)   'boolean)
           ((integer? value)   'int)
           ((number? value)    'double)
           (else
-           (let ((type (property-info-type pinfo)))
-             (cond ((genum? type) 'enum)
-                   (else
-                    (error 'value-gtype "not implemented for this type of value" value type)))))))
+           (cond ((genum? type) 'enum)
+                 (else
+                  (error 'value-gtype "not implemented for this type of value" value type))))))
   
-  (define (->g-value val pinfo)
-    (let ((gvalue (g-value-new (value-gtype val pinfo))))
-      (g-value-set! gvalue val pinfo)
+  (define (->g-value val type)
+    (let ((gvalue (g-value-new (value-gtype val type))))
+      (g-value-set! gvalue val type)
       gvalue))
   
   (define g-value-set!
@@ -83,7 +82,7 @@
                               (set-bool% void "g_value_set_boolean" (pointer int))
                               (set-enum% void "g_value_set_enum" (pointer int))
                               (set-int% void "g_value_set_int" (pointer int)))
-      (lambda (gvalue val pinfo)
+      (lambda (gvalue val type)
         (cond
          ((ginstance? val)
           (set-object% gvalue (ginstance-ptr val)))
@@ -91,12 +90,10 @@
           (set-bool% gvalue (if val 1 0)))
          ((integer? val)
           (set-int% gvalue val))
+         ((genum? type)
+          (set-enum% gvalue (genum-lookup type val)))
          (else
-          (let ((type (property-info-type pinfo)))
-            (cond ((genum? type)
-                   (set-enum% gvalue (genum-lookup type val)))
-                  (else
-                   (error 'g-value-set! "not implemented for this type of value" val pinfo)))))))))
+          (error 'g-value-set! "not implemented for this type of value" val type))))))
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% pointer "g_value_get_object" (pointer pointer)))
