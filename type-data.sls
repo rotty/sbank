@@ -41,7 +41,17 @@
           type-info?
           type-info-type
           type-info-is-pointer?
-          type-info-null-ok?)
+          type-info-null-ok?
+
+          make-property-info
+          property-info?
+          property-info-type-info
+          property-info-type
+          property-info-is-pointer?
+          property-info-readable?
+          property-info-writable?
+          property-info-construct?
+          property-info-construct-only?)
   (import (rnrs base)
           (rnrs records syntactic)
           (spells foreign)
@@ -58,10 +68,17 @@
     (type-info-type (array-element-type-info atype)))
   
   (define-record-type type-info
-    (fields (immutable type type-info-type)
-            (immutable is-pointer? type-info-is-pointer?)
-            (immutable null-ok? type-info-null-ok?)))
+    (fields type is-pointer? null-ok?))
 
+  (define-record-type property-info
+    (fields type-info readable? writable? construct? construct-only?))
+
+  (define (property-info-type pinfo)
+    (type-info-type (property-info-type-info pinfo)))
+
+  (define (property-info-is-pointer? pinfo)
+    (type-info-is-pointer? (property-info-type-info pinfo)))
+  
   (define-record-type signature
     (fields (mutable callout signature-callout% signature-set-callout%!)
             (mutable callback signature-callback% signature-set-callback%!))

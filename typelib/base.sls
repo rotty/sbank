@@ -101,6 +101,7 @@
   (define-fetcher value-blob-fetcher "ValueBlob")
   (define-fetcher array-type-blob-fetcher "ArrayTypeBlob")
   (define-fetcher signal-blob-fetcher "SignalBlob")
+  (define-fetcher property-blob-fetcher "PropertyBlob")
   
   (define-syntax let-attributes
     (syntax-rules ()
@@ -569,6 +570,20 @@
                      (thunk/validation-context
                       (lambda ()
                         (make/validate-callback typelib tld signature #t container))))))))))
+    (define (property-maker container)
+      (lambda (blob)
+        (let-attributes property-blob-fetcher blob
+                        (name deprecated readable writable construct construct-only type)
+          (let ((name (scheme-ified-symbol (get/validate-string tld name))))
+            (with-validation-context name
+              (cons name (make-lazy-entry
+                          (thunk/validation-context
+                           (lambda ()
+                             (make-property-info (stblob-type-info typelib tld type #f)
+                                                 (bool readable)
+                                                 (bool writable)
+                                                 (bool construct)
+                                                 (bool construct-only)))))))))))
     (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
            (blob (validated-pointer+ tld offset ((header-fetcher 'object-blob-size) tld))))
       (lambda ()
@@ -617,8 +632,12 @@
                              (map (member-func-maker class) constructors)
                              (map (member-func-maker class) methods)
                              (map (signal-maker class)
-                                  (make-array-pointers signals n-signals signal-blob-size)))))))))))))
-
+                                  (make-array-pointers signals n-signals signal-blob-size))
+                             (map (property-maker class)
+                                  (make-array-pointers properties
+                                                       n-properties
+                                                       property-blob-size)))))))))))))
+  
   (define (make-enum-loader typelib tld entry-ptr entry-name)
     (lambda ()
       (let ((blob (validated-pointer+ tld
@@ -670,14 +689,14 @@
       (make-gobject-class (typelib-namespace typelib)
                           entry-name
                           (lambda (class)
-                            (values #f '() '() '())))))
+                            (values #f '() '() '() '())))))
 
   (define (make-union-loader typelib tld entry-ptr entry-name)
     (lambda ()
       (make-gobject-class (typelib-namespace typelib)
                           entry-name
                           (lambda (class)
-                            (values #f '() '() '())))))
+                            (values #f '() '() '() '())))))
   
   (define (thunk/validation-context thunk)
     (let ((context (validation-context)))

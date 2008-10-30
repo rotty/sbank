@@ -34,6 +34,7 @@
           (spells foreign)
           (sbank shlibs)
           (sbank ctypes)
+          (sbank type-data)
           (sbank gobject internals)
           (sbank gobject gtype)
           (sbank typelib stypes)
@@ -61,23 +62,41 @@
         (unset% gvalue)
         (free gvalue))))
 
-  (define (value-gtype value)
+  (define (value-gtype value pinfo)
     (cond ((ginstance? value) 'object)
           ((boolean? value)   'boolean)
-          (else (error 'value-gtype "not implemented for this type of value" value))))
+          ((integer? value)   'int)
+          ((number? value)    'double)
+          (else
+           (let ((type (property-info-type pinfo)))
+             (cond ((genum? type) 'enum)
+                   (else
+                    (error 'value-gtype "not implemented for this type of value" value type)))))))
   
-  (define (->g-value val)
-    (let ((gvalue (g-value-new (value-gtype val))))
-      (g-value-set! gvalue val)
+  (define (->g-value val pinfo)
+    (let ((gvalue (g-value-new (value-gtype val pinfo))))
+      (g-value-set! gvalue val pinfo)
       gvalue))
   
   (define g-value-set!
-    (let-callouts libgobject ((set-object% void "g_value_set_object" (pointer pointer)))
-      (lambda (gvalue val)
-        (cond ((ginstance? val)
-               (set-object% gvalue (ginstance-ptr val)))
-              (else
-               (error 'g-value-set! "not implemented for this value" val))))))
+    (let-callouts libgobject ((set-object% void "g_value_set_object" (pointer pointer))
+                              (set-bool% void "g_value_set_boolean" (pointer int))
+                              (set-enum% void "g_value_set_enum" (pointer int))
+                              (set-int% void "g_value_set_int" (pointer int)))
+      (lambda (gvalue val pinfo)
+        (cond
+         ((ginstance? val)
+          (set-object% gvalue (ginstance-ptr val)))
+         ((boolean? val)
+          (set-bool% gvalue (if val 1 0)))
+         ((integer? val)
+          (set-int% gvalue val))
+         (else
+          (let ((type (property-info-type pinfo)))
+            (cond ((genum? type)
+                   (set-enum% gvalue (genum-lookup type val)))
+                  (else
+                   (error 'g-value-set! "not implemented for this type of value" val pinfo)))))))))
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% pointer "g_value_get_object" (pointer pointer)))

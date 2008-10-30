@@ -28,6 +28,7 @@
           gobject-class-name
           gobject-class-parent
           gobject-class-get-signal-callback
+          gobject-class-get-property-info
           gobject-class-decorate
 
           make-ginstance ginstance? ginstance-ptr ginstance-class
@@ -65,20 +66,23 @@
             (mutable parent)
             (mutable constructors)
             (mutable methods)
-            (mutable signals))
+            (mutable signals)
+            (mutable properties))
     (protocol (lambda (p)
                 (lambda (namespace name load-members)
-                  (p namespace name load-members #f #f #f #f)))))
+                  (p namespace name load-members #f #f #f #f #f)))))
 
 
   (define-record-type gerror-type)
   
-  (define gobject-class-get-signal-callback
-    (let ((lookup (make-gobject-class-lookup gobject-class-signals)))
-      (lambda (class signal)
-        (let ((signature (lookup class signal)))
-          (and signature (signature-callback signature))))))
+  (define (gobject-class-get-signal-callback class signal)
+    (let ((signature (lookup-signal class signal)))
+      (and signature (signature-callback signature))))
 
+  (define gobject-class-get-property-info
+    (lambda (class property)
+      (lookup-property class property)))
+  
   (define (gobject-class-decorate class constructors-decorator methods-decorator signals-decorator)
     (make-gobject-class (gobject-class-namespace class)
                         (gobject-class-name class)
@@ -88,9 +92,12 @@
                            (gobject-class-parent class)
                            (constructors-decorator (gobject-class-constructors class))
                            (methods-decorator (gobject-class-methods class))
-                           (signals-decorator (gobject-class-signals class))))))
+                           (signals-decorator (gobject-class-signals class))
+                           (gobject-class-properties class)))))
 
   (define lookup-method (make-gobject-class-lookup gobject-class-methods))
+  (define lookup-property (make-gobject-class-lookup gobject-class-properties))
+  (define lookup-signal (make-gobject-class-lookup gobject-class-signals))
   
   (define (make-gobject-class-lookup accessor)
     (define (lookup class name)
@@ -108,11 +115,12 @@
   (define (gobject-class-force! class)
     (cond ((gobject-class-load-members class)
            => (lambda (loader)
-                (receive (parent constructors methods signals) (loader class)
+                (receive (parent constructors methods signals properties) (loader class)
                   (gobject-class-parent-set! class parent)
                   (gobject-class-constructors-set! class constructors)
                   (gobject-class-methods-set! class methods)
                   (gobject-class-signals-set! class signals)
+                  (gobject-class-properties-set! class properties)
                   (gobject-class-load-members-set! class #f))))))
   
   (define (send-message obj msg . args)

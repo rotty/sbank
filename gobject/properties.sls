@@ -37,8 +37,12 @@
     (let-callouts libgobject
         ((set-property% void "g_object_set_property" (pointer pointer pointer)))
       (lambda (obj property value)
-        (let ((gvalue (->g-value value))
-              (name-ptr (string->utf8z-ptr (symbol->string property))))
-          (set-property% (ginstance-ptr obj) name-ptr gvalue)
-          (free name-ptr)
-          (g-value-free gvalue))))))
+        (let ((pinfo (or (gobject-class-get-property-info (ginstance-class obj) property)
+                         (error 'g-object-set-property
+                                "no such property in class of instance"
+                                obj property))))
+          (let ((gvalue (->g-value value pinfo))
+                (name-ptr (string->utf8z-ptr (symbol->string property))))
+            (set-property% (ginstance-ptr obj) name-ptr gvalue)
+            (free name-ptr)
+            (g-value-free gvalue)))))))
