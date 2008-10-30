@@ -25,12 +25,24 @@
 
 (testeez "basic"
   (test-define "widget" <gtk-widget>
-               (make-gobject-class "Gtk" "Widget" #f
-                                   '()
-                                   `((show . ,(lambda (inst)
-                                                (list 'show: inst))))))
+               (make-gobject-class "Gtk" "Widget"
+                                   (lambda (class)
+                                     (values
+                                      #f
+                                      '()
+                                      `((show . ,(lambda (inst)
+                                                   'show-result)))
+                                      '()
+                                      '()))))
   (test-define "window" <gtk-window>
-               (make-gobject-class "Gtk" "Window" <gtk-widget>
-                                   `((new . ,(lambda () 'new-widget)))
-                                   `()))
-  (test/equal "construct/show"(send (send <gtk-window> (new)) (show)) (list 'show: 'new-widget)))
+               (make-gobject-class "Gtk" "Window"
+                                   (lambda (class)
+                                     (values
+                                      <gtk-widget>
+                                      `((new . ,(lambda () (make-ginstance class 'new-widget))))
+                                      '()
+                                      '()
+                                      '()))))
+  (test/equal "construct/show"
+    (send (send <gtk-window> (new)) (show))
+    'show-result))
