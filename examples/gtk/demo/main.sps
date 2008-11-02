@@ -1,16 +1,16 @@
 ;; Ported to sbank from guile-gnome
 ;; Copyright (C) 2003,2004,2008 Free Software Foundation, Inc.
 
-;; This program is free software; you can redistribute it and/or    
-;; modify it under the terms of the GNU General Public License as   
-;; published by the Free Software Foundation; either version 2 of   
-;; the License, or (at your option) any later version.              
-;;                                                                  
-;; This program is distributed in the hope that it will be useful,  
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of   
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the    
-;; GNU General Public License for more details.                     
-;;                                                                  
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation; either version 2 of
+;; the License, or (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program; if not, contact:
 ;;
@@ -28,10 +28,11 @@
         (spells tracing)
         (only (spells strings) string-unfold)
         (only (spells assert) cout)
-        (sbank gobject)
-        (sbank typelib))
+        (sbank gtk)
+        (sbank typelib)
+        (sbank typelib decorators))
 
-(install-gobject-decorators)
+(install-gtk-decorators)
 (typelib-import
  (prefix (only ("Gtk" #f)
                <window> <scrolled-window>
@@ -55,7 +56,7 @@
 ;; Detecting and loading up the demos
 (define (get-demos)
   (let ((dir (find-file demo-dir (library-search-paths))))
-    (trace-define (cons-demo pathname demos)
+    (define (cons-demo pathname demos)
       (let ((file (pathname-file pathname)))
         (if (and (file-regular? pathname)
                  (string=? (file-type file) "sls"))
@@ -90,7 +91,7 @@
          ;;(store (gtk-list-store-new (list <gboxed-scm> <gchararray>)))
          (tree-view (send <gtk-tree-view> (new))) ; :model store))
          (cellrenderer (send <gtk-cell-renderer-text> (new)))
-         (column (send <gtk-tree-view-column> (new "Widget (double-click to show)")))
+         (column (send <gtk-tree-view-column> (new)))
          (selection (send tree-view (get-selection))))
     #|
     (for-each
@@ -103,6 +104,7 @@
     |#
     (send selection (set-mode 'single))
     (send column
+      (set 'title "Widget (double-click to show)")
       (pack-start cellrenderer #t)
       (add-attribute cellrenderer "text" 1))
     (send tree-view
@@ -136,10 +138,9 @@
 
 (define (main argv)
   (gtk-init argv)
-  
+
   (let* ((main-window (send <gtk-window> (new 'toplevel)))
          (notebook (send <gtk-notebook> (new)))
-         (x (cout "XXX\n"))
          (info-buffer (make-text-view notebook 'word 2 "_Info"))
          (source-buffer (make-text-view notebook 'none 0 "_Source"))
          (tree-view (make-tree-view)))
@@ -147,24 +148,25 @@
     (define (set-demo demo)
       (send info-buffer (clear-buffer)))
 
-#|
-(let ((name (demo-name demo))
-      (desc (demo-description demo))
-      (iter (get-iter-at-offset info-buffer 0))
-      (start #f))
-  (insert info-buffer iter name)
-  (set! start (get-iter-at-offset info-buffer 0))
-  (apply-tag-by-name info-buffer "title" start iter)
-  (insert info-buffer iter "\n")
-  (insert info-buffer iter desc))
-(clear-buffer source-buffer)
-(let ((source (demo-source demo))
-      (iter (get-iter-at-offset source-buffer 0))
-      (start #f))
-  (insert source-buffer iter source)
-  (set! start (get-iter-at-offset source-buffer 0))
-  (apply-tag-by-name source-buffer "source" start iter)))
-|#
+    #|
+    (let ((name (demo-name demo))
+          (desc (demo-description demo))
+          (iter (get-iter-at-offset info-buffer 0))
+          (start #f))
+      (insert info-buffer iter name)
+      (set! start (get-iter-at-offset info-buffer 0))
+      (apply-tag-by-name info-buffer "title" start iter)
+      (insert info-buffer iter "\n")
+      (insert info-buffer iter desc))
+    (clear-buffer source-buffer)
+    (let ((source (demo-source demo))
+          (iter (get-iter-at-offset source-buffer 0))
+          (start #f))
+      (insert source-buffer iter source)
+      (set! start (get-iter-at-offset source-buffer 0))
+      (apply-tag-by-name source-buffer "source" start iter))
+    |#
+
     (send info-buffer (create-tag "title" 'font "Sans 18"))
     (send source-buffer (create-tag "source" 'font "Courier 12"
                                     'pixels-above-lines 0
@@ -173,14 +175,15 @@
       (set-title "Guile-Gtk Demo")
       (set-default-size 600 400))
 
-    ;; Pack the widgets
-    (let ((hbox (send <gtk-h-box> (new))))
-      (send main-window (add hbox))
+
+    ;; Pack the widgetssi
+    (let ((hbox (send <gtk-h-box> (new #f 5))))
       (let ((scrolled (make-scrolled)))
         (send scrolled (add tree-view))
         (send hbox
           (pack-start scrolled #f #f 0)
-          (pack-start notebook #t #t 0))))
+          (pack-start notebook #t #t 0)))
+      (send main-window (add hbox)))
 
     ;; Signals...
     (send main-window (connect 'delete-event (lambda (w e) (gtk-main-quit) #f)))
@@ -201,7 +204,7 @@
       (emit 'changed))
 
     (send main-window (show-all))
-    
+
     (gtk-main)))
 
 (main (command-line))
