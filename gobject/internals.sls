@@ -26,17 +26,21 @@
   (export make-gobject-class gobject-class?
           gobject-class-namespace
           gobject-class-name
+          gobject-class-gtype
           gobject-class-parent
           gobject-class-get-signal-callback
+          gobject-class-get-signal-signature
+          gobject-class-get-signal-rti
           gobject-class-get-property-info
           gobject-class-decorate
+          gobject-method-overrider
 
           make-ginstance ginstance? ginstance-ptr ginstance-class
 
           send-message
           send
-          
-          make-genum genum? genum-lookup genum-values genum-symbols
+
+          make-genum genum? genum-lookup genum-values genum-symbols genum-gtype
 
           gerror-type? make-gerror-type)
   (import (rnrs base)
@@ -53,7 +57,7 @@
   ;;
   ;; Object system
   ;;
-  
+
   (define-record-type ginstance
     (fields (immutable class ginstance-class)
             (immutable ptr ginstance-ptr)))
@@ -62,7 +66,8 @@
     ;;(opaque #t)
     (fields namespace
             name
-            (mutable load-members) 
+            (mutable load-members)
+            (mutable gtype%)
             (mutable parent)
             (mutable constructors)
             (mutable methods)
@@ -70,35 +75,61 @@
             (mutable properties))
     (protocol (lambda (p)
                 (lambda (namespace name load-members)
-                  (p namespace name load-members #f #f #f #f #f)))))
+                  (p namespace name load-members #f #f #f #f #f #f)))))
 
 
   (define-record-type gerror-type)
-  
+
+  (define (gobject-class-get-signal-signature class signal)
+    (lookup-signal class signal))
+
   (define (gobject-class-get-signal-callback class signal)
     (let ((signature (lookup-signal class signal)))
       (and signature (signature-callback signature))))
 
+  (define (gobject-class-get-signal-rti class signal)
+    (let ((signature (lookup-signal class signal)))
+      (and signature (signature-rti signature))))
+
+  (define (gobject-class-gtype class)
+    (gobject-class-force! class)
+    (gobject-class-gtype% class))
+
   (define gobject-class-get-property-info
     (lambda (class property)
       (lookup-property class property)))
-  
+
   (define (gobject-class-decorate class constructors-decorator methods-decorator signals-decorator)
     (make-gobject-class (gobject-class-namespace class)
                         (gobject-class-name class)
                         (lambda (new-class)
                           (gobject-class-force! class)
                           (values
+                           (gobject-class-gtype class)
                            (gobject-class-parent class)
                            (constructors-decorator (gobject-class-constructors class))
                            (methods-decorator (gobject-class-methods class))
                            (signals-decorator (gobject-class-signals class))
                            (gobject-class-properties class)))))
 
+  (define (gobject-method-overrider overrides)
+    (lambda (methods)
+      (let loop ((result methods) (overrides overrides))
+        (if (null? overrides)
+            result
+            (cond ((assq (caar overrides) methods)
+                   => (lambda (method)
+                        (loop (cons (car overrides) (filter (lambda (m)
+                                                              (not (eq? m method)))
+                                                            result))
+                              (cdr overrides))))
+                  (else
+                   (loop (cons (car overrides) result) (cdr overrides))))))))
+
   (define lookup-method (make-gobject-class-lookup gobject-class-methods))
   (define lookup-property (make-gobject-class-lookup gobject-class-properties))
   (define lookup-signal (make-gobject-class-lookup gobject-class-signals))
-  
+
   (define (make-gobject-class-lookup accessor)
     (define (lookup class name)
       (cond ((assq name (accessor class))
@@ -115,14 +146,15 @@
   (define (gobject-class-force! class)
     (cond ((gobject-class-load-members class)
            => (lambda (loader)
-                (receive (parent constructors methods signals properties) (loader class)
+                (receive (gtype parent constructors methods signals properties) (loader class)
+                  (gobject-class-gtype%-set! class gtype)
                   (gobject-class-parent-set! class parent)
                   (gobject-class-constructors-set! class constructors)
                   (gobject-class-methods-set! class methods)
                   (gobject-class-signals-set! class signals)
                   (gobject-class-properties-set! class properties)
                   (gobject-class-load-members-set! class #f))))))
-  
+
   (define (send-message obj msg . args)
     (cond ((ginstance? obj)
            (let ((method (send-message (ginstance-class obj) msg)))
@@ -153,10 +185,11 @@
   ;;
   ;; Enumerations and flags
   ;;
-  (define-record-type (genum make-genum% genum?)
-    (fields
-     (immutable syms genum-symbols)
-     (immutable vals genum-values)))
+  (define-record-type genum
+    (fields gtype symbols values)
+    (protocol (lambda (p)
+                (lambda (gtype alist)
+                  (p gtype (list->vector (map car alist)) (list->vector (map cdr alist)))))))
 
   ;; Note: this could be made more efficient by using sorted vectors
   ;; (but only in one direction)
@@ -167,7 +200,4 @@
               (else #f))
         (cond ((vector-index eqv? (genum-values enum) sym-or-val)
                => (lambda (i) (vector-ref (genum-symbols enum) i)))
-              (else #f))))
-
-  (define (make-genum alist)
-    (make-genum% (list->vector (map car alist)) (list->vector (map cdr alist)))))
+              (else #f)))))

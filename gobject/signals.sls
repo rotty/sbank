@@ -24,8 +24,9 @@
 
 
 (library (sbank gobject signals)
-  (export signal-connect)
+  (export g-signal-connect g-signal-emit)
   (import (rnrs base)
+          (rnrs control)
           (spells receive)
           (spells foreign)
           (spells tracing)
@@ -36,6 +37,9 @@
           (sbank shlibs)
           (sbank ctypes)
           (sbank typelib)
+          (sbank type-data)
+          (sbank gobject gvalue)
+          (sbank gobject gtype)
           (sbank gobject internals))
 
   (define signal-destroy-notify-ptr
@@ -45,12 +49,12 @@
        ;; current ikarus FFI doesn't allow us doing that
        #f)))
   
-  (define signal-connect
-    (let ((g-signal-connect-data ((make-c-callout 'ulong
-                                                  '(pointer pointer pointer pointer pointer int))
-                                  (dlsym libgobject "g_signal_connect_data"))))
+  (define g-signal-connect
+    (let-callouts libgobject
+        ((g-signal-connect-data
+          'ulong "g_signal_connect_data" '(pointer pointer pointer pointer pointer int)))
       (define (lose msg . irritants)
-        (apply error 'signal-connect msg irritants))
+        (apply error 'g-signal-connect msg irritants))
       (lambda (instance signal callback)
         (let*-values (((signal detail detailed-signal) (parse-signal-spec signal lose))
                       ((detailed-signal-ptr) (string->utf8z-ptr detailed-signal)))
@@ -68,15 +72,55 @@
             (free detailed-signal-ptr)
             id)))))
 
+  (define gquark-ctype 'uint32)
+
+  (define g-signal-lookup
+    (let-callouts libgobject ((lookup% 'uint "g_signal_lookup" `(pointer ,gtype-ctype)))
+      (lambda (signal class)
+        (let* ((name-ptr (string->utf8z-ptr (symbol->string signal)))
+               (rv (lookup% name-ptr (gobject-class-gtype class))))
+          (free name-ptr)
+          rv))))
+  
+  (define g-signal-emit
+    (let-callouts libgobject ((g-signal-emitv
+                               'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
+      (trace-lambda g-signal-emit (instance signal . args)
+        (define (lose msg . irritants)
+          (apply error 'signal-emit msg irritants))
+        (receive (signal detail detailed-signal) (parse-signal-spec signal lose)
+          (let* ((signal-id (g-signal-lookup signal (ginstance-class instance)))
+                 (signature (gobject-class-get-signal-signature (ginstance-class instance) signal))
+                 (rti (signature-rti signature))
+                 (atis (signature-atis signature))
+                 (n-args (+ 1 (length atis)))
+                 (arg-gvs (g-value-alloc n-args)))
+            (unless (= n-args 1)
+              (error 'g-signal-emit "signal arguments not yet implemented" instance signal args))
+            (g-value-init! (pointer+ arg-gvs 0) (ginstance-class instance))
+            (g-value-set! (pointer+ arg-gvs 0) instance #f)
+            (cond ((eq? (type-info-type rti) 'void)
+                   (g-signal-emitv arg-gvs signal-id detail (integer->pointer 0))
+                   (do ((i 0 (+ i 1)))
+                       ((>= i n-args))
+                     (g-value-unset! (pointer+ arg-gvs (* i g-value-size))))
+                   (free arg-gvs))
+                  (else
+                   (let ((ret-gv (g-value-new (type-info-type rti))))
+                     (g-signal-emitv (ginstance-ptr instance signal-id detail ret-gv))
+                     (let ((rv (g-value-ref ret-gv rti)))
+                       (g-value-free ret-gv)
+                       rv)))))))))
+  
   (define (parse-signal-spec signal lose)
     (cond ((string? signal)
            (let ((parts (string-split signal #\:)))
              (case (length parts)
-               ((1) (values (string->symbol (car parts)) #f signal))
+               ((1) (values (string->symbol (car parts)) 0 signal))
                ((2) (values (string->symbol (car parts)) (cadr parts) signal))
                (else
                 (lose "invalid signal name" signal)))))
           ((symbol? signal)
-           (values signal #f (symbol->string signal)))
+           (values signal 0 (symbol->string signal)))
           (else
            (lose "invalid signal specification" signal)))))

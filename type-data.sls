@@ -34,6 +34,8 @@
 
           signature?
           make-signature
+          signature-rti
+          signature-atis
           signature-callout
           signature-callback
           
@@ -80,11 +82,13 @@
     (type-info-is-pointer? (property-info-type-info pinfo)))
   
   (define-record-type signature
-    (fields (mutable callout signature-callout% signature-set-callout%!)
+    (fields (immutable rti)
+            (immutable atis)
+            (mutable callout signature-callout% signature-set-callout%!)
             (mutable callback signature-callback% signature-set-callback%!))
     (protocol (lambda (p)
-                (lambda (callout callback)
-                  (p (make-lazy-entry callout) (make-lazy-entry callback))))))
+                (lambda (rti atis callout callback)
+                  (p rti atis (make-lazy-entry callout) (make-lazy-entry callback))))))
 
   (define (lazy-forcer accessor setter)
     (lambda (obj)

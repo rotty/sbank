@@ -26,9 +26,12 @@
 
 
 (library (sbank gobject)
-  (export gobject-class? ginstance?
+  (export gobject-class?
+          gobject-class-decorate
+          gobject-method-overrider
+          ginstance?
           genum? genum-lookup
-          send
+          send send-message
           install-gobject-decorators)
   (import (rnrs base)
           (rnrs control)
@@ -45,33 +48,30 @@
   (define (gobject-decorator class)
     (gobject-class-decorate class
                             values
-                            (method-overrider `((connect . ,g-object-connect)
-                                                (set . ,g-object-set)))
+                            (gobject-method-overrider `((connect . ,g-object-connect)
+                                                        (emit . ,g-object-emit)
+                                                        (get . ,g-object-get)
+                                                        (set . ,g-object-set)))
                             values))
   
   (define (g-object-connect instance signal callback)
-    (signal-connect instance signal callback))
+    (g-signal-connect instance signal callback))
 
+  (define (g-object-emit instance signal)
+    (g-signal-emit instance signal))
+  
   (define (g-object-set instance . args)
     (do ((args args (cddr args)))
         ((null? args))
       (when (null? (cdr args))
         (error 'g-object-set "uneven number of arguments" args))
       (g-object-set-property instance (car args) (cadr args))))
-  
-  (define (method-overrider overrides)
-    (lambda (methods)
-      (let loop ((result methods) (overrides overrides))
-        (if (null? overrides)
-            result
-            (cond ((assq (caar overrides) methods)
-                   => (lambda (method)
-                        (loop (cons (car overrides) (filter (lambda (m)
-                                                              (not (eq? m method)))
-                                                            result))
-                              (cdr overrides))))
-                  (else
-                   (loop (cons (car overrides) result) (cdr overrides))))))))
+
+  (define (g-object-get instance . properties)
+    (let loop ((vals '()) (props properties))
+      (if (null? props)
+          (apply values (reverse vals))
+          (loop (cons (g-object-get-property instance (car props)) vals) (cdr props)))))
   
   (define install-gobject-decorators
     (let ((installed? #f))

@@ -31,6 +31,7 @@
           (rnrs io simple)
           (spells find-file)
           (spells pathname)
+          (sbank gobject gtype)
           (sbank stypes))
 
   (define (slurp-types)
@@ -44,7 +45,7 @@
       (call-with-input-file (x->namestring filename) read)))
 
   (define extra-types
-    `((alias "gtype" ,(symbol->string gtype-ctype))
+    `((alias (name "gtype") (target ,(symbol->string gtype-ctype)))
       (record (name "GError")
               (field (name "domain") (type "uint32"))
               (field (name "code") (type "int"))

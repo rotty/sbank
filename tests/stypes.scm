@@ -119,6 +119,7 @@
 (let ((stypes
        (stypes-adjoin
         primitive-stypes
+        '(alias (name "gtype") (target "size_t"))
         '(union (name "SimpleTypeBlob")
                 (record
                  (field (name "tag") (type "uint") (bits 5))
@@ -129,14 +130,17 @@
                  (field (name "type") (type "uint"))
                  (field (name "data") (type (array (element-type (type "uint"))
                                                    (element-count 16))))
-                 (field (name "ptr") (type (array (element-type (type "uchar"))))))))
+                 (field (name "ptr") (type (array (element-type (type "uchar"))))))
+        '(record (name "GValue")
+                 (field (name "g_type") (type "gtype")))))
       
       (stblob-mem (let ((bv (make-bytevector 4)))
                     (bytevector-u32-native-set! bv 0 #x1200cd85)
                     (memcpy (malloc 4) bv 4)))
 
       (record-mem
-       (let* ((byte-size (+ (* 17 (c-type-sizeof 'uint)) (c-type-sizeof 'pointer)))
+       (let* ((ptr-offset (c-type-align 'pointer (* 17 (c-type-sizeof 'uint))))
+              (byte-size (+ ptr-offset (c-type-sizeof 'pointer)))
               (bv (make-bytevector byte-size)))
          (do ((i 0 (+ i 1)))
              ((>= i 17))
@@ -145,8 +149,7 @@
                                  (bitwise-arithmetic-shift 1 i)
                                  (native-endianness)
                                  (c-type-sizeof 'uint)))
-         (bytevector-uint-set! bv (* 17 (c-type-sizeof 'uint)) 0
-                               (native-endianness) (c-type-sizeof 'pointer))
+         (bytevector-uint-set! bv ptr-offset 0 (native-endianness) (c-type-sizeof 'pointer))
          (memcpy (malloc byte-size) bv byte-size))))
 
   (let* ((stblob (stypes-ref stypes "SimpleTypeBlob"))

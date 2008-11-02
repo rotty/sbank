@@ -7,9 +7,9 @@
 #!r6rs
 (import (rnrs)
         (sbank typelib)
-        (sbank gobject))
+        (sbank gtk))
 
-(install-gobject-decorators)
+(install-gtk-decorators)
 (typelib-import (prefix (only ("Gtk" #f)
                               <window> <button> <h-box>
                               init main main-quit) gtk-))

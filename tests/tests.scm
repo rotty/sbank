@@ -34,8 +34,9 @@
    (spells foreign))
   
   ("stypes.scm"
-   (sbank stypes) (spells foreign)
-   (only (spells lists) make-list)
+   (sbank stypes)
+   (spells foreign)
+   (only (spells lists) make-list iota)
    (rnrs control)
    (rnrs arithmetic bitwise)
    (rnrs bytevectors)

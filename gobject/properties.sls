@@ -24,24 +24,45 @@
 
 
 (library (sbank gobject properties)
-  (export g-object-set-property)
+  (export g-object-get-property
+          g-object-set-property)
   (import (rnrs base)
           (spells receive)
           (spells foreign)
+          (spells tracing)
           (sbank shlibs)
           (sbank ctypes)
+          (sbank type-data)
           (sbank gobject gvalue)
           (sbank gobject internals))
+
+  (define (property-lookup who obj property)
+    (or (gobject-class-get-property-info (ginstance-class obj) property)
+                         (error who
+                                "no such property in class of instance"
+                                obj property)))
+  
+  (define g-object-get-property
+    (let-callouts libgobject
+        ((get-property% 'void "g_object_get_property" '(pointer pointer pointer)))
+      (trace-lambda prop-get (obj property)
+        (define who 'g-object-get-property)
+        (let ((pinfo (property-lookup who obj property)))
+          (let ((gvalue (g-value-new (property-info-type pinfo)))
+                (name-ptr (string->utf8z-ptr (symbol->string property))))
+            (get-property% (ginstance-ptr obj) name-ptr gvalue)
+            (free name-ptr)
+            (let ((result (g-value-ref gvalue (property-info-type pinfo))))
+              (g-value-free gvalue)
+              result))))))
   
   (define g-object-set-property
     (let-callouts libgobject
         ((set-property% 'void "g_object_set_property" '(pointer pointer pointer)))
       (lambda (obj property value)
-        (let ((pinfo (or (gobject-class-get-property-info (ginstance-class obj) property)
-                         (error 'g-object-set-property
-                                "no such property in class of instance"
-                                obj property))))
-          (let ((gvalue (->g-value value pinfo))
+        (define who 'g-object-set-property)
+        (let ((pinfo (property-lookup who obj property)))
+          (let ((gvalue (->g-value value (property-info-type pinfo)))
                 (name-ptr (string->utf8z-ptr (symbol->string property))))
             (set-property% (ginstance-ptr obj) name-ptr gvalue)
             (free name-ptr)

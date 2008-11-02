@@ -52,6 +52,7 @@
           (sbank ctypes)
           (sbank shlibs)
           (sbank gobject internals)
+          (sbank gobject gtype)
           (sbank conditions)
           (sbank typelib decorators)
           (for (sbank typelib stypes) run expand))
@@ -215,7 +216,8 @@
            (entry (vector-ref dir (- index 1))))
       (if (lazy-entry? entry)
           (let ((val ((lazy-entry-proc entry))))
-            (vector-set! dir index val)
+            (cout (list "entry forced:" index val) "\n")
+            (vector-set! dir (- index 1) val)
             val)
           entry)))
 
@@ -341,9 +343,9 @@
       (lambda ()
         (make/validate-function typelib tld blob #f))))
 
-  (define (get-signature typelib tld signature callout callback)
+  (define (get-signature typelib tld signature constructor? container)
     (or (table-ref (typelib-signatures typelib) signature)
-        (let ((result (make-signature callout callback)))
+        (let ((result (make/validate-signature typelib tld signature constructor? container)))
           (table-set! (typelib-signatures typelib) signature result)
           result)))
                                                   
@@ -359,21 +361,7 @@
           (raise-validation-error "constructor without container"))
         (unless (or (= index 0) (bool setter) (bool getter) (bool wraps-vfunc))
           (raise-validation-error "indexed function blob must be setter getter or wrapper"))
-        (let ((signature (get-signature typelib
-                                        tld
-                                        signature
-                                        (lambda ()
-                                          (make/validate-callout typelib
-                                                                 tld
-                                                                 signature
-                                                                 (bool constructor)
-                                                                 container))
-                                        (lambda ()
-                                          (make/validate-callback typelib
-                                                                  tld
-                                                                  signature
-                                                                  (not (bool constructor))
-                                                                  container)))))
+        (let ((signature (get-signature typelib tld signature (bool constructor) container)))
           (cond ((= wraps-vfunc 1)
                  (make/validate-vfunc-caller tld index (signature-callout signature)))
                 ((= getter 1)
@@ -562,14 +550,7 @@
           (let ((name (scheme-ified-symbol
                        (get/validate-string tld name))))
             (with-validation-context name
-              (cons name
-                    (make-signature
-                     (thunk/validation-context
-                      (lambda ()
-                        (make/validate-callout typelib tld signature)))
-                     (thunk/validation-context
-                      (lambda ()
-                        (make/validate-callback typelib tld signature #t container))))))))))
+              (cons name (make/validate-signature typelib tld signature #f container)))))))
     (define (property-maker container)
       (lambda (blob)
         (let-attributes property-blob-fetcher blob
@@ -589,7 +570,7 @@
       (lambda ()
         (make-gobject-class
          (typelib-namespace typelib)
-         name 
+         name
          (lambda (class)
            (let-attributes header-fetcher tld
                            (object-blob-size field-blob-size property-blob-size
@@ -628,7 +609,8 @@
                                                          (constructor)
                                            (= constructor 1)))
                                        (make-array-pointers methods n-methods function-blob-size))
-                     (values parent
+                     (values (get/validate-gtype typelib tld gtype-init)
+                             parent
                              (map (member-func-maker class) constructors)
                              (map (member-func-maker class) methods)
                              (map (signal-maker class)
@@ -638,16 +620,34 @@
                                                        n-properties
                                                        property-blob-size)))))))))))))
   
+
+  (define (make/validate-signature typelib tld signature-offset constructor? container)
+    (let-attributes signature-blob-fetcher
+        (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
+        (return-type n-arguments arguments may-return-null)
+      (let ((arg-blob-size ((header-fetcher 'arg-blob-size) tld)))
+        (make-signature
+         (stblob-type-info typelib tld return-type (bool may-return-null))
+         (arg-blobs-type-infos typelib tld arguments n-arguments arg-blob-size)
+         (thunk/validation-context
+          (lambda ()
+            (make/validate-callout typelib tld signature-offset constructor? container)))
+         (thunk/validation-context
+          (lambda ()
+            (make/validate-callback typelib tld signature-offset (not constructor?) container)))))))
+  
   (define (make-enum-loader typelib tld entry-ptr entry-name)
     (lambda ()
       (let ((blob (validated-pointer+ tld
                                       ((dir-entry-fetcher 'offset) entry-ptr)
                                       ((header-fetcher 'enum-blob-size) tld))))
         (let-attributes enum-blob-fetcher blob
-                        (blob-type n-values values)
+                        (blob-type gtype-init n-values values)
           (unless (= blob-type 5)
             (raise-validation-error "invalid blob type for enum entry" blob-type))
+          (cout (list "enum: " (validation-context) entry-name values n-values) "\n")
           (make-genum
+           (get/validate-gtype typelib tld gtype-init)
            (map (lambda (val-ptr)
                   (let-attributes value-blob-fetcher val-ptr
                                   (name value)
@@ -717,6 +717,13 @@
     (lambda ()
       (let ((decorator (lookup-typelib-decorator namespace name)))
         (if decorator (decorator (loader)) (loader)))))
+
+  (define get/validate-gtype
+    (let ((callout (make-c-callout gtype-ctype '())))
+      (lambda (typelib tld name-offset)
+        (let* ((name (get/validate-string tld name-offset))
+               (func-ptr (typelib-dlsym typelib name)))
+          (and func-ptr ((callout func-ptr)))))))
   
   ;;
   ;; Helpers
@@ -752,6 +759,7 @@
         ((interface)
          (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
                          (interface)
+           (cout (list 'interface: (validation-context) interface) "\n")
            (let* ((entry (typelib-get-entry/index typelib interface))
                   (pointer? (not (genum? entry))))
              (make-type-info entry pointer? null-ok?))))
@@ -776,9 +784,6 @@
       (raise-validation-error "offset/size out of bounds" offset size (header-size tld)))
     (pointer+ tld offset))
 
-  (define (pointer+ p n)
-    (integer->pointer (+ (pointer->integer p) n)))
-
   (define (make-array-pointers base n size)
     (do ((i (- n 1) (- i 1))
          (result '() (cons (pointer+ base (* i size)) result)))
@@ -792,4 +797,4 @@
     (newline (current-error-port)))
 
   ;; Initialize the GObject type system
-  (((make-c-callout 'void '()) (dlsym libgobject "g_type_init" ))))
+  (g-type-init))

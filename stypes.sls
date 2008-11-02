@@ -93,10 +93,12 @@
             (boolean int)))))
 
   (define (stypes-adjoin stypes . new-types)
-    (cons (car stypes) (append (cdr stypes)
-                               (map (lambda (new-type)
-                                      (resolve-types new-type stypes))
-                                    new-types))))
+    (let loop ((result stypes) (types new-types))
+      (if (null? types)
+          result
+          (loop (cons (car result)
+                      (append (cdr result) (list (resolve-types (car types) result))))
+                (cdr types)))))
 
   (define (stype-attribute stype name)
     (sxpath-attr stype (list name)))
@@ -135,12 +137,7 @@
                                                            (alignment ,alignment)))
                                                        '()))))))
           ((alias)
-           (let ((name (cadr type))
-                 (aliased-type (stypes-ref types (caddr type))))
-             (cons (car aliased-type)
-                   (append `((name ,name)) (filter (lambda (comp)
-                                                     (not (eq? (car comp) 'name)))
-                                                   (cdr aliased-type))))))
+           type)
           (else
            (cons (car type) (map (lambda (t)
                                    (resolve-types t types))
@@ -165,9 +162,12 @@
           (list 'type (append resolved pointer-attrs)))))
                        
   (define (stypes-ref stypes name)
-    (and-let* ((components ((select-component name) stypes))
-               ((pair? components)))
-      (car components)))
+    (and-let* ((types ((select-component name) stypes))
+               ((pair? types))
+               (type (car types)))
+      (if (eq? (car type) 'alias)
+          (stypes-ref stypes (sxpath-attr type '(target)))
+          type)))
   
   (define (stype-fetcher stype path)
     (define (lose msg . irritants)

@@ -28,6 +28,8 @@
           make-callback
           arg-callout-steps
           arg-callback-steps
+
+          pointer+
           
           utf8z-ptr->string
           string->utf8z-ptr
