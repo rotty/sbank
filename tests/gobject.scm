@@ -22,12 +22,12 @@
 
 ;;; Code:
 
-
 (testeez "object system"
   (test-define "widget" <gtk-widget>
                (make-gobject-class "Gtk" "Widget"
                                    (lambda (class)
                                      (values
+                                      #f
                                       #f
                                       '()
                                       `((show . ,(lambda (inst)
@@ -38,6 +38,7 @@
                (make-gobject-class "Gtk" "Window"
                                    (lambda (class)
                                      (values
+                                      #f
                                       <gtk-widget>
                                       `((new . ,(lambda () (make-ginstance class 'new-widget))))
                                       '()
@@ -47,6 +48,9 @@
     (send (send <gtk-window> (new)) (show))
     'show-result))
 
+(g-type-init)
 (testeez "GValue"
   (test-define "creating gvalue (int)" int-gv (g-value-new 'int))
-  (test-eval "setting gvalue (int)" (g-value-set! int-gv 42 #f)))
+  (test-eval "setting gvalue (int)" (g-value-set! int-gv 42 #f))
+  (test/equal "getting value (int)" (g-value-ref int-gv #f) 42))
+
