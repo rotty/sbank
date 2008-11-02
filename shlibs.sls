@@ -31,7 +31,7 @@
   (define-syntax let-callouts
     (syntax-rules ()
       ((let-callouts shlib ((name ret-type c-name arg-types) ...) body ...)
-       (let ((name ((make-c-callout 'ret-type 'arg-types)
+       (let ((name ((make-c-callout ret-type arg-types)
                     (dlsym shlib c-name)))
              ...)
          body ...))))

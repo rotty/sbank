@@ -35,7 +35,7 @@
   
   (define g-object-set-property
     (let-callouts libgobject
-        ((set-property% void "g_object_set_property" (pointer pointer pointer)))
+        ((set-property% 'void "g_object_set_property" '(pointer pointer pointer)))
       (lambda (obj property value)
         (let ((pinfo (or (gobject-class-get-property-info (ginstance-class obj) property)
                          (error 'g-object-set-property

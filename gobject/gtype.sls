@@ -23,7 +23,7 @@
 ;;; Code:
 
 (library (sbank gobject gtype)
-  (export symbol->gtype gtype->symbol)
+  (export symbol->gtype gtype->symbol gtype-ctype)
   (import (rnrs base)
           (rnrs arithmetic bitwise)
           (sbank utils)
@@ -56,9 +56,11 @@
   (define *fundamental-shift* 2)
   
   (define gtype->symbol
-    (let-callouts libgobject ((fundamental% gtype "g_type_fundamental" (gtype)))
+    (let-callouts libgobject ((fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype)))
       (lambda (gtype)
         (gtype->symbol% (fundamental% gtype)))))
 
   (define (symbol->gtype sym)
-    (bitwise-arithmetic-shift (symbol->gtype% sym) *fundamental-shift*)))
+    (bitwise-arithmetic-shift (symbol->gtype% sym) *fundamental-shift*))
+
+  (define gtype-ctype 'size_t))

@@ -50,14 +50,14 @@
     (gvalue-size size))
   
   (define g-value-new
-    (let-callouts libgobject ((init% pointer "g_value_init" (pointer gtype)))
+    (let-callouts libgobject ((init% 'pointer "g_value_init" `(pointer ,gtype-ctype)))
       (let ((zero-bytes (make-bytevector gvalue-size 0)))
         (lambda (gtype)
           (let ((mem (memcpy (malloc gvalue-size) zero-bytes gvalue-size)))
             (init% mem (symbol->gtype gtype)))))))
 
   (define g-value-free
-    (let-callouts libgobject ((unset% void "g_value_unset" (pointer)))
+    (let-callouts libgobject ((unset% 'void "g_value_unset" '(pointer)))
       (lambda (gvalue)
         (unset% gvalue)
         (free gvalue))))
@@ -78,10 +78,10 @@
       gvalue))
   
   (define g-value-set!
-    (let-callouts libgobject ((set-object% void "g_value_set_object" (pointer pointer))
-                              (set-bool% void "g_value_set_boolean" (pointer int))
-                              (set-enum% void "g_value_set_enum" (pointer int))
-                              (set-int% void "g_value_set_int" (pointer int)))
+    (let-callouts libgobject ((set-object% 'void "g_value_set_object" '(pointer pointer))
+                              (set-bool% 'void "g_value_set_boolean" '(pointer int))
+                              (set-enum% 'void "g_value_set_enum" '(pointer int))
+                              (set-int% 'void "g_value_set_int" '(pointer int)))
       (lambda (gvalue val type)
         (cond
          ((ginstance? val)
@@ -96,6 +96,6 @@
           (error 'g-value-set! "not implemented for this type of value" val type))))))
 
   (define g-value-ref
-    (let-callouts libgobject ((get-object% pointer "g_value_get_object" (pointer pointer)))
+    (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer pointer)))
       (lambda (gvalue)
         #f))))

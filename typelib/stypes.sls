@@ -44,7 +44,7 @@
       (call-with-input-file (x->namestring filename) read)))
 
   (define extra-types
-    '((alias "gtype" "size_t")
+    `((alias "gtype" ,(symbol->string gtype-ctype))
       (record (name "GError")
               (field (name "domain") (type "uint32"))
               (field (name "code") (type "int"))

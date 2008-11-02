@@ -58,6 +58,7 @@
           (sbank shlibs)
           (sbank typelib stypes)
           (sbank gobject internals)
+          (sbank gobject gtype)
           (sbank conditions))
 
   (define-syntax debug
@@ -518,7 +519,7 @@
     (case sym
       ((boolean) 'uint)
       ((utf8) 'pointer)
-      ((int) 'int)
+      ((gtype) gtype-ctype)
       (else sym)))
 
   (define (utf8z-ptr->string ptr)
@@ -663,7 +664,4 @@
           (utf8z-ptr->string utf8z-ptr))))
   
   (define (pointer+ p n)
-    (integer->pointer (+ (pointer->integer p) n)))
-
-  ;; register a type alias for 'GType'
-  (c-type-aliases (cons '(gtype . size_t) (c-type-aliases))))
+    (integer->pointer (+ (pointer->integer p) n))))
