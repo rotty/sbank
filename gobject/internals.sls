@@ -32,6 +32,7 @@
           gobject-class-get-signal-signature
           gobject-class-get-signal-rti
           gobject-class-get-property-info
+          gobject-class-size
           gobject-class-decorate
           gobject-method-overrider
 
@@ -51,6 +52,8 @@
           (spells alist)
           (spells receive)
           (spells tracing)
+          (only (spells assert) cout)
+          (spells foreign)
           (sbank type-data)
           (sbank utils))
 
@@ -95,22 +98,36 @@
     (gobject-class-force! class)
     (gobject-class-gtype% class))
 
-  (define gobject-class-get-property-info
-    (lambda (class property)
-      (lookup-property class property)))
+  (define (gobject-class-get-property-info class property)
+    (lookup-property class property))
 
-  (define (gobject-class-decorate class constructors-decorator methods-decorator signals-decorator)
+  (define (gobject-class-size class)
+    ;; FIXME: gross hack, we need to calc size based on fields
+    (* 4 (c-type-sizeof 'pointer)))
+  
+  (define (gobject-class-decorate class
+                                  constructors-decorator
+                                  methods-decorator
+                                  signals-decorator)
     (make-gobject-class (gobject-class-namespace class)
                         (gobject-class-name class)
                         (lambda (new-class)
-                          (gobject-class-force! class)
-                          (values
-                           (gobject-class-gtype class)
-                           (gobject-class-parent class)
-                           (constructors-decorator (gobject-class-constructors class))
-                           (methods-decorator (gobject-class-methods class))
-                           (signals-decorator (gobject-class-signals class))
-                           (gobject-class-properties class)))))
+                          (receive (gtype parent constructors methods signals properties)
+                                   ((gobject-class-load-members class) class)
+                            (values gtype
+                                    parent
+                                    (constructors-decorator constructors)
+                                    (methods-decorator methods)
+                                    (signals-decorator signals)
+                                    properties)))))
+
+  (define (apply-override method override)
+    (cons (car override)
+          (if (lazy-entry? (cdr method))
+              (make-lazy-entry (lambda (class)
+                                 (let ((next-method ((lazy-entry-proc (cdr method)) class)))
+                                   ((cdr override) next-method))))
+              ((cdr override) (cdr method)))))
 
   (define (gobject-method-overrider overrides)
     (lambda (methods)
@@ -119,12 +136,16 @@
             result
             (cond ((assq (caar overrides) methods)
                    => (lambda (method)
-                        (loop (cons (car overrides) (filter (lambda (m)
-                                                              (not (eq? m method)))
-                                                            result))
+                        (loop (cons (apply-override method (car overrides))
+                                    (filter (lambda (m)
+                                              (not (eq? m method)))
+                                            result))
                               (cdr overrides))))
                   (else
-                   (loop (cons (car overrides) result) (cdr overrides))))))))
+                   (loop (cons (cons (caar overrides)
+                                     ((cdar overrides) #f))
+                               result)
+                         (cdr overrides))))))))
 
   (define lookup-method (make-gobject-class-lookup gobject-class-methods))
   (define lookup-property (make-gobject-class-lookup gobject-class-properties))
@@ -135,7 +156,7 @@
       (cond ((assq name (accessor class))
              => (lambda (entry)
                   (when (lazy-entry? (cdr entry))
-                    (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
+                    (set-cdr! entry ((lazy-entry-proc (cdr entry)) class)))
                   (cdr entry)))
             ((gobject-class-parent class) => (lambda (parent)
                                                (gobject-class-force! parent)
@@ -164,7 +185,7 @@
            (cond ((assq msg (gobject-class-constructors obj))
                   => (lambda (entry)
                        (when (lazy-entry? (cdr entry))
-                         (set-cdr! entry ((lazy-entry-proc (cdr entry)))))
+                         (set-cdr! entry ((lazy-entry-proc (cdr entry)) obj)))
                        (apply (cdr entry) args)))
                  ((lookup-method obj msg)
                   => (lambda (proc)

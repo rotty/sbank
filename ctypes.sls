@@ -103,12 +103,11 @@
          (arg-types arg-types (cdr arg-types))
          (flags flags (cdr flags)))
         ((>= i (vector-length arg-vec)))
-      (let* ((ti (car arg-types))
-             (prim-type (type-info-type ti)))
+      (let* ((prim-type (type-info-prim-type (car arg-types))))
         (case (car flags)
           ((in-out) (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
           ((out) (vector-set! arg-vec i
-                              (malloc (c-type-sizeof (type-tag-symbol->prim-type prim-type)))))))))
+                              (malloc (c-type-sizeof prim-type))))))))
 
   (define (args-post-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
@@ -119,22 +118,24 @@
         ((in-out out)
          (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
   
-  (define (arg-callout-steps ti i out?)
+  (define (arg-callout-steps ti i flag)
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
-        (values (array-arg-setup type i (type-info-null-ok? ti))
-                (and out? (array-arg-collect type i))
+        (values (and (not (eq? 'out flag)) (array-arg-setup type i (type-info-null-ok? ti)))
+                (and (not (eq? 'in flag)) (array-arg-collect type i))
                 (array-arg-cleanup type i)))
        ((gerror-type? type)
+        (unless (eq? flag 'in)
+          (raise-sbank-callout-error "GError arguments must have direction 'in'" ti flag))
         (values (gerror-arg-setup type i)
                 #f
                 (gerror-arg-cleanup type i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
-          (values (if out-convert (converter-setup i out-convert) i)
-                  (and out? (if back-convert (converter-collect i back-convert) i))
+          (values (and (not (eq? 'out flag)) (if out-convert (converter-setup i out-convert) i))
+                  (and (not (eq? 'in flag)) (if back-convert (converter-collect i back-convert) i))
                   (and cleanup (cleanup-step i cleanup))))))))
 
   (define (arg-callback-steps ti i)
@@ -171,6 +172,22 @@
             (raise-sbank-callout-error "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
 
+  (define (type-info-prim-type ti)
+    (let ((type (type-info-type ti)))
+      (cond
+       ((symbol? type)
+        (type-tag-symbol->prim-type type))
+       ((genum? type)
+        'values)
+       ((array-type? type)
+        (unless (or (array-size type) (array-is-zero-terminated? type))
+          (raise-sbank-callout-error "cannot handle array without size information" type))
+        'pointer)
+       ((gobject-class? type)
+        'pointer)
+       (else
+        (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
+  
   (define (type-info/prim-type+procs ti)
     (let ((type (type-info-type ti))
           (null-ok? (type-info-null-ok? ti)))
@@ -498,7 +515,7 @@
     (let ((type (type-info-type ti)))
       (cond ((symbol? type)
              ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))
-            ((array-type? type)
+            ((or (array-type? type) (gobject-class? type))
              (pointer-ref-c-pointer ptr 0))
             (else
              (error 'deref-pointer "not implemented for that type" ptr type)))))

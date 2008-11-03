@@ -85,7 +85,7 @@
   (define g-signal-emit
     (let-callouts libgobject ((g-signal-emitv
                                'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
-      (trace-lambda g-signal-emit (instance signal . args)
+      (lambda (instance signal . args)
         (define (lose msg . irritants)
           (apply error 'signal-emit msg irritants))
         (receive (signal detail detailed-signal) (parse-signal-spec signal lose)
@@ -107,7 +107,7 @@
                    (free arg-gvs))
                   (else
                    (let ((ret-gv (g-value-new (type-info-type rti))))
-                     (g-signal-emitv (ginstance-ptr instance signal-id detail ret-gv))
+                     (g-signal-emitv arg-gvs signal-id detail ret-gv)
                      (let ((rv (g-value-ref ret-gv rti)))
                        (g-value-free ret-gv)
                        rv)))))))))

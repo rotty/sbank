@@ -45,7 +45,7 @@
   (define g-object-get-property
     (let-callouts libgobject
         ((get-property% 'void "g_object_get_property" '(pointer pointer pointer)))
-      (trace-lambda prop-get (obj property)
+      (lambda (obj property)
         (define who 'g-object-get-property)
         (let ((pinfo (property-lookup who obj property)))
           (let ((gvalue (g-value-new (property-info-type pinfo)))
