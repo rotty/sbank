@@ -731,7 +731,7 @@
                           (lambda (class)
                             (values #f
                                     #f
-                                    `((alloc . ,(record-alloc class)))
+                                    `((alloc . ,(make-lazy-entry record-alloc)))
                                     `((free . ,record-free))
                                     '()
                                     '())))))

@@ -33,14 +33,16 @@
           g-value-unset!
           g-value-free
           ->g-value)
-  (import (rnrs base)
-          (rnrs bytevectors)
+  (import (rnrs)
           (spells foreign)
+          (spells table)
+          (spells tracing)
           (sbank shlibs)
           (sbank ctypes)
           (sbank type-data)
           (sbank gobject internals)
           (sbank gobject gtype)
+          (sbank gobject boxed-values)
           (sbank typelib stypes)
           (sbank stypes))
 
@@ -63,7 +65,10 @@
         (let ((gtype-val (cond ((integer? gtype) gtype)
                                ((genum? gtype) (genum-gtype gtype))
                                ((gobject-class? gtype) (gobject-class-gtype gtype))
-                               (else (symbol->gtype gtype)))))
+                               (else
+                                (case gtype
+                                  ((boxed) (g-boxed-value-type))
+                                  (else    (symbol->gtype gtype)))))))
           (init% gvalue gtype-val)))))
 
   (define (g-value-new gtype)
@@ -86,19 +91,35 @@
           (else
            (cond ((genum? type) (genum-gtype type))
                  (else
-                  (error 'value-gtype "not implemented for this type of value" value type))))))
+                  (g-boxed-value-type))))))
   
   (define (->g-value val type)
     (let ((gvalue (g-value-new (value-gtype val type))))
       (g-value-set! gvalue val type)
       gvalue))
+
+  (define register-value
+    (let ((max-val (bitwise-arithmetic-shift 1 (* 8 (c-type-sizeof 'pointer))))
+          (registered-values (make-table 'eqv))
+          (count 0))
+      (define (inc count)
+        (when (= count max-val)
+          (error 'register-value
+                 "oops, out of value identifiers -- time someone implements reclaiming them"))
+        (+ count 1))
+      (lambda (val)
+        (let ((val-count count))
+          (table-set! registered-values count val)
+          (set! count (+ count 1))
+          val-count))))
   
   (define g-value-set!
     (let-callouts libgobject ((set-object% 'void "g_value_set_object" '(pointer pointer))
                               (set-bool% 'void "g_value_set_boolean" '(pointer int))
                               (set-enum% 'void "g_value_set_enum" '(pointer int))
                               (set-int% 'void "g_value_set_int" '(pointer int))
-                              (set-string% 'void "g_value_set_string" '(pointer pointer)))
+                              (set-string% 'void "g_value_set_string" '(pointer pointer))
+                              (set-pointer% 'void "g_value_set_pointer" '(pointer pointer)))
       (lambda (gvalue val type)
         (cond
          ((ginstance? val)
@@ -118,7 +139,7 @@
                              (error 'g-value-set! "invalid value for enumeration" val type))
                          val)))
          (else
-          (error 'g-value-set! "not implemented for this type of value" val type))))))
+          (set-pointer% gvalue (integer->pointer (register-value val))))))))
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))

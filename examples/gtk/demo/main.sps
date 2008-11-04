@@ -32,12 +32,13 @@
         (sbank typelib)
         (sbank typelib decorators))
 
-(install-gtk-decorators)
+(gtk-setup!)
 (typelib-import
  (prefix (only ("Gtk" #f)
                <window> <scrolled-window>
                <notebook>
                <tree-view> <tree-view-column>
+               <list-store>
                <cell-renderer-text>
                <text-view>
                <label> <h-box>
@@ -87,27 +88,27 @@
     s-w))
 
 (define (make-tree-view)
-  (let* (
-         ;;(store (gtk-list-store-new (list <gboxed-scm> <gchararray>)))
-         (tree-view (send <gtk-tree-view> (new))) ; :model store))
+  (let* ((store (send <gtk-list-store> (newv (list 'boxed 'utf8))))
+         (tree-view (send <gtk-tree-view> (new)))
          (cellrenderer (send <gtk-cell-renderer-text> (new)))
          (column (send <gtk-tree-view-column> (new)))
          (selection (send tree-view (get-selection))))
-    #|
+
     (for-each
      (lambda (demo)
-       (gtk-tree-or-list-store-set
-        store (gtk-list-store-append store)
-        0 demo
-        1 (demo-name demo)))
+       (send store
+         (set-values (send store (append))
+                     0 demo
+                     1 (demo-name demo))))
      (get-demos))
-    |#
+
     (send selection (set-mode 'single))
     (send column
       (set 'title "Widget (double-click to show)")
       (pack-start cellrenderer #t)
       (add-attribute cellrenderer "text" 1))
     (send tree-view
+      (set-model store)
       (append-column column)
       (set-size-request 200 -1))
     tree-view))
@@ -146,33 +147,32 @@
          (tree-view (make-tree-view)))
 
     (define (set-demo demo)
-      (send info-buffer (clear-buffer)))
+      (send info-buffer (clear-buffer))
 
-    #|
-    (let ((name (demo-name demo))
-          (desc (demo-description demo))
-          (iter (get-iter-at-offset info-buffer 0))
-          (start #f))
-      (insert info-buffer iter name)
-      (set! start (get-iter-at-offset info-buffer 0))
-      (apply-tag-by-name info-buffer "title" start iter)
-      (insert info-buffer iter "\n")
-      (insert info-buffer iter desc))
-    (clear-buffer source-buffer)
-    (let ((source (demo-source demo))
-          (iter (get-iter-at-offset source-buffer 0))
-          (start #f))
-      (insert source-buffer iter source)
-      (set! start (get-iter-at-offset source-buffer 0))
-      (apply-tag-by-name source-buffer "source" start iter))
-    |#
+      (let ((name (demo-name demo))
+            (desc (demo-description demo))
+            (iter (send info-buffer (get-iter-at-offset 0)))
+            (start #f))
+        (send info-buffer (insert iter name))
+        (set! start (send info-buffer (get-iter-at-offset 0)))
+        (send info-buffer
+          (apply-tag-by-name "title" start iter)
+          (insert iter "\n")
+          (insert iter desc)))
+      (send source-buffer (clear-buffer))
+      (let ((source (demo-source demo))
+            (iter (send source-buffer (get-iter-at-offset 0)))
+            (start #f))
+        (send source-buffer (insert iter source))
+        (set! start (send source-buffer (get-iter-at-offset 0)))
+        (send source-buffer (apply-tag-by-name "source" start iter)))
 
-    (send info-buffer (create-tag "title" 'font "Sans 18"))
-    (send source-buffer (create-tag "source" 'font "Courier 12"
-                                    'pixels-above-lines 0
-                                    'pixels-below-lines 0))
+      (send info-buffer (create-tag "title" 'font "Sans 18"))
+      (send source-buffer (create-tag "source" 'font "Courier 12"
+                                      'pixels-above-lines 0
+                                      'pixels-below-lines 0)))
     (send main-window
-      (set-title "Guile-Gtk Demo")
+      (set-title "sbank GTK+ Demo")
       (set-default-size 600 400))
 
 

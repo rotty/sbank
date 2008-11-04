@@ -58,9 +58,11 @@
           (sbank type-data)
           (sbank stypes)
           (sbank shlibs)
+          (sbank ctypes simple)
           (sbank typelib stypes)
           (sbank gobject internals)
           (sbank gobject gtype)
+          (sbank gobject boxed-values)
           (sbank conditions))
 
   (define-syntax debug
@@ -211,6 +213,8 @@
                      free))
             ((void)
              (values 'void #f #f #f))
+            ((gtype)
+             (values prim-type symbol->gtype gtype->symbol #f))
             (else
              (raise-sbank-callout-error "argument passing for this type not implemented" type)))))
        ((genum? type)
@@ -541,26 +545,6 @@
       ((gtype) gtype-ctype)
       (else sym)))
 
-  (define (utf8z-ptr->string ptr)
-    (let ((size (do ((i 0 (+ i 1)))
-                    ((= (pointer-ref-c-unsigned-char ptr i) 0) i))))
-      (utf8->string (memcpy (make-bytevector size) ptr size))))
-  
-  (define (->utf8z-ptr/null who s)
-    (cond ((string? s) (string->utf8z-ptr s))
-          ((eqv? s #f)
-           (integer->pointer 0))
-          (else
-           (assertion-violation who "invalid argument" s))))
-
-  (define (string->utf8z-ptr s)
-    (let* ((bytes (string->utf8 s))
-           (bytes-len (bytevector-length bytes))
-           (result (malloc (+ bytes-len 1))))
-      (memcpy result bytes bytes-len)
-      (pointer-set-c-char! result bytes-len 0)
-      result))
-
   (define (array-type-values atype)
     (let* ((eti (array-element-type-info atype))
            (et (type-info-type eti)))
@@ -570,11 +554,30 @@
                (case et
                  ((utf8)
                   (values prim-type elt-size pointer-utf8z-ptr-ref pointer-utf8z-ptr-set!))
+                 ((gtype)
+                  (values prim-type
+                          elt-size
+                          pointer-gtype-ref
+                          (lambda (ptr i v)
+                            (pointer-gtype-set! ptr i (cond ((eq? v 'boxed)
+                                                             (g-boxed-value-type))
+                                                            (else
+                                                             v))))))
                  (else
                   (values prim-type
                           elt-size
                           (make-pointer-c-getter prim-type)
                           (make-pointer-c-setter prim-type))))))
+            ((gobject-class? et)
+             (values 'pointer
+                     (c-type-sizeof 'pointer)
+                     (lambda (ptr i)
+                       (make-ginstance et (pointer-ref-c-pointer ptr i)))
+                     (lambda (ptr i v)
+                       (pointer-set-c-pointer! ptr i (if (ginstance? v)
+                                                         (ginstance-ptr v)
+                                                         (ginstance-ptr
+                                                          (send et (new v))))))))
             (else
              (raise-sbank-callout-error "non-simple array element types not yet supported")))))
   
@@ -604,7 +607,9 @@
                (let loop ((offset 0) (elts '()))
                  (if (terminator? offset)
                      (list->vector (reverse elts))
-                     (loop (+ offset element-size) (cons (element-ref ptr offset) elts)))))))))
+                     (loop (+ offset element-size) (cons (element-ref ptr offset) elts))))))
+            (else
+             (error 'c-array->vector "cannot handle array without size information" atype)))))
 
   (define (->c-array val atype)
     (vector->c-array (->vector val) atype))
@@ -617,7 +622,7 @@
   
   (define (array-terminator prim-type)
     (case prim-type
-      ((char uchar short ushort int uint long ulong) 0)
+      ((char uchar short ushort int uint long ulong size_t) 0)
       ((pointer) (integer->pointer 0))
       (else
        (raise-sbank-callout-error
@@ -651,7 +656,10 @@
              (raise-sbank-callout-error "cannot iterate over array of unknown size" ptr atype)))))
   
   (define (free-c-array ptr atype size)
-    (c-array-for-each (type-cleanup (array-element-type atype)) ptr atype size))
+    (let ((cleanup (type-cleanup (array-element-type atype))))
+      (when cleanup
+        (c-array-for-each cleanup ptr atype size)
+        (free ptr))))
 
   (define (type-cleanup type)
     (define (lose)
@@ -660,7 +668,7 @@
            (case type
              ((int8 uint8 int16 uint16 int32 uint32
                     int64 uint64 int uint long ulong ssize size
-                    float double)
+                    float double gtype)
               #f)
              ((utf8) free)
              (else (lose))))
@@ -669,18 +677,4 @@
            (lambda (ptr)
              (free-c-array ptr type #f)))
           (else
-           (lose))))
-  
-  (define (pointer-utf8z-ptr-set! ptr i val)
-    (pointer-set-c-pointer! ptr i (if (pointer? val)
-                                      val
-                                      (string->utf8z-ptr val))))
-
-  (define (pointer-utf8z-ptr-ref ptr i)
-    (let ((utf8z-ptr (pointer-ref-c-pointer ptr i)))
-      (if (= (pointer->integer utf8z-ptr) 0)
-          #f
-          (utf8z-ptr->string utf8z-ptr))))
-  
-  (define (pointer+ p n)
-    (integer->pointer (+ (pointer->integer p) n))))
+           (lose)))))

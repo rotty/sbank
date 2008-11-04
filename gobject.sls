@@ -32,7 +32,7 @@
           ginstance?
           genum? genum-lookup
           send send-message
-          install-gobject-decorators)
+          gobject-setup!)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
@@ -40,6 +40,8 @@
           (spells alist)
           (spells tracing)
           (sbank typelib decorators)
+          (sbank gobject gtype)
+          (sbank gobject gvalue)
           (sbank gobject signals)
           (sbank gobject properties)
           (sbank gobject internals))
@@ -52,6 +54,12 @@
                                                         (emit . ,g-object-emit)
                                                         (get . ,g-object-get)
                                                         (set . ,g-object-set)))
+                            values))
+
+  (define (gvalue-decorator class)
+    (gobject-class-decorate class
+                            (gobject-method-overrider `((new . ,(gvalue-new class))))
+                            values
                             values))
   
   (define (g-object-connect next-method)
@@ -76,10 +84,17 @@
         (if (null? props)
             (apply values (reverse vals))
             (loop (cons (g-object-get-property instance (car props)) vals) (cdr props))))))
+
+  (define (gvalue-new class)
+    (lambda (next-method)
+      (lambda (val)
+        (make-ginstance class (->g-value val class)))))
   
-  (define install-gobject-decorators
+  (define gobject-setup!
     (let ((installed? #f))
       (lambda ()
         (unless installed?
+          (g-type-init)
           (register-typelib-decorator "GObject" "Object" gobject-decorator)
+          (register-typelib-decorator "GObject" "Value" gvalue-decorator)
           (set! installed? #t))))))

@@ -28,6 +28,7 @@
   (import (rnrs base)
           (spells foreign))
 
+  ;; TODO: callout "compression"
   (define-syntax let-callouts
     (syntax-rules ()
       ((let-callouts shlib ((name ret-type c-name arg-types) ...) body ...)

@@ -9,7 +9,7 @@
         (sbank typelib)
         (sbank gtk))
 
-(install-gtk-decorators)
+(gtk-setup!)
 (typelib-import (prefix (only ("Gtk" #f)
                               <window> <button>
                               init main main-quit) gtk-))

@@ -1,5 +1,5 @@
 (library (sbank gtk)
-  (export send gtk-stock-id install-gtk-decorators)
+  (export send gtk-stock-id gtk-setup!)
   (import (rnrs base)
           (rnrs control)
           (spells tracing)
@@ -8,6 +8,8 @@
           (sbank typelib decorators)
           (sbank gobject))
 
+  (typelib-import (only ("Gtk" #f) <tree-iter>))
+  
   (define (text-buffer-decorator class)
     (gobject-class-decorate class
                             values
@@ -26,6 +28,30 @@
                             (gobject-method-overrider
                              `((get-selected . ,tree-selection-get-selected)))
                             values))
+
+  (define (list-store-decorator class)
+    (gobject-class-decorate class
+                            values
+                            (gobject-method-overrider `((append . ,list-store-append)
+                                                        (set-values . ,list-store-set-values)))
+                            values))
+
+  (define (list-store-append next-method)
+    (case-lambda
+      ((store) (let ((iter (send <tree-iter> (alloc))))
+                 (next-method store iter)
+                 iter))
+      ((store iter) (next-method store iter))))
+
+  (define (list-store-set-values next-method)
+    (lambda (store iter . cols/vals)
+      (let loop ((cols '()) (vals '()) (cols/vals cols/vals))
+        (cond ((null? cols/vals)
+                (send store (set-valuesv iter (reverse cols) (reverse vals))))
+              ((pair? (cdr cols/vals))
+               (loop (cons (car cols/vals) cols) (cons (cadr cols/vals) vals) (cddr cols/vals)))
+              (else
+               (error 'list-store-set-values "uneven number of colum/value arguments" cols/vals))))))
   
   (define (text-buffer-create-tag next-method)
     (lambda (text-buffer tag-name . properties)
@@ -46,7 +72,6 @@
 
   (define (tree-selection-get-selected next-method)
     (lambda (tree-selection)
-      (typelib-import (only ("Gtk" #f) <tree-iter>))
       (let ((iter (send <tree-iter> (alloc))))
         (receive (selected? model) (next-method tree-selection iter)
           (cond (selected? (values model iter))
@@ -54,11 +79,12 @@
                  (send iter (free))
                  (values model #f)))))))
   
-  (define install-gtk-decorators
+  (define gtk-setup!
     (let ((installed? #f))
       (lambda ()
         (unless installed?
-          (install-gobject-decorators)
+          (gobject-setup!)
+          (register-typelib-decorator "Gtk" "ListStore" list-store-decorator)
           (register-typelib-decorator "Gtk" "TextBuffer" text-buffer-decorator)
           (register-typelib-decorator "Gtk" "TreeModel" tree-model-decorator)
           (register-typelib-decorator "Gtk" "TreeSelection" tree-selection-decorator)

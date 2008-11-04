@@ -23,9 +23,13 @@
 ;;; Code:
 
 (library (sbank gobject gtype)
-  (export symbol->gtype gtype->symbol gtype-ctype g-type-init)
+  (export symbol->gtype gtype->symbol
+          pointer-gtype-ref pointer-gtype-set!
+          gtype-ctype g-type-init)
   (import (rnrs base)
           (rnrs arithmetic bitwise)
+          (spells foreign)
+          (spells tracing)
           (sbank utils)
           (sbank shlibs))
 
@@ -63,8 +67,21 @@
                          *fundamental-shift*)))))
 
   (define (symbol->gtype sym)
-    (bitwise-arithmetic-shift (symbol->gtype% sym) *fundamental-shift*))
+    (bitwise-arithmetic-shift (symbol->gtype% (case sym
+                                                ((utf8) 'string)
+                                                (else sym)))
+                              *fundamental-shift*))
 
+  (define pointer-gtype-ref
+    (let ((ref (make-pointer-c-getter gtype-ctype)))
+      (lambda (ptr i)
+        (gtype->symbol (ref ptr i)))))
+
+  (define pointer-gtype-set!
+    (let ((set (make-pointer-c-setter gtype-ctype)))
+      (lambda (ptr i v)
+        (set ptr i (if (integer? v) v (symbol->gtype v))))))
+  
   (define g-type-init (let-callouts libgobject ((init% 'void "g_type_init" '()))
                         init%))
   
