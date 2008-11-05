@@ -6,7 +6,7 @@
   <namespace name="gtypelib" shared-library="gobject-2.0">
     <record name="Header" c:type="Header">
       <field name="magic" writable="1">
-        <array c:type="gchar" size="16">
+        <array zero-terminated="0" c:type="gchar" fixed-size="16">
           <type name="int8"/>
         </array>
       </field>
@@ -104,7 +104,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="padding" writable="1">
-        <array c:type="guint16" size="7">
+        <array zero-terminated="0" c:type="guint16" fixed-size="7">
           <type name="uint16"/>
         </array>
       </field>
@@ -161,7 +161,7 @@
       <field name="dipper" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="null_ok" writable="1" bits="1">
+      <field name="allow_none" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
       <field name="optional" writable="1" bits="1">
@@ -203,7 +203,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="arguments" writable="1">
-        <array c:type="ArgBlob" size="0">
+        <array c:type="ArgBlob">
           <type name="ArgBlob"/>
         </array>
       </field>
@@ -241,7 +241,7 @@
       <field name="wraps_vfunc" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" writable="1" bits="1">
+      <field name="throws" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="index" writable="1" bits="10">
@@ -342,7 +342,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="type" writable="1">
-        <array c:type="SimpleTypeBlob" size="0">
+        <array c:type="SimpleTypeBlob">
           <type name="SimpleTypeBlob"/>
         </array>
       </field>
@@ -364,7 +364,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="domains" writable="1">
-        <array c:type="guint16" size="0">
+        <array c:type="guint16">
           <type name="uint16"/>
         </array>
       </field>
@@ -548,7 +548,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="values" writable="1">
-        <array c:type="ValueBlob" size="0">
+        <array c:type="ValueBlob">
           <type name="ValueBlob"/>
         </array>
       </field>
@@ -662,7 +662,10 @@
       <field name="deprecated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" writable="1" bits="15">
+      <field name="abstract" writable="1" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" writable="1" bits="14">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="name" writable="1">
@@ -699,7 +702,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="interfaces" writable="1">
-        <array c:type="guint16" size="0">
+        <array c:type="guint16">
           <type name="uint16"/>
         </array>
       </field>
@@ -742,7 +745,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="prerequisites" writable="1">
-        <array c:type="guint16" size="0">
+        <array c:type="guint16">
           <type name="uint16"/>
         </array>
       </field>
@@ -802,21 +805,21 @@
     </record>
     <function name="g_typelib_get_dir_entry"
               c:identifier="g_typelib_get_dir_entry">
-      <return-value>
+      <return-value transfer-ownership="full">
         <type name="DirEntry" c:type="DirEntry*"/>
       </return-value>
       <parameters>
-        <parameter name="typelib">
+        <parameter name="typelib" transfer-ownership="none">
           <type name="GTypelib" c:type="GTypelib*"/>
         </parameter>
-        <parameter name="index">
+        <parameter name="index" transfer-ownership="none">
           <type name="uint16" c:type="guint16"/>
         </parameter>
       </parameters>
     </function>
     <function name="g_typelib_check_sanity"
               c:identifier="g_typelib_check_sanity">
-      <return-value>
+      <return-value transfer-ownership="none">
         <type name="none" c:type="void"/>
       </return-value>
     </function>
@@ -837,24 +840,26 @@
     </enumeration>
     <function name="g_typelib_error_quark"
               c:identifier="g_typelib_error_quark">
-      <return-value>
+      <return-value transfer-ownership="full">
         <type name="GQuark" c:type="GQuark"/>
       </return-value>
     </function>
     <function name="g_typelib_validate" c:identifier="g_typelib_validate">
-      <return-value>
+      <return-value transfer-ownership="none">
         <type name="boolean" c:type="gboolean"/>
       </return-value>
       <parameters>
-        <parameter name="typelib">
+        <parameter name="typelib" transfer-ownership="none">
           <type name="GTypelib" c:type="GTypelib*"/>
         </parameter>
-        <parameter name="error">
+        <parameter name="error" transfer-ownership="none">
           <type name="GError" c:type="GError**"/>
         </parameter>
       </parameters>
     </function>
-    <constant name="G_IR_MAGIC" value="GOBJ&#10;METADATA&#13;&#10;">
+    <constant name="G_IR_MAGIC" value="GOBJ
+METADATA
+">
       <type name="utf8"/>
     </constant>
   </namespace>
