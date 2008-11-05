@@ -104,6 +104,7 @@
   (define-fetcher signal-blob-fetcher "SignalBlob")
   (define-fetcher property-blob-fetcher "PropertyBlob")
   (define-fetcher interface-blob-fetcher "InterfaceBlob")
+  (define-fetcher parameter-type-blob-fetcher "ParamTypeBlob")
   
   (define-syntax let-attributes
     (syntax-rules ()
@@ -439,11 +440,11 @@
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
                    (length? (memv i length-indices))
-                   (flag(cond ((and in? out?) 'in-out)
-                              (out? 'out)
-                              (in? 'in)
-                              (else
-                               (raise-validation-error "argument has no direction" i)))))
+                   (flag (cond ((and in? out?) 'in-out)
+                               (out? 'out)
+                               (in? 'in)
+                               (else
+                                (raise-validation-error "argument has no direction" i)))))
               (receive (setup! collect cleanup)
                        (arg-callout-steps (car tis) (if has-self-ptr? (+ i 1) i) flag)
                 (cond (length?
@@ -796,32 +797,42 @@
   (define (make/validate-type-info typelib tld offset null-ok?)
     (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
                     (tag)
-      (case (type-tag->symbol tag)
-        ((array)
-         (let-attributes array-type-blob-fetcher (validated-pointer+ tld offset 4)
-                         (pointer tag zero-terminated has-length has-size length size type)
-           (when (and (= has-length 1) (= has-size 1))
-             (raise-validation-error "array type has both length and size"))
-           (make-type-info
-            (make-array-type (stblob-type-info typelib tld type #f)
-                             (bool zero-terminated)
-                             (and (= has-size 1) size)
-                             (and (= has-length 1) length))
-            #f
-            null-ok?)))
-        ((interface)
-         (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
-                         (interface)
-           (let* ((entry (typelib-get-entry/index typelib interface))
-                  (pointer? (not (genum? entry))))
-             (make-type-info entry pointer? null-ok?))))
-        ((error)
-         (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
-                         (tag n-domains domains)
-           (make-type-info (make-gerror-type) #t #f)))
-        (else
-         (raise-validation-error "non-simple type of this kind not yet implemented"
-                                 (type-tag->symbol tag))))))
+      (let ((tag-symbol (type-tag->symbol tag)))
+        (case tag-symbol
+          ((array)
+           (let-attributes array-type-blob-fetcher (validated-pointer+ tld offset 4)
+                           (pointer tag zero-terminated has-length has-size length size type)
+             (when (and (= has-length 1) (= has-size 1))
+               (raise-validation-error "array type has both length and size"))
+             (make-type-info
+              (make-array-type (stblob-type-info typelib tld type #f)
+                               (bool zero-terminated)
+                               (and (= has-size 1) size)
+                               (and (= has-length 1) length))
+              #f
+              null-ok?)))
+          ((interface)
+           (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
+                           (interface)
+             (let* ((entry (typelib-get-entry/index typelib interface))
+                    (pointer? (not (genum? entry))))
+               (make-type-info entry pointer? null-ok?))))
+          ((error)
+           (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
+                           (tag n-domains domains)
+             (make-type-info (make-gerror-type) #t #f)))
+          ((glist gslist ghash)
+           (let-attributes parameter-type-blob-fetcher (validated-pointer+ tld offset 4)
+               (pointer tag n-types type)
+             (make-type-info tag-symbol
+                             #t
+                             #f
+                             (map (lambda (blob)
+                                    (stblob-type-info typelib tld blob #f))
+                                  (make-array-pointers type n-types 4)))))
+          (else
+           (raise-validation-error "non-simple type of this kind not yet implemented"
+                                   (type-tag->symbol tag)))))))
   
   (define type-tag-utf8 (symbol->type-tag 'utf8))
   (define type-tag-array (symbol->type-tag 'array))
