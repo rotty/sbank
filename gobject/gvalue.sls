@@ -143,12 +143,15 @@
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))
+                              (get-bool% 'int "g_value_get_boolean" '(pointer))
                               (get-int% 'int "g_value_get_int" '(pointer)))
       (lambda (gvalue type)
         (let ((gtype (gvalue-gtype% gvalue)))
           (case (gtype->symbol gtype)
             ((int)
              (get-int% gvalue))
+            ((boolean)
+             (not (= 0 (get-bool% gvalue))))
             ((object)
              (assert (gobject-class? type))
              (make-ginstance type (get-object% gvalue)))
