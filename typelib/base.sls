@@ -439,14 +439,15 @@
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
-                   (length? (memv i length-indices))
+                   (final-i  (if has-self-ptr? (+ i 1) i))
+                   (length? (memv final-i length-indices))
                    (flag (cond ((and in? out?) 'in-out)
                                (out? 'out)
                                (in? 'in)
                                (else
                                 (raise-validation-error "argument has no direction" i)))))
               (receive (setup! collect cleanup)
-                       (arg-callout-steps (car tis) (if has-self-ptr? (+ i 1) i) flag)
+                       (arg-callout-steps (car tis) final-i flag)
                 (cond (length?
                        (loop (cons (car tis) arg-types)
                              (cons #f setup-steps)
