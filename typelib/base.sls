@@ -82,7 +82,7 @@
   (define-accessors "ArgBlob"
     (arg-in "in")
     (arg-out "out")
-    (arg-null-ok "null_ok")
+    (arg-null-ok "allow_none")
     (arg-type "arg_type")
     (arg-name "name"))
 

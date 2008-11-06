@@ -69,13 +69,12 @@
                                         (list (list 'bits (string->number bits))))
                                       '()))))
        (core:array . ,(lambda array
-                        (let ((element-count (cond ((sxpath-attr array '(^ size))
+                        (let ((element-count (cond ((sxpath-attr array '(^ fixed-size))
                                                     => (lambda (size)
-                                                         `((element-count ,(string->number size)))))
-                                                   (else '()))))
-                          `(type (array ,@(append `((element-type
-                                                     ,(sxpath-ref array '(type))))
-                                                  element-count))))))
+                                                         (string->number size)))
+                                                   (else 0))))
+                          `(type (array (element-type ,(sxpath-ref array '(type)))
+                                        (element-count ,element-count))))))
        (core:type *PREORDER* . ,type-pointifier)
        (^ *PREORDER* . ,list))))
 
@@ -90,7 +89,5 @@
                                 (else 0))))
       (if (> pointer-depth 0)
           `(type (pointer (base-type (type ,name))
-                          (depth ,pointer-depth)
-                          (size ,(c-type-sizeof 'pointer))
-                          (alignment ,(c-type-alignof 'pointer))))
+                          (depth ,pointer-depth)))
           `(type ,name)))))

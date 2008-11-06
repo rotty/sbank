@@ -3,7 +3,7 @@
             xmlns="http://www.gtk.org/introspection/core/1.0"
             xmlns:c="http://www.gtk.org/introspection/c/1.0"
             xmlns:glib="http://www.gtk.org/introspection/glib/1.0">
-  <namespace name="gtypelib" shared-library="gobject-2.0">
+  <namespace name="gtypelib" shared-library="libgobject-2.0.so.0">
     <record name="Header" c:type="Header">
       <field name="magic" writable="1">
         <array zero-terminated="0" c:type="gchar" fixed-size="16">
@@ -786,9 +786,7 @@
     </record>
     <record name="GTypelib" c:type="_GTypelib">
       <field name="data" writable="1">
-        <array c:type="guchar*">
-          <type name="uint8"/>
-        </array>
+        <type name="any" c:type="guchar*"/>
       </field>
       <field name="len" writable="1">
         <type name="size_t" c:type="gsize"/>
@@ -859,7 +857,7 @@
     </function>
     <constant name="G_IR_MAGIC" value="GOBJ
 METADATA
-">
+&#x1a;">
       <type name="utf8"/>
     </constant>
   </namespace>
