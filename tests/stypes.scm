@@ -66,8 +66,7 @@
                                 (field (name "val")
                                        (type (array (element-type (type "double"))
                                                     (element-count 3))))
-                                (field (name "data")
-                                       (type (array (element-type (type "uint8")))))
+                                (field (name "data") (type (pointer (type "uint8"))))
                                 (field (name "tag") (type "uint8") (bits 5))
                                 (union
                                  (field (name "u1") (type "double"))
@@ -93,9 +92,9 @@
                                    (alignment ,(c-type-alignof 'double))))
                       (offset ,(c-type-align 'double (c-type-sizeof 'uint))))
                (field (name "data")
-                      (type (array (element-type (type ,(stypes-ref stypes "uint8")))
-                                   (size ,(c-type-sizeof 'pointer))
-                                   (alignment ,(c-type-alignof 'pointer))))
+                      (type (pointer (type ,(stypes-ref stypes "uint8"))
+                                     (size ,(c-type-sizeof 'pointer))
+                                     (alignment ,(c-type-alignof 'pointer))))
                       (offset ,data-offset))
                (field (name "tag")
                       (type ,(stypes-ref stypes "uint8"))
@@ -116,10 +115,29 @@
     (test-eval "u1" (procedure? (stype-fetcher (stypes-ref stypes "Foo") "u1")))
     (test-eval "u2" (procedure? (stype-fetcher (stypes-ref stypes "Foo") "u2")))))
 
+
+(let* ((stypes
+        (stypes-adjoin
+         primitive-stypes
+         '(alias (name "gtype") (target "size_t"))
+         '(record (name "GValue")
+                  (field (name "g_type") (type "gtype"))
+                  (field
+                   (name "data")
+                   (type (array (element-type
+                                 (type
+                                  (union (field (name "v_int") (type "int"))
+                                         (field (name "v_double") (type "double")))))
+                                (element-count 2)))))))
+       (gv-stype (stypes-ref stypes "GValue")))
+  (testeez "Size calculation"
+    (test-true "GValue size sane" (>= (stype-attribute gv-stype 'size)
+                                      (+ (c-type-sizeof 'size_t)
+                                         (* 2 (c-type-sizeof 'double)))))))
+
 (let ((stypes
        (stypes-adjoin
         primitive-stypes
-        '(alias (name "gtype") (target "size_t"))
         '(union (name "SimpleTypeBlob")
                 (record
                  (field (name "tag") (type "uint") (bits 5))
@@ -130,9 +148,7 @@
                  (field (name "type") (type "uint"))
                  (field (name "data") (type (array (element-type (type "uint"))
                                                    (element-count 16))))
-                 (field (name "ptr") (type (array (element-type (type "uchar"))))))
-        '(record (name "GValue")
-                 (field (name "g_type") (type "gtype")))))
+                 (field (name "ptr") (type (pointer (type "uchar")))))))
       
       (stblob-mem (let ((bv (make-bytevector 4)))
                     (bytevector-u32-native-set! bv 0 #x1200cd85)

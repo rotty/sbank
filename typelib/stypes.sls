@@ -31,6 +31,7 @@
           (rnrs io simple)
           (spells find-file)
           (spells pathname)
+          (spells tracing)
           (sbank gobject gtype)
           (sbank stypes))
 
@@ -50,22 +51,23 @@
               (field (name "domain") (type "uint32"))
               (field (name "code") (type "int"))
               (field (name "message")
-                     (type (array (element-type (type "char"))))))
+                     (type (pointer (type "char")))))
       (record (name "GValue")
               (field (name "g_type") (type "gtype"))
               (field
                (name "data")
                (type (array (element-type
-                             (type (union (field (name "v_int")    (type "int"))
-                                          (field (name "v_uint")   (type "uint"))
-                                          (field (name "v_long")   (type "long"))
-                                          (field (name "v_ulong")  (type "ulong"))
-                                          (field (name "v_int64")  (type "int64"))
-                                          (field (name "v_uint64") (type "uint64"))
-                                          (field (name "v_float") (type "float"))
-                                          (field (name "v_double") (type "double"))
-                                          (field (name "v_pointer") (type "pointer")))))
-                            (size 2)))))))
+                             (type
+                              (union (field (name "v_int")    (type "int"))
+                                     (field (name "v_uint")   (type "uint"))
+                                     (field (name "v_long")   (type "long"))
+                                     (field (name "v_ulong")  (type "ulong"))
+                                     (field (name "v_int64")  (type "int64"))
+                                     (field (name "v_uint64") (type "uint64"))
+                                     (field (name "v_float") (type "float"))
+                                     (field (name "v_double") (type "double"))
+                                     (field (name "v_pointer") (type (pointer (type "void")))))))
+                            (element-count 2)))))))
   
   (define typelib-stypes
     (let ((stypes #f))

@@ -50,7 +50,8 @@
 
 (g-type-init)
 (testeez "GValue"
-  (test-define "creating gvalue (int)" int-gv (g-value-new 'int))
-  (test-eval "setting gvalue (int)" (g-value-set! int-gv 42 #f))
-  (test/equal "getting value (int)" (g-value-ref int-gv #f) 42))
-
+  (test-define "creating (int)" int-gv (g-value-new 'int))
+  (test-eval "setting (int)" (g-value-set! int-gv 42 #f))
+  (test/equal "getting (int)" (g-value-ref int-gv #f) 42)
+  (test-define "creating/setting (bool)" bool-gv (->g-value #f #f))
+  (test/equal "getting (bool)" (g-value-ref bool-gv #f) #f))

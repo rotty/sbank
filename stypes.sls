@@ -102,7 +102,7 @@
 
   (define (stype-attribute stype name)
     (sxpath-attr stype (list name)))
-  
+
   (define (resolve-types type types)
     (if (pair? type)
         (case (car type)
@@ -114,28 +114,14 @@
                     ((pointer)
                      (list 'type (append (resolve-types (cadr type) types) pointer-attrs)))
                     ((array)
-                     (array-resolver type types))
+                     (list 'type (array-resolver (cadr type) types)))
+                    ((record union)
+                     (list 'type (compound-resolver (cadr type) types)))
                     (else
                      type)))
                  (error 'resolve-types "cannot resolve" type)))
           ((record union)
-           (let ((name-attrs ((sxpath '(name)) type))
-                 (name (sxpath-ref type '(name))))
-             (receive (components size alignment)
-                 (calculate-sizes (car type)
-                                  name
-                                  ((sxpath '((*OR* field record union)))
-                                   (cons (car type)
-                                         (map (lambda (stype)
-                                                (resolve-types stype types))
-                                              (cdr type)))))
-               (when (eqv? size #f)
-                 (warning "unable to calculate size of compound ~s" name))
-               (cons (car type)
-                     (append name-attrs components (or (and-let* ((size size))
-                                                         `((size ,size)
-                                                           (alignment ,alignment)))
-                                                       '()))))))
+           (compound-resolver type types))
           ((alias)
            type)
           (else
@@ -146,21 +132,50 @@
 
 
 
+  (define (type-attr type name)
+    (sxpath-attr type `(type * ,name)))
+
   (define (array-resolver type types)
-    (let* ((resolved (resolve-types (cadr type) types))
-           (size (and-let* ((element-count (sxpath-attr resolved '(element-count)))
-                            (element-size (sxpath-attr resolved
-                                                       '(element-type type * size))))
+    (let* ((element-type (sxpath-ref type '(element-type)))
+           (et-resolved `(element-type ,(resolve-types (cadr element-type) types)))
+           (resolved (cons 'array (map (lambda (x)
+                                         (cond ((and (pair? x)
+                                                     (eq? (car x) 'element-type))
+                                                et-resolved)
+                                               (else x)))
+                                        (cdr type))))
+           (size (and-let* ((element-count (sxpath-attr type '(element-count)))
+                            (element-size (type-attr et-resolved 'size)))
                    `((size ,(* element-size element-count)))))
            (alignment
-            (and-let* ((alignment
-                        (sxpath-attr resolved '(element-type type * alignment))))
-              `((alignment ,alignment))))) 
+            (and-let* ((alignment (type-attr et-resolved 'alignment)))
+              `((alignment ,alignment)))))
 
-      (if (and size alignment)
-          (list 'type (append resolved size alignment))
-          (list 'type (append resolved pointer-attrs)))))
-                       
+      (cond ((and size alignment)
+             (append resolved size alignment))
+            (else
+             (warning "array with unknown element size/alignment encountered: ~s" type)
+             resolved))))
+
+
+  (define (compound-resolver type types)
+    (let ((name-attrs ((sxpath '(name)) type))
+          (name (sxpath-ref type '(name))))
+      (receive (components size alignment)
+               (calculate-sizes (car type)
+                                name
+                                ((sxpath '((*OR* field record union)))
+                                 (cons (car type)
+                                       (map (lambda (stype)
+                                              (resolve-types stype types))
+                                            (cdr type)))))
+        (when (eqv? size #f)
+          (warning "unable to calculate size of compound ~s" name))
+        (cons (car type)
+              (append name-attrs components (or (and-let* ((size size))
+                                                  `((size ,size)
+                                                    (alignment ,alignment)))
+                                                '()))))))
   (define (stypes-ref stypes name)
     (and-let* ((types ((select-component name) stypes))
                ((pair? types))
@@ -168,7 +183,7 @@
       (if (eq? (car type) 'alias)
           (stypes-ref stypes (sxpath-attr type '(target)))
           type)))
-  
+
   (define (stype-fetcher stype path)
     (define (lose msg . irritants)
       (apply error 'stype-fetcher msg irritants))
@@ -186,11 +201,11 @@
 
   (define pointer-attrs `((size ,(c-type-sizeof 'pointer))
                           (alignment ,(c-type-alignof 'pointer))))
-  
+
   (define (construct-stype-fetcher component)
     (call-with-values (lambda () (stype-compound-element-fetcher-values component))
       c-compound-element-fetcher))
-  
+
   (define (stype-compound-element-fetcher-values component)
     (let ((offset (sxpath-attr component '(offset)))
           (bits (sxpath-attr component '(bits)))
@@ -233,13 +248,14 @@
           (and (pair? anonymous)
                (stype-ref (car anonymous) name))
           (car components))))
-  
+
   (define (select-component name)
     (select-kids (lambda (node)
                    (let ((names ((select-kids (ntype?? 'name)) node)))
                      (equal? names `((name ,name)))))))
 
   (define (warning msg . args)
+    (display "WARNING (sbank stypes): " (current-error-port))
     (apply format (current-error-port) msg args)
     (newline (current-error-port)))
 
@@ -269,11 +285,11 @@
       (and (not (sxpath-attr c '(bits)))
            (or (sxpath-attr c '(size))
                (sxpath-attr c '(type * size)))))
-    
+
     (define (component-alignment c)
       (or (sxpath-attr c '(alignment))
           (sxpath-attr c '(type * alignment))))
-    
+
     (define (extend sxml . attrs)
       (cons (car sxml) (append (cdr sxml) attrs)))
 
@@ -340,10 +356,10 @@
                                (result-with-bitfields))
                          #f #f '() '()
                          (cdr components))))))))
-  
+
   (define (align n alignment)
     (+ n (mod (- alignment (mod n alignment)) alignment)))
-  
+
   (define (bitfields-fit-inside? bwlist size)
     (>= (* size 8)
         (apply + bwlist)))
@@ -395,7 +411,7 @@
                                (map syntax->datum #'(<attribute-name> ...)))))
              #`(define-values (<name> ...)
                  (values attribute-value ...))))))))
-  
+
   (define (component-fetcher-alist comp base-offset)
     (case (car comp)
       ((field record array union)
@@ -413,4 +429,3 @@
                                    (component-fetcher-alist nested-comp offset))
                                  (cdr comp))))))
       (else '()))))
-

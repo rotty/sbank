@@ -27,12 +27,6 @@
  (files
   ("utils.scm" (sbank utils))
 
-  ("gobject.scm"
-   (sbank gobject gtype)
-   (sbank gobject gvalue)
-   (sbank gobject internals)
-   (spells foreign))
-  
   ("stypes.scm"
    (sbank stypes)
    (spells foreign)
@@ -40,4 +34,10 @@
    (rnrs control)
    (rnrs arithmetic bitwise)
    (rnrs bytevectors)
-   (rnrs lists))))
+   (rnrs lists))
+
+  ("gobject.scm"
+   (sbank gobject gtype)
+   (sbank gobject gvalue)
+   (sbank gobject internals)
+   (spells foreign))))
