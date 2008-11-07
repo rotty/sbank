@@ -28,6 +28,13 @@
 (library (sbank ctypes simple)
   (export pointer+
 
+          pointer-uint16-ref
+          pointer-uint16-set!
+          pointer-uint32-ref
+          pointer-uint32-set!
+          pointer-uint64-ref
+          pointer-uint64-set!
+
           utf8z-ptr->string
           string->utf8z-ptr
           ->utf8z-ptr/null
@@ -41,7 +48,7 @@
     (let ((size (do ((i 0 (+ i 1)))
                     ((= (pointer-ref-c-unsigned-char ptr i) 0) i))))
       (utf8->string (memcpy (make-bytevector size) ptr size))))
-  
+
   (define (->utf8z-ptr/null who s)
     (cond ((string? s) (string->utf8z-ptr s))
           ((eqv? s #f)
@@ -67,6 +74,13 @@
       (if (= (pointer->integer utf8z-ptr) 0)
           #f
           (utf8z-ptr->string utf8z-ptr))))
-  
+
+  (define pointer-uint16-ref  (make-pointer-c-getter 'uint16))
+  (define pointer-uint16-set! (make-pointer-c-setter 'uint16))
+  (define pointer-uint32-ref  (make-pointer-c-getter 'uint32))
+  (define pointer-uint32-set! (make-pointer-c-getter 'uint32))
+  (define pointer-uint64-ref  (make-pointer-c-getter 'uint64))
+  (define pointer-uint64-set! (make-pointer-c-getter 'uint64))
+
   (define (pointer+ p n)
     (integer->pointer (+ (pointer->integer p) n))))

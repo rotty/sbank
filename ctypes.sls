@@ -30,7 +30,14 @@
           arg-callback-steps
 
           pointer+
-          
+
+          pointer-uint16-ref
+          pointer-uint16-set!
+          pointer-uint32-ref
+          pointer-uint32-set!
+          pointer-uint64-ref
+          pointer-uint64-set!
+
           utf8z-ptr->string
           string->utf8z-ptr
           ->utf8z-ptr/null
