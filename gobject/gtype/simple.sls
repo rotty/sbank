@@ -1,4 +1,4 @@
-;;; boxed-values.sls --- Scheme values as GObject boxed type.
+;;; simple.sls --- Simple GType utilities.
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -22,21 +22,8 @@
 
 ;;; Code:
 
-(library (sbank gobject boxed-values)
-  (export g-boxed-value-type)
-  (import (rnrs base)
-          (rnrs control)
-          (spells foreign)
-          (sbank shlibs)
-          (sbank ctypes simple)
-          (sbank gobject gtype simple))
-
-  (define g-boxed-value-type
-    (let-callouts libgobject ((register% gtype-ctype "g_pointer_type_register_static" '(pointer)))
-      (let ((type #f))
-        (lambda ()
-          (unless type
-            (let ((name-ptr (string->utf8z-ptr "boxed-scm")))
-              (set! type (register% name-ptr))
-              (free name-ptr)))
-          type)))))
+(library (sbank gobject gtype simple)
+  (export gtype-ctype)
+  (import (rnrs base))
+  
+  (define gtype-ctype 'size_t))

@@ -147,26 +147,24 @@
          (tree-view (make-tree-view)))
 
     (define (set-demo demo)
-      (send info-buffer (clear-buffer))
-
+      (clear-buffer info-buffer)
       (let ((name (demo-name demo))
             (desc (demo-description demo))
             (iter (send info-buffer (get-iter-at-offset 0)))
             (start #f))
-        (send info-buffer (insert iter name))
+        (send info-buffer (insert iter name -1))
         (set! start (send info-buffer (get-iter-at-offset 0)))
         (send info-buffer
           (apply-tag-by-name "title" start iter)
-          (insert iter "\n")
-          (insert iter desc)))
-      (send source-buffer (clear-buffer))
+          (insert iter "\n" -1)
+          (insert iter desc -1)))
+      (clear-buffer source-buffer)
       (let ((source (demo-source demo))
             (iter (send source-buffer (get-iter-at-offset 0)))
             (start #f))
-        (send source-buffer (insert iter source))
+        (send source-buffer (insert iter source -1))
         (set! start (send source-buffer (get-iter-at-offset 0)))
         (send source-buffer (apply-tag-by-name "source" start iter)))
-
       (send info-buffer (create-tag "title" 'font "Sans 18"))
       (send source-buffer (create-tag "source" 'font "Courier 12"
                                       'pixels-above-lines 0
@@ -192,7 +190,7 @@
                (lambda (tview path col)
                  (let* ((model (send tview (get-model)))
                         (iter (send model (get-iter path)))
-                        (demo (send model (get-value iter)))
+                        (demo (send model (get-value iter 0)))
                         (main (demo-main demo)))
                    (main)))))
     (send (send tree-view (get-selection))

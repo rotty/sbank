@@ -62,6 +62,7 @@
           (sbank typelib stypes)
           (sbank gobject internals)
           (sbank gobject gtype)
+          (sbank gobject gvalue)
           (sbank gobject boxed-values)
           (sbank conditions))
 
@@ -86,7 +87,9 @@
 
   (define (array-element-size atype)
     (let ((eti (array-element-type-info atype)))
-      (c-type-sizeof (type-info->prim-type eti #f))))
+      (if (eq? (type-info-type eti) 'gvalue)
+          g-value-size
+          (c-type-sizeof (type-info->prim-type eti #f)))))
 
   (define null-ok-always-on? (make-parameter #f))
   
@@ -213,6 +216,8 @@
                      free))
             ((void)
              (values 'void #f #f #f))
+            ((pointer gvalue)
+             (values 'pointer #f #f #f))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
             (else
@@ -518,7 +523,10 @@
   (define (deref-pointer ptr ti)
     (let ((type (type-info-type ti)))
       (cond ((symbol? type)
-             ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))
+             (case type
+               ((gvalue) ptr)
+               (else
+                ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))))
             ((or (array-type? type) (gobject-class? type))
              (pointer-ref-c-pointer ptr 0))
             (else
@@ -545,41 +553,49 @@
       ((gtype) gtype-ctype)
       (else sym)))
 
-  (define (array-type-values atype)
-    (let* ((eti (array-element-type-info atype))
-           (et (type-info-type eti)))
-      (cond ((symbol? et)
-             (let* ((prim-type (type-tag-symbol->prim-type et))
-                    (elt-size (c-type-sizeof prim-type)))
-               (case et
-                 ((utf8)
-                  (values prim-type elt-size pointer-utf8z-ptr-ref pointer-utf8z-ptr-set!))
-                 ((gtype)
-                  (values prim-type
-                          elt-size
-                          pointer-gtype-ref
-                          (lambda (ptr i v)
-                            (pointer-gtype-set! ptr i (cond ((eq? v 'boxed)
-                                                             (g-boxed-value-type))
-                                                            (else
-                                                             v))))))
-                 (else
-                  (values prim-type
-                          elt-size
-                          (make-pointer-c-getter prim-type)
-                          (make-pointer-c-setter prim-type))))))
-            ((gobject-class? et)
-             (values 'pointer
-                     (c-type-sizeof 'pointer)
-                     (lambda (ptr i)
-                       (make-ginstance et (pointer-ref-c-pointer ptr i)))
-                     (lambda (ptr i v)
-                       (pointer-set-c-pointer! ptr i (if (ginstance? v)
-                                                         (ginstance-ptr v)
-                                                         (ginstance-ptr
-                                                          (send et (new v))))))))
-            (else
-             (raise-sbank-callout-error "non-simple array element types not yet supported")))))
+  (define array-type-values
+    (let ((gvalue-zero-bytes (make-bytevector g-value-size 0)))
+      (lambda (atype)
+        (let* ((eti (array-element-type-info atype))
+               (et (type-info-type eti)))
+          (cond ((symbol? et)
+                 (let* ((prim-type (type-tag-symbol->prim-type et))
+                        (elt-size (array-element-size atype)))
+                   (case et
+                     ((utf8)
+                      (values prim-type elt-size pointer-utf8z-ptr-ref pointer-utf8z-ptr-set!))
+                     ((gtype)
+                      (values prim-type
+                              elt-size
+                              pointer-gtype-ref
+                              pointer-gtype-set!))
+                     ((gvalue)
+                      (values prim-type
+                              elt-size
+                              (lambda (ptr i)
+                                (g-value-ref (pointer+ ptr i) #f))
+                              (lambda (ptr i v)
+                                (let ((gvalue (pointer+ ptr i)))
+                                  (memcpy gvalue gvalue-zero-bytes g-value-size)
+                                  (g-value-init! gvalue (g-value-typeof v #f))
+                                  (g-value-set! gvalue v #f)))))
+                     (else
+                      (values prim-type
+                              elt-size
+                              (make-pointer-c-getter prim-type)
+                              (make-pointer-c-setter prim-type))))))
+                ((gobject-class? et)
+                 (values 'pointer
+                         (c-type-sizeof 'pointer)
+                         (lambda (ptr i)
+                           (make-ginstance et (pointer-ref-c-pointer ptr i)))
+                         (lambda (ptr i v)
+                           (pointer-set-c-pointer! ptr i (if (ginstance? v)
+                                                             (ginstance-ptr v)
+                                                             (ginstance-ptr
+                                                              (send et (new v))))))))
+                (else
+                 (raise-sbank-callout-error "non-simple array element types not yet supported")))))))
   
   (define (vector->c-array vec atype)
     (let ((len (vector-length vec)))
@@ -671,6 +687,7 @@
                     float double gtype)
               #f)
              ((utf8) free)
+             ((gvalue) g-value-unset!)
              (else (lose))))
           ((genum? type) #f)
           ((array-type? type)

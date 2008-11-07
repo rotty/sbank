@@ -1,5 +1,5 @@
-;; Copyright (C) 2004 Patrick Bernaud
 ;; Copyright (C) 2008 Andreas Rottmann
+;; Copyright (C) 2004 Patrick Bernaud
 ;; GNU General Public License version 2 or later. No warrantee.
 
 (library (sbank examples gtk demo button-box)
@@ -35,7 +35,7 @@
           (mainvbox  (send <gtk-v-box> (new #f 0)))
           (framehorz (send <gtk-frame> (new "Horizontal Button Boxes")))
           (vbox      (send <gtk-v-box> (new #f 0)))
-          (framevert (send <gtk-frame> (new "Horizontal Button Boxes")))
+          (framevert (send <gtk-frame> (new "Vertical Button Boxes")))
           (hbox      (send <gtk-h-box> (new #f 0))))
 
       (send window

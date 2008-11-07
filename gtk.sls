@@ -6,20 +6,25 @@
           (spells receive)
           (sbank typelib)
           (sbank typelib decorators)
+          (sbank gobject gvalue)
           (sbank gobject))
 
-  (typelib-import (only ("Gtk" #f) <tree-iter>))
+  (typelib-import (only ("Gtk" #f) <tree-iter> <text-iter>))
   
   (define (text-buffer-decorator class)
-    (gobject-class-decorate class
-                            values
-                            (gobject-method-overrider `((create-tag . ,text-buffer-create-tag)))
-                            values))
-
+    (gobject-class-decorate
+     class
+     values
+     (gobject-method-overrider `((create-tag . ,text-buffer-create-tag)
+                                 (get-bounds . ,text-buffer-get-bounds)
+                                 (get-iter-at-offset . ,text-buffer-get-iter-at-offset)))
+     values))
+  
   (define (tree-model-decorator class)
     (gobject-class-decorate class
                             values
-                            (gobject-method-overrider `((get-iter . ,tree-model-get-iter)))
+                            (gobject-method-overrider `((get-iter . ,tree-model-get-iter)
+                                                        (get-value . ,tree-model-get-value)))
                             values))
 
   (define (tree-selection-decorator class)
@@ -61,14 +66,32 @@
         (send (send text-buffer (get 'tag-table)) (add tag))
         tag)))
 
+  (define (text-buffer-get-bounds next-method)
+    (lambda (text-buffer)
+      (let ((start (send <text-iter> (alloc)))
+            (end (send <text-iter> (alloc))))
+        (next-method text-buffer start end)
+        (values start end))))
+
+  (define (text-buffer-get-iter-at-offset next-method)
+    (lambda (text-buffer offset)
+      (let ((iter (send <text-iter> (alloc))))
+        (next-method text-buffer iter offset)
+        iter)))
+  
   (define (tree-model-get-iter next-method)
     (lambda (tree-model path)
-      (typelib-import (only ("Gtk" #f) <tree-iter>))
       (let ((iter (send <tree-iter> (alloc))))
         (cond ((next-method tree-model iter path) iter)
               (else
                (send iter (free))
                #f)))))
+
+  (define (tree-model-get-value next-method)
+    (lambda (tree-model iter column)
+      (let ((gvalue (g-value-new (send tree-model (get-column-type column)))))
+        (next-method tree-model iter column gvalue)
+        (g-value-ref gvalue #f))))
 
   (define (tree-selection-get-selected next-method)
     (lambda (tree-selection)

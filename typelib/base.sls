@@ -534,9 +534,9 @@
                        flags))))
   
   (define (make-interface-loader typelib tld entry-ptr name)
-    (let-attributes header-fetcher tld (object-blob-size field-blob-size)
+    (let-attributes header-fetcher tld (interface-blob-size field-blob-size)
       (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
-             (blob (validated-pointer+ tld offset object-blob-size)))
+             (blob (validated-pointer+ tld offset interface-blob-size)))
         (lambda ()
           (make-gobject-class
            (typelib-namespace typelib)
@@ -549,13 +549,13 @@
                (unless (= blob-type 8)
                  (raise-validation-error "invalid blob type for object entry" blob-type))
                (let ((prereq-size (c-type-align 'uint32 (* 2 n-prerequisites))))
-                 (validated-pointer+ tld offset (+ object-blob-size prereq-size))
-                 (let* ((prereqs (pointer+ blob object-blob-size)))
+                 (validated-pointer+ tld offset (+ interface-blob-size prereq-size))
+                 (let* ((prereqs (pointer+ blob interface-blob-size)))
                    (make/validate-gobject-class-attributes
                     typelib tld class deprecated gtype-name gtype-init #f
                     n-prerequisites prereqs
                     0 #f
-                    (+ offset object-blob-size prereq-size)
+                    (+ offset interface-blob-size prereq-size)
                     n-properties n-methods n-signals n-vfuncs n-constants))))))))))
   
 

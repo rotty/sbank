@@ -40,4 +40,6 @@
    (sbank gobject gtype)
    (sbank gobject gvalue)
    (sbank gobject internals)
-   (spells foreign))))
+   (spells foreign))
+
+  #;("everything.scm" (sbank typelib))))

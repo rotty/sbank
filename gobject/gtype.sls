@@ -31,8 +31,10 @@
           (spells foreign)
           (spells tracing)
           (sbank utils)
-          (sbank shlibs))
-
+          (sbank shlibs)
+          (sbank gobject boxed-values)
+          (sbank gobject gtype simple))
+  
   ;; Note these must be in sync with gtype.h
   (define-enum (gtype->symbol% symbol->gtype%)
     (invalid
@@ -62,15 +64,20 @@
   (define gtype->symbol
     (let-callouts libgobject ((fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype)))
       (lambda (gtype)
-        (gtype->symbol% (bitwise-arithmetic-shift-right
-                         (fundamental% gtype)
-                         *fundamental-shift*)))))
+        (if (= gtype (g-boxed-value-type))
+            'boxed
+            (gtype->symbol% (bitwise-arithmetic-shift-right
+                             (fundamental% gtype)
+                             *fundamental-shift*))))))
 
   (define (symbol->gtype sym)
-    (bitwise-arithmetic-shift (symbol->gtype% (case sym
-                                                ((utf8) 'string)
-                                                (else sym)))
-                              *fundamental-shift*))
+    (case sym
+      ((boxed) (g-boxed-value-type))
+      (else
+       (bitwise-arithmetic-shift (symbol->gtype% (case sym
+                                                   ((utf8) 'string)
+                                                   (else sym)))
+                                 *fundamental-shift*))))
 
   (define pointer-gtype-ref
     (let ((ref (make-pointer-c-getter gtype-ctype)))
@@ -83,6 +90,4 @@
         (set ptr i (if (integer? v) v (symbol->gtype v))))))
   
   (define g-type-init (let-callouts libgobject ((init% 'void "g_type_init" '()))
-                        init%))
-  
-  (define gtype-ctype 'size_t))
+                        init%)))

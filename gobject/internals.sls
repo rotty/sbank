@@ -103,7 +103,7 @@
 
   (define (gobject-class-size class)
     ;; FIXME: gross hack, we need to calc size based on fields
-    (* 4 (c-type-sizeof 'pointer)))
+    (* 14 (c-type-sizeof 'pointer)))
   
   (define (gobject-class-decorate class
                                   constructors-decorator

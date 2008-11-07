@@ -57,10 +57,7 @@
                             values))
 
   (define (gvalue-decorator class)
-    (gobject-class-decorate class
-                            (gobject-method-overrider `((new . ,(gvalue-new class))))
-                            values
-                            values))
+    'gvalue)
   
   (define (g-object-connect next-method)
     (lambda (instance signal callback)

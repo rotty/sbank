@@ -32,14 +32,16 @@
           g-value-ref
           g-value-unset!
           g-value-free
+          g-value-typeof
           ->g-value)
   (import (rnrs)
           (spells foreign)
           (spells table)
           (spells define-values)
           (spells tracing)
+          (only (spells assert) cout)
           (sbank shlibs)
-          (sbank ctypes)
+          (sbank ctypes simple)
           (sbank type-data)
           (sbank gobject internals)
           (sbank gobject gtype)
@@ -83,7 +85,7 @@
     (g-value-unset! gvalue)
     (free gvalue))
   
-  (define (value-gtype value type)
+  (define (g-value-typeof value type)
     (cond ((ginstance? value) 'object)
           ((boolean? value)   'boolean)
           ((integer? value)   'int)
@@ -95,7 +97,7 @@
                   (g-boxed-value-type))))))
   
   (define (->g-value val type)
-    (let ((gvalue (g-value-new (value-gtype val type))))
+    (let ((gvalue (g-value-new (g-value-typeof val type))))
       (g-value-set! gvalue val type)
       gvalue))
 
