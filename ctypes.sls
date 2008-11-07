@@ -217,7 +217,10 @@
             ((void)
              (values 'void #f #f #f))
             ((pointer gvalue)
-             (values 'pointer #f #f #f))
+             (values 'pointer
+                     (lambda (v) (if (pointer? v) v (->g-value v #f)))
+                     (lambda (v) (g-value-ref v #f))
+                     #f))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
             (else
