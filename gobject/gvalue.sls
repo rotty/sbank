@@ -123,29 +123,35 @@
     (let-callouts libgobject ((set-object% 'void "g_value_set_object" '(pointer pointer))
                               (set-bool% 'void "g_value_set_boolean" '(pointer int))
                               (set-enum% 'void "g_value_set_enum" '(pointer int))
+                              (set-uint% 'void "g_value_set_uint" '(pointer uint))
                               (set-int% 'void "g_value_set_int" '(pointer int))
                               (set-string% 'void "g_value_set_string" '(pointer pointer))
                               (set-pointer% 'void "g_value_set_pointer" '(pointer pointer)))
-      (lambda (gvalue val type)
-        (cond
-         ((ginstance? val)
-          (set-object% gvalue (ginstance-ptr val)))
-         ((boolean? val)
-          (set-bool% gvalue (if val 1 0)))
-         ((integer? val)
-          (set-int% gvalue val))
-         ((string? val)
-          (let ((utf8z (string->utf8z-ptr val)))
-            (set-string% gvalue utf8z)
-            (free utf8z)))
-         ((genum? type)
-          (set-enum% gvalue
-                     (if (symbol? val)
-                         (or (genum-lookup type val)
-                             (error 'g-value-set! "invalid value for enumeration" val type))
-                         val)))
-         (else
-          (set-pointer% gvalue (integer->pointer (register-value val))))))))
+      (trace-lambda g-v-set! (gvalue val type)
+        (case type
+          ((int) (set-int% gvalue val))
+          ((uint) (set-uint% gvalue val))
+          ((boolean) (set-bool% gvalue (if val 1 0)))
+          (else
+           (cond
+            ((ginstance? val)
+             (set-object% gvalue (ginstance-ptr val)))
+            ((boolean? val)
+             (set-bool% gvalue (if val 1 0)))
+            ((integer? val)
+             (set-int% gvalue val))
+            ((string? val)
+             (let ((utf8z (string->utf8z-ptr val)))
+               (set-string% gvalue utf8z)
+               (free utf8z)))
+            ((genum? type)
+             (set-enum% gvalue
+                        (if (symbol? val)
+                            (or (genum-lookup type val)
+                                (error 'g-value-set! "invalid value for enumeration" val type))
+                            val)))
+            (else
+             (set-pointer% gvalue (integer->pointer (register-value val))))))))))
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))
