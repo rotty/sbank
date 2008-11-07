@@ -148,7 +148,7 @@
     (send window
       (set 'title "GtkListStore demo"
            'default-width 280 'default-height 250 'border-width 8)
-      (show-all window))))
+      (show-all))))
 
 (define name "Tree View/List Store")
 (define description
