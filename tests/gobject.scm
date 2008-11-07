@@ -53,7 +53,12 @@
   (test-define "creating (int)" int-gv (g-value-new 'int))
   (test-eval "setting (int)" (g-value-set! int-gv 42 #f))
   (test/equal "getting (int)" (g-value-ref int-gv #f) 42)
+
   (test-define "creating/setting (bool)" bool-gv (->g-value #f #f))
   (test/equal "getting (bool)" (g-value-ref bool-gv #f) #f)
+
   (test-define "creating/setting (boxed)" boxed-gv (->g-value (list 'foo 42) #f))
-  (test/equal "getting (boxed)" (g-value-ref boxed-gv #f) (list 'foo 42)))
+  (test/equal "getting (boxed)" (g-value-ref boxed-gv #f) (list 'foo 42))
+
+  (test-define "creating/setting (string)" string-gv (->g-value "FooBar" #f))
+  (test/equal "getting (string)" (g-value-ref string-gv #f) "FooBar"))

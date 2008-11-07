@@ -151,6 +151,7 @@
     (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))
                               (get-pointer% 'pointer "g_value_get_pointer" '(pointer))
                               (get-bool% 'int "g_value_get_boolean" '(pointer))
+                              (get-string% 'pointer "g_value_get_string" '(pointer))
                               (get-int% 'int "g_value_get_int" '(pointer)))
       (define (lose msg . irritants)
         (apply error 'g-value-ref msg irritants))
@@ -170,5 +171,7 @@
                     (make-ginstance type (get-object% gvalue)))
                    ((pointer)
                     (get-pointer% gvalue))
+                   ((string)
+                    (utf8z-ptr->string (get-string% gvalue)))
                    (else
                     (lose "not implemented for this type of value" (gtype->symbol gtype)))))))))))
