@@ -44,7 +44,7 @@
           raise-gerror/free
 
           null-ok-always-on?)
-  
+
   (import (rnrs)
           (spells define-values)
           (spells receive)
@@ -70,7 +70,7 @@
     (syntax-rules ()
       ((debug <expr> ...)
        (for-each display (list "DEBUG: " <expr> ... "\n")))))
-  
+
   ;;(define-syntax debug (syntax-rules () (begin)))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
@@ -92,7 +92,7 @@
           (c-type-sizeof (type-info->prim-type eti #f)))))
 
   (define null-ok-always-on? (make-parameter #f))
-  
+
   (define (raise-sbank-callout-error msg . irritants)
     (raise (condition (make-sbank-callout-error)
                       (make-message-condition msg)
@@ -102,7 +102,7 @@
     (raise (condition (make-sbank-callback-error)
                       (make-message-condition msg)
                       (make-irritants-condition irritants))))
-  
+
   (define (args-pre-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
          (arg-types arg-types (cdr arg-types))
@@ -122,7 +122,7 @@
       (case (car flags)
         ((in-out out)
          (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
-  
+
   (define (arg-callout-steps ti i flag)
     (let ((type (type-info-type ti)))
       (cond
@@ -153,7 +153,7 @@
                     i)
                 (lambda (arg-vec val)
                   (set-pointer (vector-ref arg-vec i) ti (if out-convert (out-convert val) val)))))))
-  
+
   ;; This returns and expects a converter that returns a pointer
   ;; (i.e. a converter for calling *out* to C); don't confuse this
   ;; with out-arguments, which are collected using a "back-converter"
@@ -192,7 +192,7 @@
         'pointer)
        (else
         (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
-  
+
   (define (type-info/prim-type+procs ti)
     (let ((type (type-info-type ti))
           (null-ok? (type-info-null-ok? ti)))
@@ -254,7 +254,7 @@
                 #f))
        (else
         (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
-  
+
   (define (cleanup-step i cleanup-proc)
     (lambda (arg-vec)
       (cleanup-proc (vector-ref arg-vec i))))
@@ -270,7 +270,7 @@
     (lambda (args arg-vec)
       (vector-set! arg-vec i (convert (car args)))
       (cdr args)))
-  
+
   (define (converter-collect i convert)
     (lambda (arg-vec)
       (convert (vector-ref arg-vec i))))
@@ -279,7 +279,7 @@
     (let ((convert/null (back-converter/null convert null-ok? null-val)))
       (lambda (arg-vec)
         (convert/null (vector-ref arg-vec i)))))
-  
+
   (define (array-arg-setup atype i null-ok?)
     (let ((convert (out-converter/null (lambda (val)
                                          (->c-array val atype)) null-ok? #f)))
@@ -295,11 +295,11 @@
     (cond ((array-length-index atype)
            => (lambda (l-index)
                 (vector-ref arg-vec l-index)))))
-  
+
   (define (array-arg-collect atype i)
     (lambda (arg-vec)
       (c-array->vector (vector-ref arg-vec i) atype (get-array-length atype arg-vec))))
-  
+
   (define (array-arg-cleanup atype i)
     (lambda (arg-vec)
       (free-c-array (vector-ref arg-vec i) atype (get-array-length atype arg-vec))))
@@ -327,14 +327,14 @@
                     conditions))))
 
   (define (gerror-conditions/free etype gerror)
-    (let ((domain (c-gerror-domain gerror))  
+    (let ((domain (c-gerror-domain gerror))
           (code (c-gerror-code gerror))
           (message (utf8z-ptr->string (c-gerror-message gerror))))
       (gerror-free gerror)
       (list
        (make-message-condition message)
        (make-gerror domain code))))
-  
+
   (define gerror-free
     ((make-c-callout 'void '(pointer)) (dlsym libglib "g_error_free")))
 
@@ -478,7 +478,7 @@
                                                  ret-values prim-ret))
                     (else
                      (loop ((car steps) (car vals) arg-vec))))))))))
-  
+
   (define (ret-type-consumer rti)
     (cond ((eq? (type-info-type rti) 'void)
            #f)
@@ -493,7 +493,7 @@
                    (else
                     (assert (not cleanup))
                     #t))))))
-  
+
   (define (type-info->prim-type ti out?)
     (let ((type (type-info-type ti)))
       (cond ((or out?
@@ -505,7 +505,7 @@
              'int)
             (else
              (type-tag-symbol->prim-type type)))))
-    
+
   ;; Allocate memory as needed for the type @2, store a representation
   ;; of @1 in it, and return a pointer to the allocated memory
   (define (malloc/set! type val)
@@ -541,7 +541,7 @@
              ((make-pointer-c-setter (type-tag-symbol->prim-type type)) ptr 0 val))
             (else
              (error 'set-pointer "not implemented for that type" ptr ti)))))
-  
+
   ;; Note that these must match with gobject-introspection
   (define-enum (type-tag->symbol symbol->type-tag)
     (void boolean int8 uint8 int16 uint16 int32 uint32
@@ -599,7 +599,7 @@
                                                               (send et (new v))))))))
                 (else
                  (raise-sbank-callout-error "non-simple array element types not yet supported")))))))
-  
+
   (define (vector->c-array vec atype)
     (let ((len (vector-length vec)))
       (receive (prim-type element-size element-ref element-set!) (array-type-values atype)
@@ -638,7 +638,7 @@
           ((list? val) (list->vector val))
           (else (raise-sbank-callout-error
                  "cannot convert argument to array" val))))
-  
+
   (define (array-terminator prim-type)
     (case prim-type
       ((char uchar short ushort int uint long ulong size_t) 0)
@@ -656,7 +656,7 @@
                (pointer->integer terminator)))
           (lambda (ptr offset)
             (= (elt-ref ptr offset) terminator)))))
-  
+
   (define (c-array-for-each proc ptr atype size)
     (let ((element-size (array-element-size atype))
           (element-ti (array-element-type-info atype)))
@@ -673,7 +673,7 @@
                    (loop (+ offset element-size))))))
             (else
              (raise-sbank-callout-error "cannot iterate over array of unknown size" ptr atype)))))
-  
+
   (define (free-c-array ptr atype size)
     (let ((cleanup (type-cleanup (array-element-type atype))))
       (when cleanup
