@@ -164,11 +164,12 @@
             (start #f))
         (send source-buffer (insert iter source -1))
         (set! start (send source-buffer (get-iter-at-offset 0)))
-        (send source-buffer (apply-tag-by-name "source" start iter)))
-      (send info-buffer (create-tag "title" 'font "Sans 18"))
-      (send source-buffer (create-tag "source" 'font "Courier 12"
-                                      'pixels-above-lines 0
-                                      'pixels-below-lines 0)))
+        (send source-buffer (apply-tag-by-name "source" start iter))))
+
+    (send info-buffer (create-tag "title" 'font "Sans 18"))
+    (send source-buffer (create-tag "source" 'font "Courier 12"
+                                    'pixels-above-lines 0
+                                    'pixels-below-lines 0))
     (send main-window
       (set-title "sbank GTK+ Demo")
       (set-default-size 600 400))

@@ -89,7 +89,7 @@
 
   (define (tree-model-get-value next-method)
     (lambda (tree-model iter column)
-      (let ((gvalue (g-value-new (send tree-model (get-column-type column)))))
+      (let ((gvalue (g-value-alloc 1)))
         (next-method tree-model iter column gvalue)
         (g-value-ref gvalue #f))))
 
