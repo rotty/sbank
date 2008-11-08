@@ -105,6 +105,7 @@
   (define-fetcher property-blob-fetcher "PropertyBlob")
   (define-fetcher interface-blob-fetcher "InterfaceBlob")
   (define-fetcher parameter-type-blob-fetcher "ParamTypeBlob")
+  (define-fetcher record-blob-fetcher "StructBlob")
   
   (define-syntax let-attributes
     (syntax-rules ()
@@ -730,17 +731,35 @@
          ((make-pointer-c-getter (type-tag-symbol->prim-type type)) mem 0)))))
 
   (define (make-record-loader typelib tld entry-ptr entry-name)
-    (lambda ()
-      (make-gobject-class (typelib-namespace typelib)
-                          entry-name
-                          (lambda (class)
-                            (values #f
-                                    #f
-                                    '()
-                                    `((alloc . ,(make-lazy-entry record-alloc)))
-                                    `((free . ,record-free))
-                                    '()
-                                    '())))))
+    (let-attributes header-fetcher tld (struct-blob-size field-blob-size)
+      (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
+             (blob (validated-pointer+ tld offset struct-blob-size)))
+        (lambda ()
+          (make-gobject-class
+           (typelib-namespace typelib)
+           entry-name
+           (lambda (class)
+             (let-attributes record-blob-fetcher blob
+                             (blob-type deprecated unregistered name
+                                        gtype-name gtype-init
+                                        n-fields n-methods)
+               (let ((fields (pointer+ blob struct-blob-size))
+                     (fields-size (* n-fields field-blob-size)))
+                 (receive (gtype parent interfaces constructors methods signals properties)
+                          (make/validate-gobject-class-attributes
+                           typelib tld class deprecated
+                           gtype-name gtype-init #f
+                           0 #f
+                           n-fields fields
+                           (+ offset struct-blob-size fields-size)
+                           0 n-methods 0 0 0)
+                   (values gtype
+                           parent
+                           interfaces
+                           (append `((alloc . ,(make-lazy-entry record-alloc))) constructors)
+                           (append `((free . ,record-free)) methods)
+                           signals
+                           properties))))))))))
 
   (define (record-alloc class)
     (lambda ()
