@@ -20,7 +20,7 @@
 
 
 (typelib-import
- (prefix (only ("Gtk" #f) <list-store>) gtk-))
+ (prefix (only ("Gtk" #f) <list-store> <tree-view>) gtk-))
 
 (testeez "ListStore"
   (test-define "creating" store (send <gtk-list-store> (newv (list 'boxed 'utf8))))
@@ -31,5 +31,13 @@
                   (set-values (send store (append))
                               0 (cadr item)
                               1 (car item))))
-              `(("Item 1" ,*)
-                ("Item 2" ,+)))))
+              `(("Multiplication" ,*)
+                ("Addition" ,+))))
+  (test-define "creating view" tview (send <gtk-tree-view> (new)))
+  (test-eval "setting model" (send tview (set-model store)))
+  (test-define "getting iter (using upcast)" iter
+    (send (send tview (get-model)) (append)))
+  (test-eval "setting values (using upcast)"
+    (send (send tview (get-model)) (set-values iter 0 / 1 "Division")))
+  (test/eq "getting values (no upcast)"
+    (send store (get-value iter 0)) /))

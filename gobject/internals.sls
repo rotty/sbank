@@ -37,6 +37,9 @@
           gobject-class-decorate
           gobject-method-overrider
 
+          make-gobject-record-class gobject-record-class?
+          make-gobject-union-class gobject-union-class?
+          
           make-ginstance ginstance? ginstance-ptr ginstance-class
 
           send-message
@@ -83,6 +86,11 @@
                 (lambda (namespace name gtype load-members)
                   (p namespace name gtype load-members #f #f #f #f #f #f)))))
 
+  (define-record-type gobject-record-class
+    (parent gobject-class))
+
+  (define-record-type gobject-union-class
+    (parent gobject-class))
 
   (define-record-type gerror-type)
 

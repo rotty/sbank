@@ -53,6 +53,7 @@
           null-ok-always-on?)
 
   (import (rnrs)
+          (xitomatl srfi and-let*)
           (spells define-values)
           (spells receive)
           (spells parameter)
@@ -86,6 +87,12 @@
     (c-gerror-domain "domain")
     (c-gerror-code "code")
     (c-gerror-message "message"))
+
+  (define-accessors "GTypeInstance"
+    (gtype-instance-class "g_class"))
+
+  (define-accessors "GTypeClass"
+    (gtype-class-gtype "g_type"))
 
   (define-condition-type &gerror &error
     make-gerror gerror?
@@ -130,7 +137,7 @@
         ((in-out out)
          (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
 
-  (define (arg-callout-steps ti i flag)
+  (define (arg-callout-steps ti i flag gtype-lookup)
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
@@ -145,15 +152,15 @@
                 (gerror-arg-cleanup type i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
-                 (type-info/prim-type+procs ti)
+                 (type-info/prim-type+procs ti gtype-lookup)
           (values (and (not (eq? 'out flag)) (if out-convert (converter-setup i out-convert) i))
                   (and (not (eq? 'in flag)) (if back-convert (converter-collect i back-convert) i))
                   (and cleanup (cleanup-step i cleanup))))))))
 
-  (define (arg-callback-steps ti i)
+  (define (arg-callback-steps ti i gtype-lookup)
     (let ((type (type-info-type ti)))
       (receive (prim-type out-convert back-convert cleanup)
-               (type-info/prim-type+procs ti)
+               (type-info/prim-type+procs ti gtype-lookup)
         (values (if back-convert
                     (lambda (arg-vec)
                       (back-convert (vector-ref arg-vec i)))
@@ -200,7 +207,7 @@
        (else
         (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
 
-  (define (type-info/prim-type+procs ti)
+  (define (type-info/prim-type+procs ti gtype-lookup)
     (let ((type (type-info-type ti))
           (null-ok? (type-info-null-ok? ti)))
       (cond
@@ -254,8 +261,7 @@
        ((gobject-class? type)
         (values 'pointer
                 (out-converter/null ginstance-ptr null-ok? #f)
-                (back-converter/null (lambda (ptr)
-                                       (make-ginstance type ptr))
+                (back-converter/null (ginstance-maker gtype-lookup type)
                                      null-ok?
                                      #f)
                 #f))
@@ -385,7 +391,7 @@
           (for-each (lambda (step) (step arg-vec)) steps))))
 
 
-  (define (make-callout rti arg-types setup-steps collect-steps cleanup-steps flags)
+  (define (make-callout rti arg-types setup-steps collect-steps cleanup-steps flags gtype-lookup)
     (let ((prim-callout
            (make-c-callout (type-info->prim-type rti #f)
                            (map (lambda (type flag)
@@ -396,7 +402,7 @@
           (setup (args-setup-procedure (length arg-types) setup-steps))
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
-          (ret-consume (ret-type-consumer rti)))
+          (ret-consume (ret-type-consumer rti gtype-lookup)))
       (cond ((and setup collect out-args?)
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
@@ -433,9 +439,9 @@
              (assert (and (not (or setup collect out-args?)) (boolean? ret-consume)))
              prim-callout))))
 
-  (define (make-callback rti arg-types prepare-steps store-steps flags)
+  (define (make-callback rti arg-types prepare-steps store-steps flags gtype-lookup)
     (receive (prim-ret ret-out-convert ret-back-convert cleanup)
-             (type-info/prim-type+procs rti)
+             (type-info/prim-type+procs rti gtype-lookup)
       (let ((prim-callback
              (make-c-callback prim-ret
                               (map (lambda (type flag)
@@ -490,12 +496,12 @@
                     (else
                      (loop ((car steps) (car vals) arg-vec))))))))))
 
-  (define (ret-type-consumer rti)
+  (define (ret-type-consumer rti gtype-lookup)
     (cond ((eq? (type-info-type rti) 'void)
            #f)
           (else
            (receive (prim-type out-convert back-convert cleanup)
-                    (type-info/prim-type+procs rti)
+                    (type-info/prim-type+procs rti gtype-lookup)
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))
@@ -504,6 +510,20 @@
                    (else
                     (assert (not cleanup))
                     #t))))))
+
+  (define (ginstance-maker gtype-lookup declared-class)
+    (cond ((or (gobject-record-class? declared-class)
+               (gobject-union-class? declared-class))
+           (lambda (instance)
+             (make-ginstance declared-class instance)))
+          (else
+           (lambda (instance)
+             (let ((class
+                     (or
+                      (and-let* ((gtype (gtype-class-gtype (gtype-instance-class instance))))
+                        (gtype-lookup gtype))
+                      declared-class)))
+               (make-ginstance class instance))))))
 
   (define (type-info->prim-type ti out?)
     (let ((type (type-info-type ti)))

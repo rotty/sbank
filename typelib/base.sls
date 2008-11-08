@@ -169,6 +169,11 @@
   (define (typelib-header typelib name)
     ((header-fetcher name) (tl-data (typelib-tl typelib))))
 
+  (define (typelib-gtype-lookup typelib)
+    (lambda (gtype)
+      (and-let* ((index (table-ref (typelib-gtype-table typelib) gtype)))
+        (typelib-get-entry/index typelib index))))
+
   (define *registered-typelibs* (make-table 'equal))
 
   (define (require-typelib namespace version flags)
@@ -310,7 +315,7 @@
                  (gtype (get/validate-dir-entry-gtype typelib tld name entry-ptr)))
             (vector-set! dir i (make-lazy-entry (make-entry-loader typelib tld name entry-ptr gtype)))
             (when gtype
-              (table-set! gtype-table gtype i))
+              (table-set! gtype-table gtype (+ i 1)))
             (when (< i n-local-entries)
               (table-set! name-table name (+ i 1))))))))
 
@@ -403,7 +408,7 @@
                                               container)))
         (when (and constructor? (not (gobject-class? (type-info-type rti))))
           (raise-validation-error "constructor does not return a class type"))
-        (make-callout rti arg-types setup collect cleanup flags))))
+        (make-callout rti arg-types setup collect cleanup flags (typelib-gtype-lookup typelib)))))
 
   (define (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size)
     (map (lambda (blob)
@@ -424,7 +429,8 @@
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
            (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
            (length-indices (type-infos-length-indices type-infos))
-           (has-self-ptr? (and container (not constructor?))))
+           (has-self-ptr? (and container (not constructor?)))
+           (gtype-lookup (typelib-gtype-lookup typelib)))
       (let loop ((arg-types '())
                  (setup-steps '())
                  (collect-steps '())
@@ -435,7 +441,7 @@
         (if (< i 0)
             (if has-self-ptr?
                 (receive (setup! collect cleanup)
-                         (arg-callout-steps (make-type-info container #t #f) 0 'in)
+                         (arg-callout-steps (make-type-info container #t #f) 0 'in gtype-lookup)
                   (assert (not (or collect cleanup)))
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons setup! setup-steps)
@@ -454,7 +460,7 @@
                                (else
                                 (raise-validation-error "argument has no direction" i)))))
               (receive (setup! collect cleanup)
-                       (arg-callout-steps (car tis) final-i flag)
+                       (arg-callout-steps (car tis) final-i flag gtype-lookup)
                 (cond (length?
                        (loop (cons (car tis) arg-types)
                              (cons #f setup-steps)
@@ -478,7 +484,8 @@
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
            (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
            (length-indices (type-infos-length-indices type-infos))
-           (has-self-ptr? (and method? container)))
+           (has-self-ptr? (and method? container))
+           (gtype-lookup (typelib-gtype-lookup typelib)))
       (let loop ((arg-types '())
                  (prepare-steps '())
                  (store-steps '())
@@ -488,7 +495,7 @@
         (if (< i 0)
             (if has-self-ptr?
                 (receive (prepare store)
-                         (arg-callback-steps (make-type-info container #t #f) 0)
+                         (arg-callback-steps (make-type-info container #t #f) 0 gtype-lookup)
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons prepare prepare-steps)
                           store-steps
@@ -505,7 +512,7 @@
                       (else
                        (raise-validation-error "argument has no direction" i))))
               (receive (prepare store)
-                       (arg-callback-steps (car tis) (if has-self-ptr? (+ i 1) i))
+                       (arg-callback-steps (car tis) (if has-self-ptr? (+ i 1) i) gtype-lookup)
                 (cond (length?
                        (loop (cons (car tis) arg-types)
                              prepare-steps
@@ -538,7 +545,8 @@
                        arg-types
                        prepare
                        store
-                       flags))))
+                       flags
+                       (typelib-gtype-lookup typelib)))))
 
   (define (make-interface-loader typelib tld entry-ptr name gtype)
     (let-attributes header-fetcher tld (interface-blob-size field-blob-size)
@@ -741,7 +749,7 @@
       (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
              (blob (validated-pointer+ tld offset struct-blob-size)))
         (lambda ()
-          (make-gobject-class
+          (make-gobject-record-class
            (typelib-namespace typelib)
            entry-name
            gtype
@@ -776,12 +784,12 @@
 
   (define (make-union-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
-      (make-gobject-class (typelib-namespace typelib)
-                          entry-name
-                          gtype
-                          (lambda (class)
-                            (values #f '() '() '() '() '())))))
-
+      (make-gobject-union-class (typelib-namespace typelib)
+                                entry-name
+                                gtype
+                                (lambda (class)
+                                  (values #f '() '() '() '() '())))))
+  
   (define (proc/validation-context proc)
     (let ((context (validation-context)))
       (lambda args
@@ -802,7 +810,7 @@
       (let ((decorator (lookup-typelib-decorator namespace name)))
         (if decorator (decorator (loader)) (loader)))))
 
-  
+
   (define (get/validate-dir-entry-gtype typelib tld name entry-ptr)
     (let-attributes dir-entry-fetcher entry-ptr
                     (blob-type local offset)
@@ -815,7 +823,7 @@
                (get/validate-gtype typelib tld gtype-init)))
             (else
              #f)))))
-  
+
   (define get/validate-gtype
     (let ((callout (make-c-callout gtype-ctype '())))
       (lambda (typelib tld name-offset)

@@ -67,7 +67,11 @@
                                      (field (name "v_float") (type "float"))
                                      (field (name "v_double") (type "double"))
                                      (field (name "v_pointer") (type (pointer (type "void")))))))
-                            (element-count 2)))))))
+                            (element-count 2)))))
+      (record (name "GTypeInstance")
+              (field (name "g_class") (type (pointer (type "void")))))
+      (record (name "GTypeClass")
+              (field (name "g_type") (type "gtype")))))
   
   (define typelib-stypes
     (let ((stypes #f))
