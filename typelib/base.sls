@@ -604,6 +604,8 @@
            n-interfaces ifaces
            n-fields fields
            prop-offset n-properties n-methods n-signals n-vfuncs n-constants)
+    (define (interface-maker i)
+      (typelib-get-entry/index typelib (pointer-uint16-ref ifaces (* 2 i))))
     (define (make-lazy name-offset proc)
       (let ((name (scheme-ified-symbol (get/validate-string tld name-offset))))
         (with-validation-context name
@@ -651,6 +653,7 @@
                               (make-array-pointers methods n-methods function-blob-size))
             (values (get/validate-gtype typelib tld gtype-init)
                     parent
+                    (map interface-maker (iota n-interfaces))
                     (map member-func-maker constructors)
                     (map member-func-maker methods)
                     (map signal-maker
@@ -733,6 +736,7 @@
                           (lambda (class)
                             (values #f
                                     #f
+                                    '()
                                     `((alloc . ,(make-lazy-entry record-alloc)))
                                     `((free . ,record-free))
                                     '()
@@ -751,7 +755,7 @@
       (make-gobject-class (typelib-namespace typelib)
                           entry-name
                           (lambda (class)
-                            (values #f #f '() '() '() '())))))
+                            (values #f #f '() '() '() '() '())))))
   
   (define (proc/validation-context proc)
     (let ((context (validation-context)))

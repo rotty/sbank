@@ -60,7 +60,7 @@
 
   (define (g-value-alloc n)
     (let ((n-bytes (* n g-value-size)))
-      (memcpy (malloc g-value-size) (make-bytevector n-bytes 0) n-bytes)))
+      (memcpy (malloc n-bytes) (make-bytevector n-bytes 0) n-bytes)))
   
   (define g-value-init!
     (let-callouts libgobject ((init% 'pointer "g_value_init" `(pointer ,gtype-ctype)))
@@ -127,7 +127,7 @@
                               (set-int% 'void "g_value_set_int" '(pointer int))
                               (set-string% 'void "g_value_set_string" '(pointer pointer))
                               (set-pointer% 'void "g_value_set_pointer" '(pointer pointer)))
-      (trace-lambda g-v-set! (gvalue val type)
+      (lambda (gvalue val type)
         (case type
           ((int) (set-int% gvalue val))
           ((uint) (set-uint% gvalue val))

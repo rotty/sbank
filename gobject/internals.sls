@@ -28,6 +28,7 @@
           gobject-class-name
           gobject-class-gtype
           gobject-class-parent
+          gobject-class-interfaces
           gobject-class-get-signal-callback
           gobject-class-get-signal-signature
           gobject-class-get-signal-rti
@@ -49,6 +50,7 @@
           (rnrs lists)
           (rnrs records syntactic)
           (rnrs mutable-pairs)
+          (xitomatl srfi and-let*)
           (spells alist)
           (spells receive)
           (spells tracing)
@@ -72,13 +74,14 @@
             (mutable load-members)
             (mutable gtype%)
             (mutable parent)
+            (mutable interfaces)
             (mutable constructors)
             (mutable methods)
             (mutable signals)
             (mutable properties))
     (protocol (lambda (p)
                 (lambda (namespace name load-members)
-                  (p namespace name load-members #f #f #f #f #f #f)))))
+                  (p namespace name load-members #f #f #f #f #f #f #f)))))
 
 
   (define-record-type gerror-type)
@@ -112,10 +115,11 @@
     (make-gobject-class (gobject-class-namespace class)
                         (gobject-class-name class)
                         (lambda (new-class)
-                          (receive (gtype parent constructors methods signals properties)
+                          (receive (gtype parent interfaces constructors methods signals properties)
                                    ((gobject-class-load-members class) class)
                             (values gtype
                                     parent
+                                    interfaces
                                     (constructors-decorator constructors)
                                     (methods-decorator methods)
                                     (signals-decorator signals)
@@ -158,18 +162,27 @@
                   (when (lazy-entry? (cdr entry))
                     (set-cdr! entry ((lazy-entry-proc (cdr entry)) class)))
                   (cdr entry)))
-            ((gobject-class-parent class) => (lambda (parent)
-                                               (gobject-class-force! parent)
-                                               (lookup parent name)))
-            (else #f)))
+            ((and-let* ((parent (gobject-class-parent class)))
+               (gobject-class-force! parent)
+               (lookup parent name)) => values)
+            (else
+             (let loop ((ifaces (gobject-class-interfaces class)))
+               (cond ((null? ifaces) #f)
+                     ((let ((iface (car ifaces)))
+                        (gobject-class-force! iface)
+                        (lookup iface name)) => values)
+                     (else
+                      (loop (cdr ifaces))))))))
     lookup)
 
   (define (gobject-class-force! class)
     (cond ((gobject-class-load-members class)
            => (lambda (loader)
-                (receive (gtype parent constructors methods signals properties) (loader class)
+                (receive (gtype parent interfaces constructors methods signals properties)
+                         (loader class)
                   (gobject-class-gtype%-set! class gtype)
                   (gobject-class-parent-set! class parent)
+                  (gobject-class-interfaces-set! class interfaces)
                   (gobject-class-constructors-set! class constructors)
                   (gobject-class-methods-set! class methods)
                   (gobject-class-signals-set! class signals)

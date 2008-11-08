@@ -30,6 +30,7 @@
                                       #f
                                       #f
                                       '()
+                                      '()
                                       `((show . ,(lambda (inst)
                                                    'show-result)))
                                       '()
@@ -40,6 +41,7 @@
                                      (values
                                       #f
                                       <gtk-widget>
+                                      '()
                                       `((new . ,(lambda () (make-ginstance class 'new-widget))))
                                       '()
                                       '()

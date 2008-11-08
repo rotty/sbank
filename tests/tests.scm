@@ -42,4 +42,9 @@
    (sbank gobject internals)
    (spells foreign))
 
-  #;("everything.scm" (sbank typelib))))
+  ;; ("everything.scm" (sbank typelib))
+
+  ((code (gtk-setup!))
+   "gtk.scm"
+   (sbank gtk)
+   (sbank typelib))))

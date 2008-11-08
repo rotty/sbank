@@ -3,6 +3,7 @@
   (import (rnrs base)
           (rnrs control)
           (spells tracing)
+          (only (spells assert) cout)
           (spells receive)
           (spells foreign)
           (sbank ctypes simple)
@@ -11,7 +12,7 @@
           (sbank gobject gvalue)
           (sbank gobject))
 
-  (typelib-import (only ("Gtk" #f) <tree-iter> <text-iter>))
+  (typelib-import (only ("Gtk" #f) <tree-iter> <text-iter> <tree-path>))
 
   (define (text-buffer-decorator class)
     (gobject-class-decorate
@@ -54,18 +55,19 @@
   (define (list-store-set-values next-method)
     (lambda (store iter . cols/vals)
       (let ((n (length cols/vals)))
-        (unless (even? n)
-          (error 'list-store-set-values "uneven number of colum/value arguments" cols/vals))
+        (when (odd? n)
+          (error 'list-store-set-values "odd number of colum/value arguments" cols/vals))
+        ;; note that this will be free'd by the array arg cleanup code
         (let ((gvalues (g-value-alloc (/ n 2))))
           (let loop ((cols '())  (cols/vals cols/vals) (i 0))
             (cond ((null? cols/vals)
-                   (send store (set-valuesv iter (reverse cols) gvalues))
-                   (free gvalues))
+                   (send store (set-valuesv iter (reverse cols) gvalues)))
                   (else
-                   (let ((col (car cols/vals)))
-                     (g-value-set! (pointer+ gvalues (* i g-value-size))
-                                   (cadr cols/vals)
-                                   (send store (get-column-type col)))
+                   (let* ((col (car cols/vals))
+                          (gv (pointer+ gvalues (* i g-value-size)))
+                          (gtype (send store (get-column-type col))))
+                     (g-value-init! gv gtype)
+                     (g-value-set! gv (cadr cols/vals) gtype)
                      (loop (cons col cols) (cddr cols/vals) (+ i 1))))))))))
 
   (define (text-buffer-create-tag next-method)
@@ -91,7 +93,11 @@
 
   (define (tree-model-get-iter next-method)
     (lambda (tree-model path)
-      (let ((iter (send <tree-iter> (alloc))))
+      (let ((iter (send <tree-iter> (alloc)))
+            (path (cond ((string? path)
+                         (send <tree-path> (new-from-string path)))
+                        (else
+                         path))))
         (cond ((next-method tree-model iter path) iter)
               (else
                (send iter (free))
