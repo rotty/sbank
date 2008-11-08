@@ -65,19 +65,19 @@
       ((debug <expr> ...)
        (for-each display (list "DEBUG: " <expr> ... "\n")))))
   |#
-  
+
   ;;
   ;; Typelib accessors and fetcher factories
   ;;
-  
+
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
 
   (define-accessors "GTypelib"
     (tl-data "data"))
-  
+
   (define-accessors "Header"
     ;; This needs to be reasonably fast, so we don't use let-attribute/fetchers here
-    (header-size "size")) 
+    (header-size "size"))
 
   (define-accessors "ArgBlob"
     (arg-in "in")
@@ -106,7 +106,7 @@
   (define-fetcher interface-blob-fetcher "InterfaceBlob")
   (define-fetcher parameter-type-blob-fetcher "ParamTypeBlob")
   (define-fetcher record-blob-fetcher "StructBlob")
-  
+
   (define-syntax let-attributes
     (syntax-rules ()
       ((let-attributes <fetcher> <pointer> (<name> ...) <body> ...)
@@ -127,14 +127,15 @@
     (raise (condition (make-sbank-error)
                       (make-message-condition msg)
                       (make-irritants-condition irritants))))
-  
+
   (define-record-type typelib
     ;;(opaque #t)
-    (fields (immutable tl typelib-tl)
-            (immutable namespace)
-            (immutable name-table typelib-name-table)
-            (immutable signatures typelib-signatures)
-            (immutable directory typelib-directory)
+    (fields tl
+            namespace
+            name-table
+            signatures
+            directory
+            gtype-table
             (mutable shlibs %typelib-shlibs %typelib-set-shlibs!)))
 
   (define typelib-deprecation-handler
@@ -164,12 +165,12 @@
     (or-map (lambda (shlib)
               (dlsym shlib name))
             (typelib-shlibs typelib)))
-  
+
   (define (typelib-header typelib name)
     ((header-fetcher name) (tl-data (typelib-tl typelib))))
-  
+
   (define *registered-typelibs* (make-table 'equal))
-  
+
   (define (require-typelib namespace version flags)
     (or (table-ref *registered-typelibs* namespace)
         (let ((typelib (require-typelib% 'require-typelib namespace version flags)))
@@ -184,7 +185,7 @@
           (let ((c-namespace (->utf8z-ptr/null who namespace))
                 (c-version (->utf8z-ptr/null who version))
                 (gerror (malloc/set! 'pointer (integer->pointer 0))))
-            (let ((result 
+            (let ((result
                    (g-ir-require (integer->pointer 0) c-namespace c-version flags gerror)))
               (cond ((= 0 (pointer->integer result))
                      (let ((e (pointer-ref-c-pointer gerror 0)))
@@ -193,17 +194,17 @@
                     (else
                      (make/validate-typelib result namespace)))))))))
 
-  
+
   (define (typelib-magic typelib)
     (memcpy (make-bytevector 16)
             ((header-fetcher 'magic) (tl-data (typelib-tl typelib))) 16))
-  
+
   (define (typelib-minor-version typelib)
     ((header-fetcher 'minor-version) (tl-data (typelib-tl typelib))))
-  
+
   (define (typelib-major-version typelib)
     ((header-fetcher 'major-version) (tl-data (typelib-tl typelib))))
-  
+
   (define (typelib-get-entry-names typelib)
     (table-fold (lambda (key value result)
                   (cons key result))
@@ -232,7 +233,7 @@
     (context validation-error-context))
 
   (define validation-context (make-parameter '()))
-  
+
   (define (raise-validation-error message . irritants)
     (raise (condition (make-validation-error (validation-context))
                       (make-message-condition message)
@@ -243,7 +244,7 @@
       ((_ <context> <body> ...)
        (parameterize ((validation-context (cons <context> (validation-context))))
          <body> ...))))
-  
+
   (define (make/validate-typelib tl namespace)
     (define (lose msg . irritants)
       (apply raise-validation-error msg irritants))
@@ -261,6 +262,7 @@
                                      (make-table 'equal)
                                      (make-table 'eqv)
                                      (make-vector n-entries)
+                                     (make-table 'eqv)
                                      #f)))
           (fill/validate-directory! typelib tld)
           typelib))))
@@ -296,6 +298,7 @@
                     (entry-blob-size n-entries n-local-entries directory)
       (do ((dir (typelib-directory typelib))
            (name-table (typelib-name-table typelib))
+           (gtype-table (typelib-gtype-table typelib))
            (i 0 (+ i 1))
            (entry-ptr
             (validated-pointer+ tld directory (* n-local-entries entry-blob-size))
@@ -303,12 +306,15 @@
           ((>= i n-entries))
         (let-attributes dir-entry-fetcher entry-ptr
                         (name)
-          (let ((name (get/validate-string tld name)))
-            (vector-set! dir i (make-lazy-entry (make-entry-loader typelib tld name entry-ptr)))
+          (let* ((name (get/validate-string tld name))
+                 (gtype (get/validate-dir-entry-gtype typelib tld name entry-ptr)))
+            (vector-set! dir i (make-lazy-entry (make-entry-loader typelib tld name entry-ptr gtype)))
+            (when gtype
+              (table-set! gtype-table gtype i))
             (when (< i n-local-entries)
               (table-set! name-table name (+ i 1))))))))
-  
-  (define (make-entry-loader typelib tld entry-name entry-ptr)
+
+  (define (make-entry-loader typelib tld entry-name entry-ptr gtype)
     (with-validation-context entry-name
       (let-attributes dir-entry-fetcher entry-ptr
                       (name offset local blob-type)
@@ -339,9 +345,9 @@
                     (lambda args
                       (lambda ()
                         (raise-validation-error "unknown entry type encountered" blob-type)))))
-                 typelib tld entry-ptr entry-name))))))))
+                 typelib tld entry-ptr entry-name gtype))))))))
 
-  (define (make-function-loader typelib tld entry-ptr name)
+  (define (make-function-loader typelib tld entry-ptr name gtype)
     (let ((blob (validated-pointer+ tld
                                     ((dir-entry-fetcher 'offset) entry-ptr)
                                     ((header-fetcher 'function-blob-size) tld))))
@@ -353,7 +359,7 @@
         (let ((result (make/validate-signature typelib tld signature constructor? container)))
           (table-set! (typelib-signatures typelib) signature result)
           result)))
-                                                  
+
   (define (make/validate-function typelib tld blob container)
     (let-attributes
             function-blob-fetcher blob
@@ -379,7 +385,7 @@
                    (if (= deprecated 1)
                        (mark-deprecated typelib tld name proc)
                        proc))))))))
-  
+
   (define (make/validate-callout typelib tld signature-offset constructor? container)
     (let-attributes signature-blob-fetcher
         (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
@@ -413,7 +419,7 @@
                     (and (array-type? type)
                          (array-length-index type))))
                 type-infos))
-  
+
   (define (arg-blobs-callout-values typelib tld arg-blobs n-args constructor? container)
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
            (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
@@ -516,7 +522,7 @@
                              (cons (flag) flags)
                              (cdr tis)
                              (- i 1))))))))))
-  
+
   (define (make/validate-callback typelib tld signature-offset method? container)
     (let-attributes signature-blob-fetcher
         (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
@@ -533,8 +539,8 @@
                        prepare
                        store
                        flags))))
-  
-  (define (make-interface-loader typelib tld entry-ptr name)
+
+  (define (make-interface-loader typelib tld entry-ptr name gtype)
     (let-attributes header-fetcher tld (interface-blob-size field-blob-size)
       (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
              (blob (validated-pointer+ tld offset interface-blob-size)))
@@ -542,9 +548,10 @@
           (make-gobject-class
            (typelib-namespace typelib)
            name
+           gtype
            (lambda (class)
              (let-attributes interface-blob-fetcher blob
-                             (blob-type deprecated name gtype-name gtype-init 
+                             (blob-type deprecated name
                                         n-prerequisites n-properties n-methods n-signals
                                         n-vfuncs n-constants)
                (unless (= blob-type 8)
@@ -553,23 +560,24 @@
                  (validated-pointer+ tld offset (+ interface-blob-size prereq-size))
                  (let* ((prereqs (pointer+ blob interface-blob-size)))
                    (make/validate-gobject-class-attributes
-                    typelib tld class deprecated gtype-name gtype-init #f
+                    typelib tld class deprecated #f
                     n-prerequisites prereqs
                     0 #f
                     (+ offset interface-blob-size prereq-size)
                     n-properties n-methods n-signals n-vfuncs n-constants))))))))))
-  
+
 
   (define (make/validate-vfunc-caller tld index callout)
     (raise-sbank-error "vfunc calling not yet implemented"))
-  
-  (define (make-class-loader typelib tld entry-ptr name)
+
+  (define (make-class-loader typelib tld entry-ptr name gtype)
     (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
            (blob (validated-pointer+ tld offset ((header-fetcher 'object-blob-size) tld))))
       (lambda ()
         (make-gobject-class
          (typelib-namespace typelib)
          name
+         gtype
          (lambda (class)
            (let-attributes header-fetcher tld
                            (object-blob-size field-blob-size property-blob-size
@@ -591,17 +599,16 @@
                         (parent (and (> parent 0)
                                      (typelib-get-entry/index typelib parent))))
                    (make/validate-gobject-class-attributes
-                    typelib tld class deprecated
-                    gtype-name gtype-init parent
+                    typelib tld class deprecated parent
                     n-interfaces ifaces
                     n-fields fields
                     (+ offset object-blob-size ifaces-size fields-size)
                     n-properties n-methods n-signals
                     n-vfuncs n-constants))))))))))
-  
+
 
   (define (make/validate-gobject-class-attributes
-           typelib tld class deprecated gtype-name gtype-init parent
+           typelib tld class deprecated parent
            n-interfaces ifaces
            n-fields fields
            prop-offset n-properties n-methods n-signals n-vfuncs n-constants)
@@ -652,8 +659,7 @@
                                                 (constructor)
                                   (= constructor 1)))
                               (make-array-pointers methods n-methods function-blob-size))
-            (values (get/validate-gtype typelib tld gtype-init)
-                    parent
+            (values parent
                     (map interface-maker (iota n-interfaces))
                     (map member-func-maker constructors)
                     (map member-func-maker methods)
@@ -682,8 +688,8 @@
          (proc/validation-context
           (lambda ()
             (make/validate-callback typelib tld signature-offset (not constructor?) container)))))))
-  
-  (define (make-enum-loader typelib tld entry-ptr entry-name)
+
+  (define (make-enum-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
       (let ((blob (validated-pointer+ tld
                                       ((dir-entry-fetcher 'offset) entry-ptr)
@@ -700,8 +706,8 @@
                     (cons (scheme-ified-symbol (get/validate-string tld name))
                           value)))
                 (make-array-pointers values n-values ((header-fetcher 'value-blob-size) tld))))))))
-  
-  (define (make-constant-loader typelib tld entry-ptr entry-name)
+
+  (define (make-constant-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
       (let ((blob (validated-pointer+ tld
                                       ((dir-entry-fetcher 'offset) entry-ptr)
@@ -730,7 +736,7 @@
        (let ((mem (validated-pointer+ tld offset (c-type-sizeof type))))
          ((make-pointer-c-getter (type-tag-symbol->prim-type type)) mem 0)))))
 
-  (define (make-record-loader typelib tld entry-ptr entry-name)
+  (define (make-record-loader typelib tld entry-ptr entry-name gtype)
     (let-attributes header-fetcher tld (struct-blob-size field-blob-size)
       (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
              (blob (validated-pointer+ tld offset struct-blob-size)))
@@ -738,6 +744,7 @@
           (make-gobject-class
            (typelib-namespace typelib)
            entry-name
+           gtype
            (lambda (class)
              (let-attributes record-blob-fetcher blob
                              (blob-type deprecated unregistered name
@@ -745,16 +752,14 @@
                                         n-fields n-methods)
                (let ((fields (pointer+ blob struct-blob-size))
                      (fields-size (* n-fields field-blob-size)))
-                 (receive (gtype parent interfaces constructors methods signals properties)
+                 (receive (parent interfaces constructors methods signals properties)
                           (make/validate-gobject-class-attributes
-                           typelib tld class deprecated
-                           gtype-name gtype-init #f
+                           typelib tld class deprecated #f
                            0 #f
                            n-fields fields
                            (+ offset struct-blob-size fields-size)
                            0 n-methods 0 0 0)
-                   (values gtype
-                           parent
+                   (values parent
                            interfaces
                            (append `((alloc . ,(make-lazy-entry record-alloc))) constructors)
                            (append `((free . ,record-free)) methods)
@@ -769,13 +774,14 @@
     (lambda (instance)
       (free (ginstance-ptr instance))))
 
-  (define (make-union-loader typelib tld entry-ptr entry-name)
+  (define (make-union-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
       (make-gobject-class (typelib-namespace typelib)
                           entry-name
+                          gtype
                           (lambda (class)
-                            (values #f #f '() '() '() '() '())))))
-  
+                            (values #f '() '() '() '() '())))))
+
   (define (proc/validation-context proc)
     (let ((context (validation-context)))
       (lambda args
@@ -796,13 +802,27 @@
       (let ((decorator (lookup-typelib-decorator namespace name)))
         (if decorator (decorator (loader)) (loader)))))
 
+  
+  (define (get/validate-dir-entry-gtype typelib tld name entry-ptr)
+    (let-attributes dir-entry-fetcher entry-ptr
+                    (blob-type local offset)
+      (if (= local 0)
+          #f
+          (case blob-type
+            ((7 8) ;; object, interface
+             (let-attributes interface-blob-fetcher (pointer+ tld offset)
+                             (gtype-init)
+               (get/validate-gtype typelib tld gtype-init)))
+            (else
+             #f)))))
+  
   (define get/validate-gtype
     (let ((callout (make-c-callout gtype-ctype '())))
       (lambda (typelib tld name-offset)
         (let* ((name (get/validate-string tld name-offset))
                (func-ptr (typelib-dlsym typelib name)))
           (and func-ptr ((callout func-ptr)))))))
-  
+
   ;;
   ;; Helpers
   ;;
@@ -857,15 +877,15 @@
           (else
            (raise-validation-error "non-simple type of this kind not yet implemented"
                                    (type-tag->symbol tag)))))))
-  
+
   (define type-tag-utf8 (symbol->type-tag 'utf8))
   (define type-tag-array (symbol->type-tag 'array))
-  
+
   (define (get/validate-string tld offset)
     ;; FIXME: This should actually check we don't go beyond the data
     ;; when assembling the string
     (utf8z-ptr->string (validated-pointer+ tld offset 1)))
-  
+
   (define (validated-pointer+ tld offset size)
     (when (> (+ offset size) (header-size tld))
       (raise-validation-error "offset/size out of bounds" offset size (header-size tld)))
@@ -875,7 +895,7 @@
     (do ((i (- n 1) (- i 1))
          (result '() (cons (pointer+ base (* i size)) result)))
         ((< i 0) result)))
-  
+
   (define (bool i)
     (not (= 0 i)))
 

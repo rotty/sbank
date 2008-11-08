@@ -71,8 +71,8 @@
     ;;(opaque #t)
     (fields namespace
             name
+            gtype
             (mutable load-members)
-            (mutable gtype%)
             (mutable parent)
             (mutable interfaces)
             (mutable constructors)
@@ -80,8 +80,8 @@
             (mutable signals)
             (mutable properties))
     (protocol (lambda (p)
-                (lambda (namespace name load-members)
-                  (p namespace name load-members #f #f #f #f #f #f #f)))))
+                (lambda (namespace name gtype load-members)
+                  (p namespace name gtype load-members #f #f #f #f #f #f)))))
 
 
   (define-record-type gerror-type)
@@ -97,10 +97,6 @@
     (let ((signature (lookup-signal class signal)))
       (and signature (signature-rti signature))))
 
-  (define (gobject-class-gtype class)
-    (gobject-class-force! class)
-    (gobject-class-gtype% class))
-
   (define (gobject-class-get-property-info class property)
     (lookup-property class property))
 
@@ -114,11 +110,11 @@
                                   signals-decorator)
     (make-gobject-class (gobject-class-namespace class)
                         (gobject-class-name class)
+                        (gobject-class-gtype class)
                         (lambda (new-class)
-                          (receive (gtype parent interfaces constructors methods signals properties)
+                          (receive (parent interfaces constructors methods signals properties)
                                    ((gobject-class-load-members class) class)
-                            (values gtype
-                                    parent
+                            (values parent
                                     interfaces
                                     (constructors-decorator constructors)
                                     (methods-decorator methods)
@@ -178,9 +174,8 @@
   (define (gobject-class-force! class)
     (cond ((gobject-class-load-members class)
            => (lambda (loader)
-                (receive (gtype parent interfaces constructors methods signals properties)
+                (receive (parent interfaces constructors methods signals properties)
                          (loader class)
-                  (gobject-class-gtype%-set! class gtype)
                   (gobject-class-parent-set! class parent)
                   (gobject-class-interfaces-set! class interfaces)
                   (gobject-class-constructors-set! class constructors)

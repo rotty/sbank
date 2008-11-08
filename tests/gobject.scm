@@ -24,10 +24,9 @@
 
 (testeez "object system"
   (test-define "widget" <gtk-widget>
-               (make-gobject-class "Gtk" "Widget"
+               (make-gobject-class "Gtk" "Widget" #f
                                    (lambda (class)
                                      (values
-                                      #f
                                       #f
                                       '()
                                       '()
@@ -36,10 +35,9 @@
                                       '()
                                       '()))))
   (test-define "window" <gtk-window>
-               (make-gobject-class "Gtk" "Window"
+               (make-gobject-class "Gtk" "Window" #f
                                    (lambda (class)
                                      (values
-                                      #f
                                       <gtk-widget>
                                       '()
                                       `((new . ,(lambda () (make-ginstance class 'new-widget))))
