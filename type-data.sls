@@ -38,12 +38,13 @@
           signature-atis
           signature-callout
           signature-callback
-          
+
           make-type-info
           type-info?
           type-info-type
           type-info-is-pointer?
           type-info-null-ok?
+          type-info-parameters
 
           make-property-info
           property-info?
@@ -55,6 +56,7 @@
           property-info-construct?
           property-info-construct-only?)
   (import (rnrs base)
+          (rnrs control)
           (rnrs records syntactic)
           (spells foreign)
           (spells tracing)
@@ -68,9 +70,15 @@
 
   (define (array-element-type atype)
     (type-info-type (array-element-type-info atype)))
-  
+
   (define-record-type type-info
-    (fields type is-pointer? null-ok?))
+    (fields type is-pointer? null-ok? parameters)
+    (protocol (lambda (p)
+                (case-lambda
+                  ((type is-pointer? null-ok?)
+                   (p type is-pointer? null-ok? '()))
+                  ((type is-pointer? null-ok? parameters)
+                   (p type is-pointer? null-ok? parameters))))))
 
   (define-record-type property-info
     (fields type-info readable? writable? construct? construct-only?))
@@ -80,7 +88,7 @@
 
   (define (property-info-is-pointer? pinfo)
     (type-info-is-pointer? (property-info-type-info pinfo)))
-  
+
   (define-record-type signature
     (fields (mutable rti signature-rti% signature-set-rti%!)
             (mutable atis signature-atis% signature-set-atis%!)
