@@ -24,7 +24,8 @@
 
 (library (sbank shlibs)
   (export libgir libgobject libglib
-          let-callouts)
+          let-callouts
+          define-callouts)
   (import (rnrs base)
           (spells foreign))
 
@@ -36,6 +37,13 @@
                     (dlsym shlib c-name)))
              ...)
          body ...))))
+
+  (define-syntax define-callouts
+    (syntax-rules ()
+      ((define-callouts shlib (name ret-type c-name arg-types) ...)
+       (begin
+         (define name ((make-c-callout ret-type arg-types) (dlsym shlib c-name)))
+         ...))))
 
   (define (checked-dlopen name)
     (or (dlopen name)
