@@ -204,7 +204,7 @@
 
   (define (construct-stype-fetcher component)
     (call-with-values (lambda () (stype-compound-element-fetcher-values component))
-      c-compound-element-fetcher))
+      make-pointer-c-element-getter))
 
   (define (stype-compound-element-fetcher-values component)
     (let ((offset (sxpath-attr component '(offset)))
@@ -380,7 +380,7 @@
                                     list)))
                                (map syntax->datum #'(<field-name> ...)))))
              #`(define-values (<fetcher-name> ...)
-                 (values (apply c-compound-element-fetcher 'args) ...))))))))
+                 (values (apply make-pointer-c-element-getter 'args) ...))))))))
 
   (define (stype-fetcher-factory-definer types)
     (lambda (stx)
@@ -393,7 +393,7 @@
            #'(define <name>
                (let ((fields '(field ...)))
                  (lambda (sym)
-                   (apply c-compound-element-fetcher
+                   (apply make-pointer-c-element-getter
                           (cond ((assq sym fields) => cdr)
                                 (else (error '<name>
                                              "no such field" sym fields))))))))))))
