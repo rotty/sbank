@@ -119,11 +119,11 @@
          (text-buffer (send text-view (get-buffer)))
          (label (send <gtk-label> (new name))))
     (send text-view
-      (set 'editable #f)
-      (set 'cursor-visible #f)
-      (set 'wrap-mode wrap-mode)
-      (set 'pixels-above-lines pix)
-      (set 'pixels-below-lines pix))
+      (set 'editable #f
+           'cursor-visible #f
+           'wrap-mode wrap-mode
+           'pixels-above-lines pix
+           'pixels-below-lines pix))
     (send scrolled
       (set 'shadow-type 'in)
       (add text-view))
