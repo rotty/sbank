@@ -121,7 +121,7 @@
                         (type-info/prim-type+procs elt-ti gtype-lookup)
                  (values 'pointer
                          (gslist-out-converter elt-out)
-                         (gslist-back-converter elt-back)
+                         (gslist-back-converter (make-gslist-class elt-out elt-back elt-cleanup))
                          (gslist-cleanup elt-cleanup)))))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
@@ -378,13 +378,16 @@
                                               (car lst)))
                          (cdr lst))))))))
 
-  (define (gslist-back-converter elt-convert)
+  (define (gslist->list gslist elt-convert)
+    (let loop ((lst '()) (gslist gslist))
+      (if (pointer-null? gslist)
+          (reverse lst)
+          (loop (cons (elt-convert (g-slist-data gslist)) lst)
+                (g-slist-next gslist)))))
+
+  (define (gslist-back-converter class)
     (lambda (gslist)
-      (let loop ((lst '()) (gslist gslist))
-        (if (pointer-null? gslist)
-            (reverse lst)
-            (loop (cons (elt-convert (g-slist-data gslist)) lst)
-                  (g-slist-next gslist))))))
+      (make-ginstance class gslist)))
 
   (define (gslist-cleanup elt-cleanup)
     (lambda (gslist)
