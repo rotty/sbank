@@ -459,32 +459,32 @@
         (if (< i 0)
             (if has-self-ptr?
                 (receive (setup! collect cleanup)
-                         (arg-callout-steps (make-type-info container #t #f) 0 'in gtype-lookup)
+                         (arg-callout-steps (make-type-info container #t #f) 0 '(in) gtype-lookup)
                   (assert (not (or collect cleanup)))
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons setup! setup-steps)
                           collect-steps
                           cleanup-steps
-                          (cons 'in flags)))
+                          (cons '(in) flags)))
                 (values arg-types setup-steps collect-steps cleanup-steps flags))
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
                    (final-i  (if has-self-ptr? (+ i 1) i))
                    (length? (memv final-i length-indices))
-                   (flag (cond ((and in? out?) 'in-out)
-                               (out? 'out)
-                               (in? 'in)
-                               (else
-                                (raise-validation-error "argument has no direction" i)))))
+                   (arg-flags (cond ((and in? out?) '(in-out))
+                                    (out? '(out))
+                                    (in? '(in))
+                                    (else
+                                     (raise-validation-error "argument has no direction" i)))))
               (receive (setup! collect cleanup)
-                       (arg-callout-steps (car tis) final-i flag gtype-lookup)
+                       (arg-callout-steps (car tis) final-i arg-flags gtype-lookup)
                 (cond (length?
                        (loop (cons (car tis) arg-types)
                              (cons #f setup-steps)
                              collect-steps
                              cleanup-steps
-                             (cons flag flags)
+                             (cons arg-flags flags)
                              (cdr tis)
                              (- i 1)))
                       (else
@@ -494,7 +494,7 @@
                                  (cons collect collect-steps)
                                  collect-steps)
                              (if cleanup (cons cleanup cleanup-steps) cleanup-steps)
-                             (cons flag flags)
+                             (cons arg-flags flags)
                              (cdr tis)
                              (- i 1))))))))))
 
@@ -517,16 +517,16 @@
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons prepare prepare-steps)
                           store-steps
-                          (cons 'in flags)))
+                          (cons '(in) flags)))
                 (values arg-types prepare-steps store-steps flags))
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
                    (length? (memv i length-indices)))
               (define (flag)
-                (cond ((and in? out?) 'in-out)
-                      (out? 'out)
-                      (in? 'in)
+                (cond ((and in? out?) '(in-out))
+                      (out? '(out))
+                      (in? '(in))
                       (else
                        (raise-validation-error "argument has no direction" i))))
               (receive (prepare store)

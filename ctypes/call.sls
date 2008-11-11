@@ -34,13 +34,16 @@
           gerror? make-gerror gerror-domain gerror-code
           raise-gerror/free)
 
-  (import (rnrs)
+  (import (rnrs base)
+          (rnrs control)
+          (rnrs conditions)
+          (rnrs exceptions)
           (xitomatl srfi and-let*)
           (spells define-values)
           (spells receive)
           (spells parameter)
           (spells foreign)
-          (only (spells lists) iota)
+          (spells lists)
           (only (spells assert) cerr cout)
           (only (spells misc) unspecific)
           (spells tracing)
@@ -80,7 +83,7 @@
          (flags flags (cdr flags)))
         ((>= i (vector-length arg-vec)))
       (let ((prim-type (type-info->prim-type (car arg-types) #f)))
-        (case (car flags)
+        (flags-case (car flags)
           ((in-out) (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
           ((out) (vector-set! arg-vec i
                               (malloc (c-type-sizeof prim-type))))))))
@@ -90,28 +93,28 @@
          (arg-types arg-types (cdr arg-types))
          (flags flags (cdr flags)))
         ((>= i (vector-length arg-vec)))
-      (case (car flags)
+      (flags-case (car flags)
         ((in-out out)
          (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
 
-  (define (arg-callout-steps ti i flag gtype-lookup)
+  (define (arg-callout-steps ti i flags gtype-lookup)
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
-        (values (and (not (eq? 'out flag)) (array-arg-setup type i (type-info-null-ok? ti)))
-                (and (not (eq? 'in flag)) (array-arg-collect type i))
+        (values (and (not (memq 'out flags)) (array-arg-setup type i (type-info-null-ok? ti)))
+                (and (not (memq 'in flags)) (array-arg-collect type i))
                 (array-arg-cleanup type i)))
        ((gerror-type? type)
-        (unless (eq? flag 'in)
-          (raise-sbank-callout-error "GError arguments must have direction 'in'" ti flag))
+        (unless (memq 'in flags)
+          (raise-sbank-callout-error "GError arguments must have direction 'in'" ti flags))
         (values (gerror-arg-setup type i)
                 #f
                 (gerror-arg-cleanup type i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti gtype-lookup)
-          (values (and (not (eq? 'out flag)) (if out-convert (converter-setup i out-convert) i))
-                  (and (not (eq? 'in flag)) (if back-convert (converter-collect i back-convert) i))
+          (values (and (not (memq 'out flags)) (if out-convert (converter-setup i out-convert) i))
+                  (and (not (memq 'in flags)) (if back-convert (converter-collect i back-convert) i))
                   (and cleanup (cleanup-step i cleanup))))))))
 
   (define (arg-callback-steps ti i gtype-lookup)
@@ -247,15 +250,32 @@
         (lambda (arg-vec)
           (for-each (lambda (step) (step arg-vec)) steps))))
 
+  (define-syntax flags-case
+    (syntax-rules (else)
+      ((flags-case flags
+         ((test-flag ...) clause-expr ...)
+         ...
+         (else else-expr ...))
+       (let ((val flags))
+         (cond ((flags-set/or? val '(test-flag ...)) clause-expr ...)
+               ...
+               (else else-expr ...))))
+      ((flags-case flags clause ...)
+       (flags-case flags clause ... (else (unspecific))))))
+
+  (define (flags-set/or? flags test-flags)
+    (>= (length (lset-intersection eq? flags test-flags)) 1))
 
   (define (make-callout rti arg-types setup-steps collect-steps cleanup-steps flags gtype-lookup)
     (let ((prim-callout
            (make-c-callout (type-info->prim-type rti #f)
-                           (map (lambda (type flag)
-                                  (type-info->prim-type type (memq flag '(out in-out))))
+                           (map (lambda (type arg-flags)
+                                  (type-info->prim-type
+                                   type
+                                   (flags-set/or? arg-flags '(out in-out))))
                                 arg-types
                                 flags)))
-          (out-args? (exists (lambda (flag) (memq flag '(out in-out))) flags))
+          (out-args? (any (lambda (arg-flags) (flags-set/or? arg-flags '(out in-out))) flags))
           (setup (args-setup-procedure (length arg-types) setup-steps))
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
@@ -318,7 +338,7 @@
   (define (make-callback-wrapper proc prim-ret ret-out-convert arg-types
                                   prepare-steps store-steps flags)
     (let ((arg-len (length arg-types))
-          (out-args? (exists (lambda (flag) (memq flag '(out in-out))) flags)))
+          (out-args? (any (lambda (arg-flags) (flags-set/or? arg-flags '(out in-out))) flags)))
       (lambda args
         (assert (= arg-len (length args)))
         (let* ((arg-vec (list->vector args))
