@@ -42,6 +42,12 @@
           
           make-ginstance ginstance? ginstance-ptr ginstance-class
 
+          gsequence?
+          make-gsequence-class
+
+          gslist?
+          make-gslist-class
+
           send-message
           send
 
@@ -60,7 +66,8 @@
           (only (spells assert) cout)
           (spells foreign)
           (sbank type-data)
-          (sbank utils))
+          (sbank utils)
+          (sbank gobject glist))
 
   ;;
   ;; Object system
@@ -91,6 +98,30 @@
 
   (define-record-type gobject-union-class
     (parent gobject-class))
+
+  (define-record-type gsequence-class
+    (parent gobject-class)
+    (fields elt-out elt-back elt-cleanup)
+    (protocol (lambda (n)
+                (lambda (namespace name constructors methods elt-out elt-back elt-cleanup)
+                  (let ((p (n namespace name #f (lambda (class)
+                                                     (values #f '() constructors methods)))))
+                    (p elt-out elt-back elt-cleanup))))))
+
+  (define-record-type gslist-class
+    (parent gsequence-class)
+    (protocol (lambda (n)
+                (lambda (elt-out elt-back elt-cleanup)
+                  (let ((p (n "GObject" "SList" '() '() elt-out elt-back elt-cleanup)))
+                    (p))))))
+
+  (define (gsequence? x)
+    (and (ginstance? x)
+         (gsequence-class? (ginstance-class x))))
+
+  (define (gslist? x)
+    (and (ginstance? x)
+         (gslist-class? (ginstance-class x))))
 
   (define-record-type gerror-type)
 

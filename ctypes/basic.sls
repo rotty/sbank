@@ -62,6 +62,7 @@
           (sbank typelib stypes)
           (sbank gobject gtype)
           (sbank gobject gvalue)
+          (sbank gobject glist)
           (sbank gobject internals))
 
   (define (raise-sbank-callout-error msg . irritants)
@@ -114,6 +115,14 @@
                      (lambda (v) (if (pointer? v) v (->g-value v #f)))
                      g-value-ref
                      #f))
+            ((gslist)
+             (let ((elt-ti (car (type-info-parameters ti))))
+               (receive (elt-pt elt-out elt-back elt-cleanup)
+                        (type-info/prim-type+procs elt-ti gtype-lookup)
+                 (values 'pointer
+                         (gslist-out-converter elt-out)
+                         (gslist-back-converter elt-back)
+                         (gslist-cleanup elt-cleanup)))))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
             (else
@@ -349,6 +358,42 @@
                                                               (send et (new v))))))))
                 (else
                  (raise-sbank-callout-error "non-simple array element types not yet supported")))))))
+
+  (define (gslist-out-converter elt-convert)
+    (lambda (lst)
+      (cond ((eqv? lst #f)
+             (integer->pointer 0))
+            ((pointer? lst)
+             lst)
+            ((gslist? lst)
+             (ginstance-ptr lst))
+            (else
+             (let loop ((gslist (integer->pointer 0))
+                        (lst lst))
+               (if (null? lst)
+                   (g-slist-reverse gslist)
+                   (loop (g-slist-prepend gslist
+                                          (if elt-convert
+                                              (elt-convert (car lst))
+                                              (car lst)))
+                         (cdr lst))))))))
+
+  (define (gslist-back-converter elt-convert)
+    (lambda (gslist)
+      (let loop ((lst '()) (gslist gslist))
+        (if (pointer-null? gslist)
+            (reverse lst)
+            (loop (cons (elt-convert (g-slist-data gslist)) lst)
+                  (g-slist-next gslist))))))
+
+  (define (gslist-cleanup elt-cleanup)
+    (lambda (gslist)
+      (and elt-cleanup
+           (let loop ((gslist gslist))
+             (unless (pointer-null? gslist)
+               (elt-cleanup (g-slist-data gslist))
+               (loop (g-slist-next gslist)))))
+      (g-slist-free gslist)))
 
   ;; Retrieve a Scheme representation of the memory pointed to by @1,
   ;; according to the type @2.

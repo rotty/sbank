@@ -52,6 +52,9 @@
               (field (name "code") (type "int"))
               (field (name "message")
                      (type (pointer (type "char")))))
+      (record (name "GSList")
+              (field (name "data") (type (pointer (base-type (type "void")))))
+              (field (name "next") (type (pointer (base-type (type "GSList"))))))
       (record (name "GValue")
               (field (name "g_type") (type "gtype"))
               (field
