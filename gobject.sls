@@ -85,7 +85,7 @@
   (define (gvalue-new class)
     (lambda (next-method)
       (lambda (val)
-        (make-ginstance class (->g-value val class)))))
+        (make-ginstance class (->g-value val)))))
   
   (define gobject-setup!
     (let ((installed? #f))

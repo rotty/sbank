@@ -6,7 +6,7 @@
           (only (spells assert) cout)
           (spells receive)
           (spells foreign)
-          (sbank ctypes simple)
+          (sbank ctypes basic)
           (sbank typelib)
           (sbank typelib decorators)
           (sbank gobject gvalue)
@@ -67,7 +67,7 @@
                           (gv (pointer+ gvalues (* i g-value-size)))
                           (gtype (send store (get-column-type col))))
                      (g-value-init! gv gtype)
-                     (g-value-set! gv (cadr cols/vals) gtype)
+                     (g-value-set! gv (cadr cols/vals))
                      (loop (cons col cols) (cddr cols/vals) (+ i 1))))))))))
 
   (define (text-buffer-create-tag next-method)
@@ -107,7 +107,7 @@
     (lambda (tree-model iter column)
       (let ((gvalue (g-value-alloc 1)))
         (next-method tree-model iter column gvalue)
-        (g-value-ref gvalue #f))))
+        (g-value-ref gvalue))))
 
   (define (tree-selection-get-selected next-method)
     (lambda (tree-selection)

@@ -32,7 +32,9 @@
           typelib-minor-version
           typelib-major-version
           typelib-get-entry-names
-          typelib-get-entry)
+          typelib-get-entry
+          find-typelib-gtype
+          find-typelib-enum-lookup)
   (import (rnrs)
           (xitomatl srfi and-let*)
           (spells foreign)
@@ -49,7 +51,8 @@
           (sbank utils)
           (sbank type-data)
           (sbank stypes)
-          (sbank ctypes)
+          (sbank ctypes basic)
+          (sbank ctypes call)
           (sbank shlibs)
           (sbank gobject internals)
           (sbank gobject gtype)
@@ -175,6 +178,21 @@
         (typelib-get-entry/index typelib index))))
 
   (define *registered-typelibs* (make-table 'equal))
+
+  (define (find-typelib-gtype gtype)
+    (call/cc
+     (lambda (return)
+       (table-walk *registered-typelibs*
+                   (lambda (namespace typelib)
+                     (and-let* ((type ((typelib-gtype-lookup typelib) gtype)))
+                       (return type))))
+       #f)))
+
+  (define (find-typelib-enum-lookup gtype)
+    (and-let* ((type (find-typelib-gtype gtype)))
+      (and (genum? type)
+           (lambda (val)
+             (genum-lookup type val)))))
 
   (define (require-typelib namespace version flags)
     (or (table-ref *registered-typelibs* namespace)
@@ -789,7 +807,7 @@
                                 gtype
                                 (lambda (class)
                                   (values #f '() '() '() '() '())))))
-  
+
   (define (proc/validation-context proc)
     (let ((context (validation-context)))
       (lambda args
@@ -819,6 +837,10 @@
           (case blob-type
             ((7 8) ;; object, interface
              (let-attributes interface-blob-fetcher (pointer+ tld offset)
+                             (gtype-init)
+               (get/validate-gtype typelib tld gtype-init)))
+            ((5) ;; enum
+             (let-attributes enum-blob-fetcher (pointer+ tld offset)
                              (gtype-init)
                (get/validate-gtype typelib tld gtype-init)))
             (else

@@ -26,6 +26,7 @@
 (library (sbank utils)
   (export define-enum
           vector-index
+          ->vector
           make-lazy-entry lazy-entry? lazy-entry-proc
           symbol-append
           scheme-ified-symbol
@@ -56,6 +57,11 @@
   (define-record-type lazy-entry
     (fields
      (immutable proc lazy-entry-proc)))  
+
+  (define (->vector val)
+    (cond ((vector? val) val)
+          ((list? val) (list->vector val))
+          (else (error '->vector "cannot convert argument to vector" val))))
 
   (define (symbol-append . syms)
     (string->symbol (apply string-append (map symbol->string syms))))

@@ -32,20 +32,17 @@
           g-value-ref
           g-value-unset!
           g-value-free
-          g-value-typeof
           ->g-value)
   (import (rnrs)
+          (xitomatl srfi and-let*)
           (spells foreign)
           (spells table)
           (spells define-values)
           (spells tracing)
           (only (spells assert) cout)
           (sbank shlibs)
-          (sbank ctypes simple)
           (sbank type-data)
-          (sbank gobject internals)
           (sbank gobject gtype)
-          (sbank gobject boxed-values)
           (sbank typelib stypes)
           (sbank stypes))
 
@@ -53,7 +50,7 @@
   (define-syntax define-attributes (stype-attribute-definer (typelib-stypes)))
 
   (define-accessors "GValue"
-    (gvalue-gtype% "g_type"))
+    (g-value-gtype% "g_type"))
 
   (define-attributes "GValue"
     (g-value-size size))
@@ -61,45 +58,32 @@
   (define (g-value-alloc n)
     (let ((n-bytes (* n g-value-size)))
       (memcpy (malloc n-bytes) (make-bytevector n-bytes 0) n-bytes)))
-  
-  (define g-value-init!
-    (let-callouts libgobject ((init% 'pointer "g_value_init" `(pointer ,gtype-ctype)))
-      (lambda (gvalue gtype)
-        (let ((gtype-val (cond ((integer? gtype) gtype)
-                               ((genum? gtype) (genum-gtype gtype))
-                               ((gobject-class? gtype) (gobject-class-gtype gtype))
-                               (else
-                                (case gtype
-                                  ((boxed) (g-boxed-value-type))
-                                  (else    (symbol->gtype gtype)))))))
-          (init% gvalue gtype-val)))))
+
+  (define-callouts libgobject
+    (g-value-unset! 'void "g_value_unset" '(pointer))
+    (g-value-init% 'pointer "g_value_init" `(pointer ,gtype-ctype)))
+
+  (define (g-value-init! gvalue type)
+    (let ((gtype (if (symbol? type)
+                     (symbol->gtype type)
+                     type)))
+      (g-value-init% gvalue gtype)))
 
   (define (g-value-new gtype)
     (g-value-init! (g-value-alloc 1) gtype))
-  
-  (define g-value-unset!
-    (let-callouts libgobject ((unset% 'void "g_value_unset" '(pointer)))
-      unset%))
 
   (define (g-value-free gvalue)
     (g-value-unset! gvalue)
     (free gvalue))
-  
-  (define (g-value-typeof value type)
-    (cond ((ginstance? value) 'object)
-          ((boolean? value)   'boolean)
-          ((integer? value)   'int)
-          ((number? value)    'double)
-          ((string? value)    'string)
-          (else
-           (cond ((genum? type) (genum-gtype type))
-                 (else
-                  (g-boxed-value-type))))))
-  
-  (define (->g-value val type)
-    (let ((gvalue (g-value-new (g-value-typeof val type))))
-      (g-value-set! gvalue val type)
-      gvalue))
+
+  (define ->g-value
+    (case-lambda
+      ((val gtype find-enum-lookup)
+        (let ((gvalue (g-value-new gtype)))
+          (g-value-set! gvalue val find-enum-lookup)
+          gvalue))
+      ((val gtype)
+       (->g-value val gtype #f))))
 
   (define-values (register-value lookup-value)
     (let ((max-val (bitwise-arithmetic-shift 1 (* 8 (c-type-sizeof 'pointer))))
@@ -118,7 +102,7 @@
            val-count))
        (lambda (val failure-thunk)
          (table-ref registered-values val failure-thunk)))))
-  
+
   (define g-value-set!
     (let-callouts libgobject ((set-object% 'void "g_value_set_object" '(pointer pointer))
                               (set-bool% 'void "g_value_set_boolean" '(pointer int))
@@ -127,31 +111,36 @@
                               (set-int% 'void "g_value_set_int" '(pointer int))
                               (set-string% 'void "g_value_set_string" '(pointer pointer))
                               (set-pointer% 'void "g_value_set_pointer" '(pointer pointer)))
-      (lambda (gvalue val type)
-        (case type
-          ((int) (set-int% gvalue val))
-          ((uint) (set-uint% gvalue val))
-          ((boolean) (set-bool% gvalue (if val 1 0)))
-          (else
-           (cond
-            ((ginstance? val)
-             (set-object% gvalue (ginstance-ptr val)))
-            ((boolean? val)
-             (set-bool% gvalue (if val 1 0)))
-            ((integer? val)
-             (set-int% gvalue val))
-            ((string? val)
-             (let ((utf8z (string->utf8z-ptr val)))
-               (set-string% gvalue utf8z)
-               (free utf8z)))
-            ((genum? type)
-             (set-enum% gvalue
-                        (if (symbol? val)
-                            (or (genum-lookup type val)
-                                (error 'g-value-set! "invalid value for enumeration" val type))
-                            val)))
-            (else
-             (set-pointer% gvalue (integer->pointer (register-value val))))))))))
+      (define (lose msg . irritants)
+        (apply error 'g-value-set! msg irritants))
+      (case-lambda
+        ((gvalue val find-enum-lookup)
+         (let ((gtype (g-value-gtype% gvalue)))
+           (define (enum->integer val)
+             (cond ((integer? val) val)
+                   (else
+                    (or find-enum-lookup
+                        (lose "no cannot convert enum to integer without lookup procedure" val))
+                    (or (and-let* ((enum-lookup (find-enum-lookup gtype)))
+                          (enum-lookup val))
+                        (lose "enum lookup failed" val gtype)))))
+           (case (gtype->symbol (g-value-gtype% gvalue))
+             ((int) (set-int% gvalue val))
+             ((uint) (set-uint% gvalue val))
+             ((boolean) (set-bool% gvalue (if val 1 0)))
+             ((object) (set-object% gvalue val))
+             ((string)
+              (let ((utf8z (string->utf8z-ptr val)))
+                (set-string% gvalue utf8z)
+                (free utf8z)))
+             ((enum)
+              (set-enum% gvalue (enum->integer val)))
+             ((pointer) (set-pointer% gvalue val))
+             ((boxed) (set-pointer% gvalue (integer->pointer (register-value val))))
+             (else
+              (lose "type not implemented" (gtype->symbol (g-value-gtype% gvalue)))))))
+        ((gvalue val)
+         (g-value-set! gvalue val #f)))))
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))
@@ -161,8 +150,8 @@
                               (get-int% 'int "g_value_get_int" '(pointer)))
       (define (lose msg . irritants)
         (apply error 'g-value-ref msg irritants))
-      (lambda (gvalue type)
-        (let ((gtype (gvalue-gtype% gvalue)))
+      (lambda (gvalue)
+        (let ((gtype (g-value-gtype% gvalue)))
           (cond ((= gtype (g-boxed-value-type))
                  (let ((i (pointer->integer (get-pointer% gvalue))))
                    (lookup-value i (lambda () (lose "could not find boxed value" i)))))
@@ -173,8 +162,7 @@
                    ((boolean)
                     (not (= 0 (get-bool% gvalue))))
                    ((object)
-                    (assert (gobject-class? type))
-                    (make-ginstance type (get-object% gvalue)))
+                    (get-object% gvalue))
                    ((pointer)
                     (get-pointer% gvalue))
                    ((string)

@@ -25,15 +25,16 @@
 (library (sbank gobject gtype)
   (export symbol->gtype gtype->symbol
           pointer-gtype-ref pointer-gtype-set!
-          gtype-ctype g-type-init)
+          gtype-ctype gtype-size
+          g-type-init
+          g-boxed-value-type)
   (import (rnrs base)
+          (rnrs control)
           (rnrs arithmetic bitwise)
           (spells foreign)
           (spells tracing)
           (sbank utils)
-          (sbank shlibs)
-          (sbank gobject boxed-values)
-          (sbank gobject gtype simple))
+          (sbank shlibs))
   
   ;; Note these must be in sync with gtype.h
   (define-enum (gtype->symbol% symbol->gtype%)
@@ -61,6 +62,9 @@
 
   (define *fundamental-shift* 2)
   
+  (define gtype-ctype 'size_t)
+  (define gtype-size (c-type-sizeof gtype-ctype))
+
   (define gtype->symbol
     (let-callouts libgobject ((fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype)))
       (lambda (gtype)
@@ -89,5 +93,16 @@
       (lambda (ptr i v)
         (set ptr i (if (integer? v) v (symbol->gtype v))))))
   
-  (define g-type-init (let-callouts libgobject ((init% 'void "g_type_init" '()))
-                        init%)))
+  (define g-boxed-value-type
+    (let-callouts libgobject ()
+      (let ((type #f))
+        (lambda ()
+          (unless type
+            (let ((name-ptr (string->utf8z-ptr "boxed-scm")))
+              (set! type (g-pointer-type-register-static% name-ptr))
+              (free name-ptr)))
+          type))))
+
+  (define-callouts libgobject
+    (g-type-init 'void "g_type_init" '())
+    (g-pointer-type-register-static% gtype-ctype "g_pointer_type_register_static" '(pointer))))
