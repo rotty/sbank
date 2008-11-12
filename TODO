@@ -7,6 +7,3 @@
    New method 'newv' in each class deriving from GObject.Object
    via "child decorators"? how do these compose/nest?
   
-** TODO Properties
-*** TODO GValue access
-*** TODO New method 'set' in GOBject.Object

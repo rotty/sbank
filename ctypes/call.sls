@@ -115,7 +115,12 @@
                  (type-info/prim-type+procs ti gtype-lookup)
           (values (and (not (memq 'out flags)) (if out-convert (converter-setup i out-convert) i))
                   (and (not (memq 'in flags)) (if back-convert (converter-collect i back-convert) i))
-                  (and cleanup (cleanup-step i cleanup))))))))
+                  (and cleanup
+                       (cond ((flags-set/or? flags '(out in-out))
+                              (memq 'transfer-ownership flags))
+                             (else
+                              (not (memq 'transfer-ownership flags))))
+                       (cleanup-step i cleanup))))))))
 
   (define (arg-callback-steps ti i gtype-lookup)
     (let ((type (type-info-type ti)))
