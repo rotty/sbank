@@ -219,7 +219,7 @@
 
   (define-callouts libglib
     (gerror-free 'void "g_error_free" '(pointer)))
-  
+
   (define (args-setup-procedure n-args steps)
     (define (lose msg . irritants)
       (apply raise-sbank-callout-error msg irritants))
@@ -271,7 +271,10 @@
   (define (flags-set/or? flags test-flags)
     (>= (length (lset-intersection eq? flags test-flags)) 1))
 
-  (define (make-callout rti arg-types setup-steps collect-steps cleanup-steps flags gtype-lookup)
+  (define (make-callout rti arg-types
+                        setup-steps collect-steps cleanup-steps
+                        ret-flags flags
+                        gtype-lookup)
     (let ((prim-callout
            (make-c-callout (type-info->prim-type rti #f)
                            (map (lambda (type arg-flags)
@@ -284,7 +287,7 @@
           (setup (args-setup-procedure (length arg-types) setup-steps))
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
-          (ret-consume (ret-type-consumer rti gtype-lookup)))
+          (ret-consume (ret-type-consumer rti ret-flags gtype-lookup)))
       (cond ((and setup collect out-args?)
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
@@ -378,7 +381,7 @@
                     (else
                      (loop ((car steps) (car vals) arg-vec))))))))))
 
-  (define (ret-type-consumer rti gtype-lookup)
+  (define (ret-type-consumer rti flags gtype-lookup)
     (cond ((eq? (type-info-type rti) 'void)
            #f)
           (else
@@ -387,7 +390,7 @@
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))
-                        (if cleanup (cleanup val))
+                        (and cleanup (memq 'transfer-ownership flags) (cleanup val))
                         result)))
                    (else
                     (assert (not cleanup))

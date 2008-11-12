@@ -83,11 +83,13 @@
     (header-size "size"))
 
   (define-accessors "ArgBlob"
+    (arg-name "name")
     (arg-in "in")
     (arg-out "out")
     (arg-null-ok "allow_none")
-    (arg-type "arg_type")
-    (arg-name "name"))
+    (arg-transfer-ownership "transfer_ownership")
+    (arg-transfer-container-ownership "transfer_container_ownership")
+    (arg-type "arg_type"))
 
   (define-syntax define-fetcher (stype-fetcher-factory-definer (typelib-stypes)))
 
@@ -412,12 +414,13 @@
   (define (make/validate-callout typelib tld signature-offset constructor? container)
     (let-attributes signature-blob-fetcher
         (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
-        (return-type n-arguments arguments may-return-null)
+        (return-type may-return-null caller-owns-return-value caller-owns-return-container
+                     n-arguments arguments)
       (let-values (((rti)
                     (if constructor?
                         (make-type-info container #t (bool may-return-null))
                         (stblob-type-info typelib tld return-type (bool may-return-null))))
-                   ((arg-types setup collect cleanup flags)
+                   ((arg-types setup collect cleanup arg-flags)
                     (arg-blobs-callout-values typelib
                                               tld
                                               arguments
@@ -426,7 +429,13 @@
                                               container)))
         (when (and constructor? (not (gobject-class? (type-info-type rti))))
           (raise-validation-error "constructor does not return a class type"))
-        (make-callout rti arg-types setup collect cleanup flags (typelib-gtype-lookup typelib)))))
+        (make-callout rti arg-types
+                      setup collect cleanup
+                      (calc-flags #f #f #f
+                                  (bool caller-owns-return-value)
+                                  (bool caller-owns-return-container))
+                      arg-flags
+                      (typelib-gtype-lookup typelib)))))
 
   (define (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size)
     (map (lambda (blob)
@@ -470,13 +479,11 @@
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
+                   (tf-os? (bool (arg-transfer-ownership arg-blob)))
+                   (tf-c-os? (bool (arg-transfer-container-ownership arg-blob)))
                    (final-i  (if has-self-ptr? (+ i 1) i))
                    (length? (memv final-i length-indices))
-                   (arg-flags (cond ((and in? out?) '(in-out))
-                                    (out? '(out))
-                                    (in? '(in))
-                                    (else
-                                     (raise-validation-error "argument has no direction" i)))))
+                   (arg-flags (calc-flags i in? out? tf-os? tf-c-os?)))
               (receive (setup! collect cleanup)
                        (arg-callout-steps (car tis) final-i arg-flags gtype-lookup)
                 (cond (length?
@@ -497,6 +504,18 @@
                              (cons arg-flags flags)
                              (cdr tis)
                              (- i 1))))))))))
+
+  (define (calc-flags i in? out? transfer-ownership? transfer-container-ownership?)
+    (let ((direction
+           (cond ((and in? out?) '(in-out))
+                 (out? '(out))
+                 (in? '(in))
+                 ((eqv? i #f) '()) ;; return value
+                 (else
+                  (raise-validation-error "argument has no direction" i)))))
+      (append direction
+              (if transfer-ownership? '(transfer-ownership) '())
+              (if transfer-container-ownership? '(transfer-container-ownership) '()))))
 
   (define (arg-blobs-callback-values typelib tld arg-blobs n-args method? container)
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
@@ -522,20 +541,18 @@
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
+                   (transfer-ownership? (bool (arg-transfer-ownership arg-blob)))
+                   (transfer-container-ownership? (bool (arg-transfer-container-ownership arg-blob)))
                    (length? (memv i length-indices)))
-              (define (flag)
-                (cond ((and in? out?) '(in-out))
-                      (out? '(out))
-                      (in? '(in))
-                      (else
-                       (raise-validation-error "argument has no direction" i))))
+              (define (arg-flags)
+                (calc-flags i in? out? transfer-ownership? transfer-container-ownership?))
               (receive (prepare store)
                        (arg-callback-steps (car tis) (if has-self-ptr? (+ i 1) i) gtype-lookup)
                 (cond (length?
                        (loop (cons (car tis) arg-types)
                              prepare-steps
                              store-steps
-                             (cons (flag) flags)
+                             (cons (arg-flags) flags)
                              (cdr tis)
                              (- i 1)))
                       (else
@@ -544,7 +561,7 @@
                              (if out?
                                  (cons store store-steps)
                                  store-steps)
-                             (cons (flag) flags)
+                             (cons (arg-flags) flags)
                              (cdr tis)
                              (- i 1))))))))))
 
