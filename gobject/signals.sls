@@ -106,7 +106,7 @@
                      (g-value-unset! (pointer+ arg-gvs (* i g-value-size))))
                    (free arg-gvs))
                   (else
-                   (let ((ret-gv (g-value-new (type->gtype (type-info-type rti)))))
+                   (let ((ret-gv (g-value-new (type-info-gtype rti))))
                      (g-signal-emitv arg-gvs signal-id detail ret-gv)
                      (let ((rv (g-value-ref ret-gv)))
                        (g-value-free ret-gv)

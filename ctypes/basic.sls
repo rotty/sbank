@@ -38,6 +38,7 @@
 
           value->gtype
           type->gtype
+          type-info-gtype
 
           deref-pointer
           set-pointer
@@ -206,6 +207,9 @@
     (cond ((genum? type)         (genum-gtype type))
           ((gobject-class? type) (gobject-class-gtype type))
           (else type)))
+
+  (define (type-info-gtype ti)
+    (type->gtype (type-info-type ti)))
 
   ;; Note that these must match with gobject-introspection
   (define-enum (type-tag->symbol symbol->type-tag)
