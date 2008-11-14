@@ -31,6 +31,7 @@
           gobject-method-overrider
           ginstance?
           genum? genum-lookup
+          gerror?
           send send-message
           gobject-setup!)
   (import (rnrs base)

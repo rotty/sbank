@@ -53,12 +53,14 @@
 
           make-genum genum? genum-lookup genum-values genum-symbols genum-gtype
 
-          gerror-type? make-gerror-type)
+          gerror-type? make-gerror-type
+          gerror? make-gerror gerror-domain gerror-code)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
           (rnrs records syntactic)
           (rnrs mutable-pairs)
+          (rnrs conditions)
           (xitomatl srfi and-let*)
           (spells alist)
           (spells receive)
@@ -268,4 +270,9 @@
               (else #f))
         (cond ((vector-index eqv? (genum-values enum) sym-or-val)
                => (lambda (i) (vector-ref (genum-symbols enum) i)))
-              (else #f)))))
+              (else #f))))
+
+  (define-condition-type &gerror &error
+    make-gerror gerror?
+    (domain gerror-domain)
+    (code gerror-code)))

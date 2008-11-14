@@ -31,7 +31,6 @@
 
           malloc/set!
 
-          gerror? make-gerror gerror-domain gerror-code
           raise-gerror/free)
 
   (import (rnrs base)
@@ -71,11 +70,6 @@
     (c-gerror-domain "domain")
     (c-gerror-code "code")
     (c-gerror-message "message"))
-
-  (define-condition-type &gerror &error
-    make-gerror gerror?
-    (domain gerror-domain)
-    (code gerror-code))
 
   (define (args-pre-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
