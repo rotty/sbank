@@ -57,7 +57,7 @@
 
   (define (g-value-alloc n)
     (let ((n-bytes (* n g-value-size)))
-      (memcpy (malloc n-bytes) (make-bytevector n-bytes 0) n-bytes)))
+      (memset (malloc n-bytes) 0 n-bytes)))
 
   (define-callouts libgobject
     (g-value-unset! 'void "g_value_unset" '(pointer))

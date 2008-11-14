@@ -342,7 +342,7 @@
                                 (g-value-ref (pointer+ ptr i)))
                               (lambda (ptr i v)
                                 (let ((gvalue (pointer+ ptr i)))
-                                  (memcpy gvalue gvalue-zero-bytes g-value-size)
+                                  (memset gvalue 0 g-value-size)
                                   (g-value-init! gvalue (value->gtype v))
                                   (g-value-set! gvalue v)))))
                      (else
