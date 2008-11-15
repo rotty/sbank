@@ -41,6 +41,7 @@
           stypes-ref
           stype-attribute
           stype-fetcher
+          stype-setter
           stype-attribute-definer
           stype-accessor-definer
           stype-fetcher-factory-definer)
@@ -52,7 +53,7 @@
           (xitomatl srfi and-let*)
           (xitomatl sxml-tools sxpathlib)
           (xitomatl sxml-tools sxpath)
-          (only (spells lists) append-map)
+          (only (spells lists) append-map filter-map split-at)
           (only (spells strings) string-map)
           (spells alist)
           (spells tracing)
@@ -199,12 +200,33 @@
           (else
            (lose "invalid path" path))))
 
+  (define (stype-setter stype path)
+    (define (lose msg . irritants)
+      (apply error 'stype-fetcher msg irritants))
+    (cond ((string? path)
+           (construct-stype-setter (stype-ref stype path)))
+          ((pair? path)
+           (receive (path last) (split-at path (- (length path) 1))
+             (let ((fetchers (fetcher-chain stype path))
+                   (setter (construct-stype-setter (stype-ref (car last)))))
+               (lambda (pointer val)
+                 (let loop ((pointer pointer) (fetchers fetchers))
+                   (if (null? fetchers)
+                       (setter pointer val)
+                       (loop ((car fetchers) pointer) (cdr fetchers))))))))
+          (else
+           (lose "invalid path" path))))
+
   (define pointer-attrs `((size ,(c-type-sizeof 'pointer))
                           (alignment ,(c-type-alignof 'pointer))))
 
   (define (construct-stype-fetcher component)
     (call-with-values (lambda () (stype-compound-element-fetcher-values component))
       make-pointer-c-element-getter))
+
+  (define (construct-stype-setter component)
+    (call-with-values (lambda () (stype-compound-element-fetcher-values component))
+      make-pointer-c-element-setter))
 
   (define (stype-compound-element-fetcher-values component)
     (let ((offset (sxpath-attr component '(offset)))

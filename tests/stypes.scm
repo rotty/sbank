@@ -171,11 +171,15 @@
   (let* ((stblob (stypes-ref stypes "SimpleTypeBlob"))
          (tag-fetcher (stype-fetcher stblob "tag"))
          (pointer-fetcher (stype-fetcher stblob "pointer"))
-         (offset-fetcher (stype-fetcher stblob "offset")))
+         (offset-fetcher (stype-fetcher stblob "offset"))
+         (offset-setter (stype-setter stblob "offset")))
     (testeez "basic fetching"
       (test/equal "tag" (tag-fetcher stblob-mem) 5)
       (test/equal "pointer" (pointer-fetcher stblob-mem) 1)
-      (test/equal "offset" (offset-fetcher stblob-mem) #x1200cd85)))
+      (test/equal "offset" (offset-fetcher stblob-mem) #x1200cd85))
+    (testeez "setting/fetching"
+      (test-eval "setting offset" (offset-setter stblob-mem 0))
+      (test/equal "fetching tag" (tag-fetcher stblob-mem) 0)))
 
   (let* ((record (stypes-ref stypes "RecordWithArrays"))
          (data-fetcher (stype-fetcher record "data"))
