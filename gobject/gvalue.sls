@@ -32,10 +32,14 @@
           g-value-ref
           g-value-unset!
           g-value-free
-          ->g-value)
+          ->g-value
+
+          ->g-value-array
+          free-g-value-array)
   (import (rnrs)
           (xitomatl srfi and-let*)
           (spells foreign)
+          (spells receive)
           (spells table)
           (spells define-values)
           (spells tracing)
@@ -168,4 +172,39 @@
                    ((string)
                     (utf8z-ptr->string (get-string% gvalue)))
                    (else
-                    (lose "not implemented for this type of value" (gtype->symbol gtype)))))))))))
+                    (lose "not implemented for this type of value" (gtype->symbol gtype))))))))))
+
+  (define (free-g-value-array array size)
+    (do ((i 0 (+ i 1)))
+        ((>= i size))
+      (g-value-unset! (pointer+ array (* i g-value-size))))
+    (free array))
+
+  (define (->g-value-array x value-gtype types)
+    (define (lose msg . irritants)
+      (apply error '->g-value-array msg irritants))
+    (unless (or value-gtype types )
+      (lose "neither value-gtype procedure nor element types given" x))
+    (receive (len next init)
+             (cond ((vector? x)
+                    (values (vector-length x)
+                            (lambda (i)
+                              (values (vector-ref x i) (+ i 1)))
+                            0))
+                   ((list? x)
+                    (values (length x)
+                            (lambda (vals)
+                              (values (car vals) (cdr vals)))
+                            x))
+                   (else
+                    (lose "cannot convert to array" x)))
+      (let ((array (g-value-alloc len)))
+        (let loop ((i 0) (state init) (types types))
+          (if (>= i len)
+              array
+              (let ((gv (pointer+ array (* i g-value-size))))
+                (receive (val new-state) (next state)
+                  (g-value-init! gv (or (and types (car types))
+                                        (value-gtype val)))
+                  (g-value-set! gv val)
+                  (loop (+ i 1) new-state (and types (cdr types)))))))))))
