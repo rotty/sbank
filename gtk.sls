@@ -8,6 +8,7 @@
           (spells foreign)
           (sbank ctypes basic)
           (sbank typelib)
+          (sbank typelib base)
           (sbank typelib decorators)
           (sbank gobject gvalue)
           (sbank gobject))
@@ -67,7 +68,7 @@
                           (gv (pointer+ gvalues (* i g-value-size)))
                           (gtype (send store (get-column-type col))))
                      (g-value-init! gv gtype)
-                     (g-value-set! gv (cadr cols/vals))
+                     (g-value-set! gv (cadr cols/vals) find-typelib-enum-lookup)
                      (loop (cons col cols) (cddr cols/vals) (+ i 1))))))))))
 
   (define (text-buffer-create-tag next-method)
