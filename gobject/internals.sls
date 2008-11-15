@@ -39,7 +39,7 @@
 
           make-gobject-record-class gobject-record-class?
           make-gobject-union-class gobject-union-class?
-          
+
           make-ginstance ginstance? ginstance-ptr ginstance-class
 
           gsequence?
@@ -144,7 +144,7 @@
   (define (gobject-class-size class)
     ;; FIXME: gross hack, we need to calc size based on fields
     (* 14 (c-type-sizeof 'pointer)))
-  
+
   (define (gobject-class-decorate class
                                   constructors-decorator
                                   methods-decorator

@@ -48,7 +48,7 @@
        ;; TODO: we should somehow free the callback here, but the
        ;; current ikarus FFI doesn't allow us doing that
        #f)))
-  
+
   (define g-signal-connect
     (let-callouts libgobject
         ((g-signal-connect-data
@@ -81,7 +81,7 @@
                (rv (lookup% name-ptr (gobject-class-gtype class))))
           (free name-ptr)
           rv))))
-  
+
   (define g-signal-emit
     (let-callouts libgobject ((g-signal-emitv
                                'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
@@ -111,7 +111,7 @@
                      (let ((rv (g-value-ref ret-gv)))
                        (g-value-free ret-gv)
                        rv)))))))))
-  
+
   (define (parse-signal-spec signal lose)
     (cond ((string? signal)
            (let ((parts (string-split signal #\:)))

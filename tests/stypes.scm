@@ -77,7 +77,7 @@
        (tag-offset (c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
        (u-offset (c-type-align 'double (+ tag-offset 1)))
        (last-offset (c-type-align 'int (+ u-offset (c-type-sizeof 'double)))))
-  
+
   (testeez "adjoining"
     (test/equal "resolution and annotations correctness"
       (stypes-ref stypes "Foo")
@@ -149,7 +149,7 @@
                  (field (name "data") (type (array (element-type (type "uint"))
                                                    (element-count 16))))
                  (field (name "ptr") (type (pointer (type "uchar")))))))
-      
+
       (stblob-mem (let ((bv (make-bytevector 4)))
                     (bytevector-u32-native-set! bv 0 #x1200cd85)
                     (memcpy (malloc 4) bv 4)))
