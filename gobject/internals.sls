@@ -36,6 +36,7 @@
           gobject-class-size
           gobject-class-decorate
           gobject-method-overrider
+          make-gobject-new/props
 
           make-gobject-record-class gobject-record-class?
           make-gobject-union-class gobject-union-class?
@@ -69,6 +70,10 @@
           (spells foreign)
           (sbank type-data)
           (sbank utils)
+          (sbank shlibs)
+          (sbank gobject gtype)
+          (sbank gobject gvalue)
+          (sbank gobject gparam)
           (sbank gobject glist))
 
   ;;
@@ -225,6 +230,29 @@
                   (gobject-class-properties-set! class properties)
                   (gobject-class-load-members-set! class #f))))))
 
+  (define (make-gobject-new/props type->gtype)
+    (lambda (class)
+      (lambda props/vals
+        (let ((n (length props/vals)))
+          (when (odd? n)
+            (error 'gobject-new/props "odd number of colum/value arguments" props/vals))
+          (let ((parameters (g-param-alloc (/ n 2))))
+            (let loop ((i 0) (props/vals props/vals))
+              (cond ((null? props/vals)
+                     (make-ginstance class (g-object-newv (gobject-class-gtype class) i parameters)))
+                    (else
+                     (let* ((prop (car props/vals))
+                            (prop-name (string->utf8z-ptr (symbol->string prop)))
+                            (param (pointer+ parameters (* i g-param-size)))
+                            (gv (g-param-value param))
+                            (gtype (type->gtype
+                                    (property-info-type
+                                     (gobject-class-get-property-info class prop)))))
+                       (g-param-name-set! param prop-name)
+                       (g-value-init! gv gtype)
+                       (g-value-set! gv (cadr props/vals)))
+                     (loop (+ i 1) (cddr props/vals))))))))))
+
   (define (send-message obj msg . args)
     (cond ((ginstance? obj)
            (let ((method (send-message (ginstance-class obj) msg)))
@@ -275,4 +303,7 @@
   (define-condition-type &gerror &error
     make-gerror gerror?
     (domain gerror-domain)
-    (code gerror-code)))
+    (code gerror-code))
+
+  (define-callouts libgobject
+    (g-object-newv 'pointer "g_object_newv" (list gtype-ctype 'uint 'pointer))))

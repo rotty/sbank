@@ -603,7 +603,7 @@
                  (validated-pointer+ tld offset (+ interface-blob-size prereq-size))
                  (let* ((prereqs (pointer+ blob interface-blob-size)))
                    (make/validate-gobject-class-attributes
-                    typelib tld class deprecated #f
+                    typelib tld class deprecated gtype #f
                     n-prerequisites prereqs
                     0 #f
                     (+ offset interface-blob-size prereq-size)
@@ -642,7 +642,7 @@
                         (parent (and (> parent 0)
                                      (typelib-get-entry/index typelib parent))))
                    (make/validate-gobject-class-attributes
-                    typelib tld class deprecated parent
+                    typelib tld class deprecated gtype parent
                     n-interfaces ifaces
                     n-fields fields
                     (+ offset object-blob-size ifaces-size fields-size)
@@ -650,8 +650,17 @@
                     n-vfuncs n-constants))))))))))
 
 
+  (define gtype-additional-constructors
+    (let ((gobject-acs `((new/props . ,(make-lazy-entry (make-gobject-new/props type->gtype))))))
+      (lambda (gtype)
+        (if gtype
+            (case (gtype->symbol gtype)
+              ((object) gobject-acs)
+              (else '()))
+            '()))))
+
   (define (make/validate-gobject-class-attributes
-           typelib tld class deprecated parent
+           typelib tld class deprecated gtype parent
            n-interfaces ifaces
            n-fields fields
            prop-offset n-properties n-methods n-signals n-vfuncs n-constants)
@@ -704,7 +713,8 @@
                               (make-array-pointers methods n-methods function-blob-size))
             (values parent
                     (map interface-maker (iota n-interfaces))
-                    (map member-func-maker constructors)
+                    (append (gtype-additional-constructors gtype)
+                            (map member-func-maker constructors))
                     (map member-func-maker methods)
                     (map signal-maker
                          (make-array-pointers signals n-signals signal-blob-size))
@@ -797,7 +807,7 @@
                      (fields-size (* n-fields field-blob-size)))
                  (receive (parent interfaces constructors methods signals properties)
                           (make/validate-gobject-class-attributes
-                           typelib tld class deprecated #f
+                           typelib tld class deprecated gtype #f
                            0 #f
                            n-fields fields
                            (+ offset struct-blob-size fields-size)
