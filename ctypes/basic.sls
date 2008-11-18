@@ -124,6 +124,15 @@
                          (gslist-out-converter elt-out)
                          (gslist-back-converter (make-gslist-class elt-out elt-back elt-cleanup))
                          (gslist-cleanup elt-cleanup)))))
+            ((ghash)
+             (let ((key-ti (car (type-info-parameters ti)))
+                   (val-ti (cadr (type-info-parameters ti))))
+               (values 'pointer
+                       (out-converter/null ginstance-ptr null-ok? #f)
+                       (back-converter/null (ginstance-maker gtype-lookup type)
+                                            null-ok?
+                                            #f)
+                       #f)))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
             (else
