@@ -443,9 +443,9 @@
   (define (type-info->prim-type ti out?)
     (let ((type (type-info-type ti)))
       (cond ((or out?
-                 (type-info-is-pointer? ti)
                  (array-type? type)
-                 (gobject-class? type))
+                 (gobject-class? type)
+                 (signature? type))
              'pointer)
             ((genum? type)
              'int)
@@ -453,6 +453,7 @@
              (case type
                ((gtype) gtype-ctype)
                ((boolean) 'uint)
+               ((utf8 filename gvalue gslist glist ghash) 'pointer)
                (else type)))
             (else
              (raise-sbank-callout-error "argument/return type not yet implemented" type))))))
