@@ -176,8 +176,23 @@
       <field name="return_value" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="reserved" writable="1" bits="24">
+      <field name="has_closure" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
+      </field>
+      <field name="has_destroy" writable="1" bits="1">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="scope" writable="1" bits="3">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="reserved" writable="1" bits="19">
+        <type name="uint" c:type="guint"/>
+      </field>
+      <field name="closure" writable="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="destroy" writable="1">
+        <type name="uint16" c:type="guint16"/>
       </field>
       <field name="arg_type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
@@ -462,7 +477,10 @@
       <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" writable="1" bits="14">
+      <field name="alignment" writable="1" bits="6">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" writable="1" bits="8">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="name" writable="1">
@@ -472,6 +490,9 @@
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="gtype_init" writable="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="size" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="n_fields" writable="1">
@@ -494,7 +515,10 @@
       <field name="discriminated" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" writable="1" bits="13">
+      <field name="alignment" writable="1" bits="6">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" writable="1" bits="7">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="name" writable="1">
@@ -504,6 +528,9 @@
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="gtype_init" writable="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="size" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="n_fields" writable="1">
@@ -529,7 +556,10 @@
       <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved" writable="1" bits="14">
+      <field name="storage_type" writable="1" bits="5">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" writable="1" bits="9">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="name" writable="1">

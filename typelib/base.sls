@@ -279,7 +279,7 @@
         (and-let* ((magic (memcpy (make-bytevector 16) magic 16))
                    ((not (bytevector=? magic (string->utf8 "GOBJ\nMETADATA\r\n\x1a;")))))
           (lose "invalid magic" magic))
-        (or (and (= major-version 1) (= minor-version 0))
+        (or (and (= major-version 2) (= minor-version 0))
             (lose "version mismatch" major-version minor-version))
         (validate-blob-sizes tld)
         (let ((typelib (make-typelib tl
@@ -304,7 +304,7 @@
                 (callback . 12)
                 (signal . 12)
                 (vfunc . 16)
-                (arg . 12)
+                (arg . 16)
                 (property . 12)
                 (field . 12)
                 (value . 12)
@@ -313,10 +313,10 @@
                 (annotation . 12)
                 (signature . 8)
                 (enum . 20)
-                (struct . 20)
+                (struct . 24)
                 (object . 32)
                 (interface . 28)
-                (union . 28))))
+                (union . 32))))
 
   (define (fill/validate-directory! typelib tld)
     (let-attributes header-fetcher tld
