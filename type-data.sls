@@ -44,6 +44,8 @@
           type-info-type
           type-info-is-pointer?
           type-info-null-ok?
+          type-info-closure-index
+          type-info-destroy-index
           type-info-parameters
 
           make-property-info
@@ -72,13 +74,15 @@
     (type-info-type (array-element-type-info atype)))
 
   (define-record-type type-info
-    (fields type is-pointer? null-ok? parameters)
+    (fields type is-pointer? null-ok? closure-index destroy-index parameters)
     (protocol (lambda (p)
                 (case-lambda
                   ((type is-pointer? null-ok?)
-                   (p type is-pointer? null-ok? '()))
+                   (p type is-pointer? null-ok? #f #f '()))
                   ((type is-pointer? null-ok? parameters)
-                   (p type is-pointer? null-ok? parameters))))))
+                   (p type is-pointer? null-ok? #f #f parameters))
+                  ((type is-pointer? null-ok? closure-index destroy-index)
+                   (p type is-pointer? null-ok? closure-index destroy-index '()))))))
 
   (define-record-type property-info
     (fields type-info readable? writable? construct? construct-only?))
