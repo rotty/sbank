@@ -72,6 +72,7 @@
           (sbank utils)
           (sbank shlibs)
           (sbank gobject gtype)
+          (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject gparam)
           (sbank gobject glist))
@@ -279,26 +280,6 @@
       ((send obj (msg arg ...) ...)
        (begin (send-message obj 'msg arg ...) ...))))
 
-
-  ;;
-  ;; Enumerations and flags
-  ;;
-  (define-record-type genum
-    (fields gtype symbols values)
-    (protocol (lambda (p)
-                (lambda (gtype alist)
-                  (p gtype (list->vector (map car alist)) (list->vector (map cdr alist)))))))
-
-  ;; Note: this could be made more efficient by using sorted vectors
-  ;; (but only in one direction)
-  (define (genum-lookup enum sym-or-val)
-    (if (symbol? sym-or-val)
-        (cond ((vector-index eq? (genum-symbols enum) sym-or-val)
-               => (lambda (i) (vector-ref (genum-values enum) i)))
-              (else #f))
-        (cond ((vector-index eqv? (genum-values enum) sym-or-val)
-               => (lambda (i) (vector-ref (genum-symbols enum) i)))
-              (else #f))))
 
   (define-condition-type &gerror &error
     make-gerror gerror?
