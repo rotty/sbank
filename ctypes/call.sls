@@ -349,7 +349,7 @@
                            (reverse args)
                            (loop (cons
                                   (cond ((integer? (car steps))
-                                         (vector-ref arg-vec ))
+                                         (vector-ref arg-vec (car steps)))
                                         (else
                                          ((car steps) arg-vec)))
                                   args)
