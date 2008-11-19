@@ -3,6 +3,22 @@
 * Core
 
 ** TODO Implement field getters/setters
+** TODO Implement ownership transfer
+
+** TODO Provide a enum-lookup to g-value-{ref,set!} wherever possible
+
+- To make this feasible, the find-typelib-enum-lookup must be moved
+  outside of (sbank typelib base), so the caller doesn't have to be
+  higher in the dependency tree than that. This way, (sbank gobject
+  gvalue) could even directly use the lookup finder, without the
+  caller having to provide it (which is kind of ugly anyway)
+
+** TODO Implement support for flags
+
+* Efficiency
+
+** TODO Write some benchmarks
+** TODO "Compress" callouts by signature in `let-callouts' and `define-callouts'
 
 * Usage examples
 
