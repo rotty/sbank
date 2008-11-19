@@ -112,6 +112,7 @@
   (define-fetcher parameter-type-blob-fetcher "ParamTypeBlob")
   (define-fetcher record-blob-fetcher "StructBlob")
   (define-fetcher callback-blob-fetcher "CallbackBlob")
+  (define-fetcher field-blob-fetcher "FieldBlob")
 
   (define-syntax let-attributes
     (syntax-rules ()

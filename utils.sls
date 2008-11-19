@@ -30,6 +30,7 @@
           make-lazy-entry lazy-entry? lazy-entry-proc
           symbol-append
           scheme-ified-symbol
+          scheme-ified-string
           c-ified-string
           string-split
           name-symbol/prefix)
@@ -78,16 +79,18 @@
             (else
              (symbol-append prefix sym)))))
   
-  (define scheme-ified-symbol
+  (define (scheme-ified-symbol s)
+    (string->symbol (scheme-ified-string s)))
+
+  (define scheme-ified-string
     (let ((upper-id-cs (char-set-union char-set:upper-case (char-set #\_ #\-))))
       (lambda (s)
-        (string->symbol
-         (cond ((char-set<= (string->char-set s) upper-id-cs)
-                (string-append "*" (string-map downcase/dash  s) "*"))
-               ((camel-cased? s)
-                (string-append "<" (un-camel-case s) ">"))
-               (else
-                (string-map dash s)))))))
+        (cond ((char-set<= (string->char-set s) upper-id-cs)
+               (string-append "*" (string-map downcase/dash  s) "*"))
+              ((camel-cased? s)
+               (string-append "<" (un-camel-case s) ">"))
+              (else
+               (string-map dash s))))))
 
   (define (enclosed-by? s start-c end-c)
     (and (char=? (string-ref s 0) start-c)
