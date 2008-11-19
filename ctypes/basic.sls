@@ -62,6 +62,7 @@
           (sbank stypes)
           (sbank typelib stypes)
           (sbank gobject gtype)
+          (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject glist)
           (sbank gobject internals))
@@ -86,7 +87,7 @@
 
   (define null-ok-always-on? (make-parameter #f))
 
-  (define (type-info/prim-type+procs ti gtype-lookup)
+  (define (type-info/prim-type+procs ti)
     (let ((type (type-info-type ti))
           (null-ok? (type-info-null-ok? ti)))
       (cond
@@ -119,7 +120,7 @@
             ((gslist)
              (let ((elt-ti (car (type-info-parameters ti))))
                (receive (elt-pt elt-out elt-back elt-cleanup)
-                        (type-info/prim-type+procs elt-ti gtype-lookup)
+                        (type-info/prim-type+procs elt-ti)
                  (values 'pointer
                          (gslist-out-converter elt-out)
                          (gslist-back-converter (make-gslist-class elt-out elt-back elt-cleanup))

@@ -32,9 +32,7 @@
           typelib-minor-version
           typelib-major-version
           typelib-get-entry-names
-          typelib-get-entry
-          find-typelib-gtype
-          find-typelib-enum-lookup)
+          typelib-get-entry)
   (import (rnrs)
           (xitomatl srfi and-let*)
           (spells foreign)
@@ -183,21 +181,6 @@
 
   (define *registered-typelibs* (make-table 'equal))
 
-  (define (find-typelib-gtype gtype)
-    (call/cc
-     (lambda (return)
-       (table-walk *registered-typelibs*
-                   (lambda (namespace typelib)
-                     (and-let* ((type ((typelib-gtype-lookup typelib) gtype)))
-                       (return type))))
-       #f)))
-
-  (define (find-typelib-enum-lookup gtype)
-    (and-let* ((type (find-typelib-gtype gtype)))
-      (and (genum? type)
-           (lambda (val)
-             (genum-lookup type val)))))
-
   (define (require-typelib namespace version flags)
     (or (table-ref *registered-typelibs* namespace)
         (let ((typelib (require-typelib% 'require-typelib namespace version flags)))
@@ -292,6 +275,7 @@
                                      (make-table 'eqv)
                                      #f)))
           (fill/validate-directory! typelib tld)
+          (register-gtype-lookup! (typelib-gtype-lookup typelib))
           typelib))))
 
   (define (validate-blob-sizes tld)

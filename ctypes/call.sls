@@ -112,7 +112,7 @@
                 #f))
        (else
         (receive (prim-type out-convert back-convert cleanup)
-                 (type-info/prim-type+procs ti gtype-lookup)
+                 (type-info/prim-type+procs ti)
           (values (and (not (memq 'out flags)) (if out-convert (converter-setup i out-convert) i))
                   (and (not (memq 'in flags)) (if back-convert (converter-collect i back-convert) i))
                   (and cleanup
@@ -125,7 +125,7 @@
   (define (arg-callback-steps ti i gtype-lookup)
     (let ((type (type-info-type ti)))
       (receive (prim-type out-convert back-convert cleanup)
-               (type-info/prim-type+procs ti gtype-lookup)
+               (type-info/prim-type+procs ti)
         (values (if back-convert
                     (lambda (arg-vec)
                       (back-convert (vector-ref arg-vec i)))
@@ -340,7 +340,7 @@
 
   (define (make-callback rti arg-types prepare-steps store-steps flags gtype-lookup)
     (receive (prim-ret ret-out-convert ret-back-convert cleanup)
-             (type-info/prim-type+procs rti gtype-lookup)
+             (type-info/prim-type+procs rti)
       (let ((prim-callback
              (make-c-callback prim-ret
                               (map (lambda (type flag)
@@ -400,7 +400,7 @@
            #f)
           (else
            (receive (prim-type out-convert back-convert cleanup)
-                    (type-info/prim-type+procs rti gtype-lookup)
+                    (type-info/prim-type+procs rti)
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))

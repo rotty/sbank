@@ -27,15 +27,19 @@
           pointer-gtype-ref pointer-gtype-set!
           gtype-ctype gtype-size
           g-type-init
-          g-boxed-value-type)
+          g-boxed-value-type
+
+          register-gtype-lookup! gtype-lookup)
   (import (rnrs base)
           (rnrs control)
           (rnrs arithmetic bitwise)
+          (spells define-values)
+          (spells misc)
           (spells foreign)
           (spells tracing)
           (sbank utils)
           (sbank shlibs))
-  
+
   ;; Note these must be in sync with gtype.h
   (define-enum (gtype->symbol% symbol->gtype%)
     (invalid
@@ -61,7 +65,7 @@
       object))
 
   (define *fundamental-shift* 2)
-  
+
   (define gtype-ctype 'size_t)
   (define gtype-size (c-type-sizeof gtype-ctype))
 
@@ -92,7 +96,7 @@
     (let ((set (make-pointer-c-setter gtype-ctype)))
       (lambda (ptr i v)
         (set ptr i (if (integer? v) v (symbol->gtype v))))))
-  
+
   (define g-boxed-value-type
     (let-callouts libgobject ()
       (let ((type #f))
@@ -102,6 +106,16 @@
               (set! type (g-pointer-type-register-static% name-ptr))
               (free name-ptr)))
           type))))
+
+  (define-values (register-gtype-lookup! gtype-lookup)
+    (let ((lookup-registry '()))
+      (values
+       (lambda (lookup)
+         (set! lookup-registry (cons lookup lookup-registry)))
+       (lambda (gtype)
+         (or-map (lambda (lookup)
+                   (lookup gtype))
+                 lookup-registry)))))
 
   (define-callouts libgobject
     (g-type-init 'void "g_type_init" '())

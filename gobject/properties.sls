@@ -67,7 +67,7 @@
         (define who 'g-object-set-property)
         (let* ((pinfo (property-lookup who obj property))
                (gtype (type->gtype (property-info-type pinfo)) )
-               (gvalue (->g-value value gtype find-typelib-enum-lookup))
+               (gvalue (->g-value value gtype))
                (name-ptr (string->utf8z-ptr (symbol->string property))))
           (set-property% (ginstance-ptr obj) name-ptr gvalue)
           (free name-ptr)
