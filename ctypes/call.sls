@@ -104,6 +104,12 @@
         (values (gerror-arg-setup type i)
                 #f
                 (gerror-arg-cleanup type i)))
+       ((signature? type)
+        (unless (memq 'in flags)
+          (raise-sbank-callout-error "callback arguments must have direction 'in'" ti flags))
+        (values (callback-arg-setup ti i)
+                #f
+                #f))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti gtype-lookup)
@@ -194,6 +200,20 @@
           (raise (apply condition
                         (make-sbank-callout-error)
                         (gerror-conditions/free etype gerror)))))))
+
+  (define (callback-arg-setup ti i)
+    (let ((convert (out-converter/null (signature-callback (type-info-type ti))
+                                       (type-info-null-ok? ti)
+                                       #f))
+          (closure-i (type-info-closure-index ti))
+          (destroy-i (type-info-destroy-index ti)))
+      (lambda (args arg-vec)
+        (vector-set! arg-vec i (convert (car args)))
+        (when closure-i
+          (vector-set! arg-vec closure-i (integer->pointer 0)))
+        (when destroy-i
+          (vector-set! arg-vec destroy-i (integer->pointer 0)))
+        (cdr args))))
 
   (define (raise-gerror/free who etype gerror . irritants)
     (let ((conditions (gerror-conditions/free etype gerror)))
