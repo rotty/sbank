@@ -1,9 +1,10 @@
 -*- Mode: org; -*-
 
-* GObject features
+* Core
 
-** TODO GObject construction via g_object_new
+** TODO Implement field getters/setters
 
-   New method 'newv' in each class deriving from GObject.Object
-   via "child decorators"? how do these compose/nest?
-  
+* Usage examples
+
+** TODO Complete the GTK+ demo
+** TODO Port some examples from libsoup
