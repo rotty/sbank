@@ -673,31 +673,45 @@
            prop-offset n-properties n-methods n-signals n-vfuncs n-constants)
     (define (interface-maker i)
       (typelib-get-entry/index typelib (pointer-uint16-ref ifaces (* 2 i))))
-    (define (make-lazy name-offset proc)
+    (define (make-lazy context name proc)
+      (with-validation-context context
+        (cons name (make-lazy-entry (proc/validation-context proc)))))
+    (define (make-lazy/offset name-offset proc)
       (let ((name (scheme-ified-symbol (get/validate-string tld name-offset))))
-        (with-validation-context name
-          (cons name (make-lazy-entry (proc/validation-context proc))))))
+        (make-lazy name name proc)))
     (define (member-func-maker blob)
-      (make-lazy ((function-blob-fetcher 'name) blob)
-                 (lambda (container)
-                    (make/validate-function typelib tld blob container))))
+      (make-lazy/offset ((function-blob-fetcher 'name) blob)
+                        (lambda (container)
+                          (make/validate-function typelib tld blob container))))
     (define (signal-maker blob)
       (let-attributes signal-blob-fetcher blob
                         (name signature)
-        (make-lazy name (lambda (container)
-                          (make/validate-signature typelib tld signature #f container)))))
+        (make-lazy/offset name (lambda (container)
+                                 (make/validate-signature typelib tld signature #f container)))))
+    (define (field-getter-maker blob)
+      (let-attributes field-blob-fetcher blob
+                      (name readable writable bits struct-offset type)
+        (let ((field-name (get/validate-string tld name)))
+          (and (= readable 1)
+               (= bits 0) ;; FIXME: support bitfields
+               (not (= struct-offset #x0ffff))
+               (make-lazy field-name
+                          (string->symbol (string-append "get-" (scheme-ified-string field-name)))
+                          (field-getter-method typelib tld type struct-offset))))))
+    (define (field-setter-maker blob)
+      #f) ;; FIXME: support setters
     (define (property-maker blob)
       (let-attributes property-blob-fetcher blob
                       (name deprecated readable writable construct construct-only type)
-        (make-lazy name (lambda (class)
-                          (make-property-info (stblob-type-info typelib tld type #f #f #f)
-                                              (bool readable)
-                                              (bool writable)
-                                              (bool construct)
-                                              (bool construct-only))))))
+        (make-lazy/offset name (lambda (class)
+                                 (make-property-info (stblob-type-info typelib tld type #f #f #f)
+                                                     (bool readable)
+                                                     (bool writable)
+                                                     (bool construct)
+                                                     (bool construct-only))))))
     (let-attributes header-fetcher tld
                     (property-blob-size function-blob-size signal-blob-size
-                                        vfunc-blob-size constant-blob-size)
+                                        field-blob-size vfunc-blob-size constant-blob-size)
       (when (= deprecated 1)
         ((typelib-deprecation-handler) typelib (gobject-class-name class)))
       (let ((properties-size (* property-blob-size n-properties))
@@ -718,17 +732,33 @@
                                                 (constructor)
                                   (= constructor 1)))
                               (make-array-pointers methods n-methods function-blob-size))
-            (values parent
-                    (map interface-maker (iota n-interfaces))
-                    (append (gtype-additional-constructors gtype)
-                            (map member-func-maker constructors))
-                    (map member-func-maker methods)
-                    (map signal-maker
-                         (make-array-pointers signals n-signals signal-blob-size))
-                    (map property-maker
-                         (make-array-pointers properties
-                                              n-properties
-                                              property-blob-size))))))))
+            (let ((field-blob-ptrs (make-array-pointers fields n-fields field-blob-size)))
+              (values parent
+                      (map interface-maker (iota n-interfaces))
+                      (append (gtype-additional-constructors gtype)
+                              (map member-func-maker constructors))
+                      (append (map member-func-maker methods)
+                              (filter-map field-getter-maker field-blob-ptrs)
+                              (filter-map field-setter-maker field-blob-ptrs))
+                      (map signal-maker
+                           (make-array-pointers signals n-signals signal-blob-size))
+                      (map property-maker
+                           (make-array-pointers properties
+                                                n-properties
+                                                property-blob-size)))))))))
+
+
+  (define (field-getter-method typelib tld stblob struct-offset)
+    (lambda (class)
+      (let ((ti (stblob-type-info typelib tld stblob #f #f #f)))
+        (receive (prim-type out-convert back-convert cleanup)
+                 (type-info/prim-type+procs ti)
+          (let ((getter (make-pointer-c-element-getter prim-type
+                                                       struct-offset
+                                                       #f
+                                                       #f)))
+            (lambda (obj)
+              (getter (ginstance-ptr obj))))))))
 
   (define (make/validate-signature typelib tld signature-offset constructor? container)
     (let-attributes signature-blob-fetcher
