@@ -149,7 +149,9 @@
                               (get-pointer% 'pointer "g_value_get_pointer" '(pointer))
                               (get-bool% 'int "g_value_get_boolean" '(pointer))
                               (get-string% 'pointer "g_value_get_string" '(pointer))
-                              (get-int% 'int "g_value_get_int" '(pointer)))
+                              (get-int% 'int "g_value_get_int" '(pointer))
+                              (get-uint% 'uint "g_value_get_uint" '(pointer))
+                              (get-enum% 'int "g_value_get_enum" '(pointer)))
       (define (lose msg . irritants)
         (apply error 'g-value-ref msg irritants))
       (lambda (gvalue)
@@ -161,6 +163,8 @@
                  (case (gtype->symbol gtype)
                    ((int)
                     (get-int% gvalue))
+                   ((uint)
+                    (get-uint% gvalue))
                    ((boolean)
                     (not (= 0 (get-bool% gvalue))))
                    ((object)
@@ -169,6 +173,13 @@
                     (get-pointer% gvalue))
                    ((string)
                     (utf8z-ptr->string (get-string% gvalue)))
+                   ((enum)
+                    (let ((val (get-enum% gvalue)))
+                      (cond ((find-enum-lookup gtype)
+                             => (lambda (lookup)
+                                  (or (lookup val) val)))
+                            (else
+                             val))))
                    (else
                     (lose "not implemented for this type of value" (gtype->symbol gtype))))))))))
 
