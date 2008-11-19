@@ -91,7 +91,7 @@
           (registered-values (make-table 'eqv))
           (count 0))
       (define (new-count)
-        (when (= count max-val)
+        (unless (< count max-val)
           (error 'register-value
                  "oops, out of value identifiers -- time someone implements reclaiming them"))
         (+ count 1))

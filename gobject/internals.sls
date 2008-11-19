@@ -113,7 +113,7 @@
     (protocol (lambda (n)
                 (lambda (namespace name constructors methods elt-out elt-back elt-cleanup)
                   (let ((p (n namespace name #f (lambda (class)
-                                                     (values #f '() constructors methods)))))
+                                                     (values #f '() constructors methods '() '())))))
                     (p elt-out elt-back elt-cleanup))))))
 
   (define-record-type gslist-class
