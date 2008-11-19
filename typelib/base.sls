@@ -927,7 +927,7 @@
                (pointer tag n-types type)
              (make-type-info tag-symbol
                              #t
-                             #f
+                             null-ok?
                              (map (lambda (blob)
                                     (stblob-type-info typelib tld blob #f))
                                   (make-array-pointers type n-types 4)))))
