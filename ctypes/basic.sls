@@ -464,6 +464,8 @@
             ((symbol? type)
              (case type
                ((gtype) gtype-ctype)
+               ((size) 'size_t)
+               ((ssize) 'ssize_t)
                ((boolean) 'uint)
                ((utf8 filename gvalue gslist glist ghash) 'pointer)
                (else type)))
