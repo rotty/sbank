@@ -758,7 +758,7 @@
                                                        #f
                                                        #f)))
             (lambda (obj)
-              (getter (ginstance-ptr obj))))))))
+              (back-convert (getter (ginstance-ptr obj)))))))))
 
   (define (make/validate-signature typelib tld signature-offset constructor? container)
     (let-attributes signature-blob-fetcher
