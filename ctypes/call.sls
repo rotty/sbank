@@ -27,11 +27,7 @@
   (export make-callout
           make-callback
           arg-callout-steps
-          arg-callback-steps
-
-          malloc/set!
-
-          raise-gerror/free)
+          arg-callback-steps)
 
   (import (rnrs base)
           (rnrs control)
@@ -65,11 +61,6 @@
   ;;(define-syntax debug (syntax-rules () (begin)))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
-
-  (define-accessors "GError"
-    (c-gerror-domain "domain")
-    (c-gerror-code "code")
-    (c-gerror-message "message"))
 
   (define (args-pre-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
@@ -214,25 +205,6 @@
         (when destroy-i
           (vector-set! arg-vec destroy-i (integer->pointer 0)))
         (cdr args))))
-
-  (define (raise-gerror/free who etype gerror . irritants)
-    (let ((conditions (gerror-conditions/free etype gerror)))
-      (raise (apply condition
-                    (make-who-condition who)
-                    (make-irritants-condition irritants)
-                    conditions))))
-
-  (define (gerror-conditions/free etype gerror)
-    (let ((domain (c-gerror-domain gerror))
-          (code (c-gerror-code gerror))
-          (message (utf8z-ptr->string (c-gerror-message gerror))))
-      (gerror-free gerror)
-      (list
-       (make-message-condition message)
-       (make-gerror domain code))))
-
-  (define-callouts libglib
-    (gerror-free 'void "g_error_free" '(pointer)))
 
   (define (args-setup-procedure n-args steps)
     (define (lose msg . irritants)
@@ -409,20 +381,4 @@
                    (else
                     (assert (not cleanup))
                     #t))))))
-
-  ;; Allocate memory as needed for the type @2, store a representation
-  ;; of @1 in it, and return a pointer to the allocated memory
-  (define (malloc/set! type val)
-    (cond ((symbol? type)
-           (let ((type (type-tag-symbol->prim-type type)))
-             (let ((mem (malloc (c-type-sizeof type))))
-               ((make-pointer-c-setter type) mem 0 val)
-               mem)))
-          ((array-type? type)
-           (let ((mem (malloc (c-type-sizeof 'pointer))))
-             (pointer-set-c-pointer! mem 0 val)
-             mem))
-          (else
-           (error 'malloc/set! "not implemented" type val))))
-
 )

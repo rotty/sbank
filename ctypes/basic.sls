@@ -31,6 +31,8 @@
           free-c-array
           c-array->vector
 
+          malloc/set!
+
           type-info->prim-type
           type-info/prim-type+procs
           out-converter/null
@@ -49,6 +51,9 @@
 
           raise-sbank-callout-error raise-sbank-callback-error
 
+          raise-gerror/free
+          gerror-conditions/free
+
           null-ok-always-on?)
   (import (rnrs)
           (xitomatl srfi and-let*)
@@ -60,6 +65,7 @@
           (sbank type-data)
           (sbank conditions)
           (sbank stypes)
+          (sbank shlibs)
           (sbank typelib stypes)
           (sbank gobject gtype)
           (sbank gobject genum)
@@ -462,4 +468,47 @@
                ((utf8 filename gvalue gslist glist ghash) 'pointer)
                (else type)))
             (else
-             (raise-sbank-callout-error "argument/return type not yet implemented" type))))))
+             (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
+
+
+  ;; Allocate memory as needed for the type @2, store a representation
+  ;; of @1 in it, and return a pointer to the allocated memory
+  (define (malloc/set! type val)
+    (cond ((symbol? type)
+           (let ((type (type-tag-symbol->prim-type type)))
+             (let ((mem (malloc (c-type-sizeof type))))
+               ((make-pointer-c-setter type) mem 0 val)
+               mem)))
+          ((array-type? type)
+           (let ((mem (malloc (c-type-sizeof 'pointer))))
+             (pointer-set-c-pointer! mem 0 val)
+             mem))
+          (else
+           (error 'malloc/set! "not implemented" type val))))
+
+  (define (gerror-conditions/free etype gerror)
+    (let ((domain (c-gerror-domain gerror))
+          (code (c-gerror-code gerror))
+          (message (utf8z-ptr->string (c-gerror-message gerror))))
+      (gerror-free gerror)
+      (list
+       (make-message-condition message)
+       (make-gerror domain code))))
+
+  (define (raise-gerror/free who etype gerror . irritants)
+    (let ((conditions (gerror-conditions/free etype gerror)))
+      (raise (apply condition
+                    (make-who-condition who)
+                    (make-irritants-condition irritants)
+                    conditions))))
+
+  (define-callouts libglib
+    (g-filename-to-utf8 'pointer "g_filename_to_utf8" '(ssize_t pointer pointer pointer))
+    (gerror-free 'void "g_error_free" '(pointer)))
+
+  (define-accessors "GError"
+    (c-gerror-domain "domain")
+    (c-gerror-code "code")
+    (c-gerror-message "message"))
+
+)
