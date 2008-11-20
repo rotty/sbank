@@ -114,6 +114,11 @@
                      (out-converter/null string->utf8z-ptr null-ok? #f)
                      (back-converter/null utf8z-ptr->string null-ok? #f)
                      free))
+            ((filename)
+             (values prim-type
+                     (out-converter/null string->fnamez-ptr null-ok? #f)
+                     (back-converter/null fnamez-ptr->string null-ok? #f)
+                     free))
             ((void)
              (values 'void #f #f #f))
             ((pointer)
@@ -131,6 +136,14 @@
                          (gslist-out-converter elt-out)
                          (gslist-back-converter (make-gslist-class elt-out elt-back elt-cleanup))
                          (gslist-cleanup elt-cleanup)))))
+            ((glist)
+             (let ((elt-ti (car (type-info-parameters ti))))
+               (receive (elt-pt elt-out elt-back elt-cleanup)
+                        (type-info/prim-type+procs elt-ti)
+                 (values 'pointer
+                         (glist-out-converter elt-out)
+                         (glist-back-converter (make-glist-class elt-out elt-back elt-cleanup))
+                         (glist-cleanup elt-cleanup)))))
             ((ghash)
              (let ((key-ti (car (type-info-parameters ti)))
                    (val-ti (cadr (type-info-parameters ti))))
@@ -422,6 +435,57 @@
                (elt-cleanup (g-slist-data gslist))
                (loop (g-slist-next gslist)))))
       (g-slist-free gslist)))
+
+  (define (glist-out-converter elt-convert)
+    (lambda (lst)
+      (cond ((eqv? lst #f)
+             (integer->pointer 0))
+            ((pointer? lst)
+             lst)
+            ((glist? lst)
+             (ginstance-ptr lst))
+            (else
+             (let loop ((glist (integer->pointer 0))
+                        (lst lst))
+               (if (null? lst)
+                   glist
+                   (loop (g-list-append glist
+                                        (if elt-convert
+                                            (elt-convert (car lst))
+                                            (car lst)))
+                         (cdr lst))))))))
+
+  (define (glist->list glist elt-convert)
+    (let loop ((lst '()) (glist (g-list-last glist)))
+      (if (pointer-null? glist)
+          lst
+          (loop (cons (elt-convert (g-list-data glist)) lst)
+                (g-list-prev glist)))))
+
+  (define (glist-back-converter class)
+    (lambda (glist)
+      (make-ginstance class glist)))
+
+  (define (glist-cleanup elt-cleanup)
+    (lambda (glist)
+      (and elt-cleanup
+           (let loop ((glist glist))
+             (unless (pointer-null? glist)
+               (elt-cleanup (g-list-data glist))
+               (loop (g-list-next glist)))))
+      (g-list-free glist)))
+
+  (define (fnamez-ptr->string ptr)
+    (let ((error (malloc/set! 'pointer (integer->pointer 0)))
+          (bytes-written (malloc/set! 'size_t 0)))
+      (let ((result (g-filename-to-utf8 ptr -1 (integer->pointer 0) bytes-written error)))
+        (when (pointer-null? result)
+          (free bytes-written)
+          (raise-gerror/free error))
+        (utf8z-ptr->string result))))
+
+  (define (string->fnamez-ptr s)
+    (error 'string->fnamez-ptr "not yet implemented" s))
 
   ;; Retrieve a Scheme representation of the memory pointed to by @1,
   ;; according to the type @2.

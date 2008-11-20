@@ -1,4 +1,4 @@
-;;; glist.sls --- GList primitives.
+;;; glist.sls --- GList and GSList primitives.
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,7 +23,13 @@
 ;;; Code:
 
 (library (sbank gobject glist)
-  (export g-list-append
+  (export g-list-prepend
+          g-list-append
+          g-list-last
+          g-list-next
+          g-list-prev
+          g-list-data
+          g-list-free
 
           g-slist-prepend
           g-slist-reverse
@@ -36,14 +42,23 @@
           (sbank stypes))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
-  
+
   (define-callouts libglib
+    ;; GList
     (g-list-append 'pointer "g_list_append" '(pointer pointer))
+    (g-list-prepend 'pointer "g_list_prepend" '(pointer pointer))
+    (g-list-last 'pointer "g_list_last" '(pointer))
+    (g-list-free 'void "g_list_free" '(pointer))
+    ;; GSList
     (g-slist-prepend 'pointer "g_slist_prepend" '(pointer pointer))
     (g-slist-reverse 'pointer "g_slist_reverse" '(pointer))
     (g-slist-free 'void "g_slist_free" '(pointer)))
 
+  (define-accessors "GList"
+    (g-list-next "next")
+    (g-list-prev "prev")
+    (g-list-data "data"))
+
   (define-accessors "GSList"
     (g-slist-next "next")
     (g-slist-data "data")))
-

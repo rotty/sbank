@@ -49,6 +49,9 @@
           gslist?
           make-gslist-class
 
+          glist?
+          make-glist-class
+
           send-message
           send
 
@@ -123,11 +126,22 @@
                   (let ((p (n "GObject" "SList" '() '() elt-out elt-back elt-cleanup)))
                     (p))))))
 
+  (define-record-type glist-class
+    (parent gsequence-class)
+    (protocol (lambda (n)
+                (lambda (elt-out elt-back elt-cleanup)
+                  (let ((p (n "GObject" "SList" '() '() elt-out elt-back elt-cleanup)))
+                    (p))))))
+
   (define (gsequence? x)
     (and (ginstance? x)
          (gsequence-class? (ginstance-class x))))
 
   (define (gslist? x)
+    (and (ginstance? x)
+         (gslist-class? (ginstance-class x))))
+
+  (define (glist? x)
     (and (ginstance? x)
          (gslist-class? (ginstance-class x))))
 

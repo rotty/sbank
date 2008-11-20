@@ -349,6 +349,7 @@
                    ((2) make-callback-loader)
                    ((3) make-record-loader)
                    ((5) make-enum-loader)
+                   ((6) make-enum-loader) ;; FIXME: need to treat flags differently
                    ((7) make-class-loader)
                    ((8) make-interface-loader)
                    ((9) make-constant-loader)
@@ -786,7 +787,7 @@
                                       ((header-fetcher 'enum-blob-size) tld))))
         (let-attributes enum-blob-fetcher blob
                         (blob-type gtype-init n-values values)
-          (unless (= blob-type 5)
+          (unless (or (= blob-type 5) (= blob-type 6)) ;; FIXME: need to treat flags
             (raise-validation-error "invalid blob type for enum entry" blob-type))
           (make-genum
            (get/validate-gtype typelib tld gtype-init)
