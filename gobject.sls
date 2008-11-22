@@ -29,7 +29,7 @@
   (export gobject-class?
           gobject-class-decorate
           gobject-method-overrider
-          ginstance?
+          ginstance? ginstance=?
           genum? genum-lookup
           gerror?
           send send-message

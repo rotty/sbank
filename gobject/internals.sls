@@ -42,6 +42,7 @@
           make-gobject-union-class gobject-union-class?
 
           make-ginstance ginstance? ginstance-ptr ginstance-class
+          ginstance=?
 
           gsequence?
           make-gsequence-class
@@ -87,6 +88,12 @@
   (define-record-type ginstance
     (fields (immutable class ginstance-class)
             (immutable ptr ginstance-ptr)))
+
+  (define (ginstance=? x y)
+    (unless (and (ginstance? x) (ginstance? y))
+      (error 'ginstance=? "invalid argument types" x y))
+    (= (pointer->integer (ginstance-ptr x))
+       (pointer->integer (ginstance-ptr y))))
 
   (define-record-type gobject-class
     ;;(opaque #t)
