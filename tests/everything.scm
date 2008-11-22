@@ -29,3 +29,33 @@
   (test/equal "boolean"
     (list (test-boolean #t) (test-boolean #f))
     (list #t #f)))
+
+(testeez "structs"
+  (test-define "A" a (send <test-struct-a> (alloc)))
+  (test-define "obj" obj (send <test-obj> (new/props)))
+  (test-eval "setting fields"
+    (send a
+      (set-some-int 12345)
+      (set-some-int8 42)
+      (set-some-double 0.3141)
+      (set-some-enum 'value2)
+      (set-some-obj obj)))
+  (test/equal "get int" (send a (get-some-int)) 12345)
+  (test/equal "get int8" (send a (get-some-int8)) 42)
+  (test/equal "get double" (send a (get-some-double)) 0.3141)
+  (test/equal "get enum" (send a (get-some-enum)) 'value2)
+  (test/equiv "get obj"
+    (send a (get-some-obj))
+    obj
+    (ginstance=?)))
+
+(parameterize ((null-ok-always-on? #t))
+  (testeez "objects"
+    (test-define "obj" obj (send <test-obj> (new/props)))
+    (test/equal "get" (send obj (get-bare)) #f)
+    (test-define "other" other (send <test-obj> (new/props)))
+    (test-eval "set" (send obj (set-bare other)))
+    (test/equiv "check value"
+      (send obj (get-bare))
+      other
+      (ginstance=?))))

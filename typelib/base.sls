@@ -691,7 +691,7 @@
                                  (make/validate-signature typelib tld signature #f container)))))
     (define (field-getter-maker blob)
       (let-attributes field-blob-fetcher blob
-                      (name readable writable bits struct-offset type)
+                      (name readable bits struct-offset type)
         (let ((field-name (get/validate-string tld name)))
           (and (= readable 1)
                (= bits 0) ;; FIXME: support bitfields
@@ -700,7 +700,15 @@
                           (string->symbol (string-append "get-" (scheme-ified-string field-name)))
                           (field-getter-method typelib tld type struct-offset))))))
     (define (field-setter-maker blob)
-      #f) ;; FIXME: support setters
+      (let-attributes field-blob-fetcher blob
+                      (name writable bits struct-offset type)
+        (let ((field-name (get/validate-string tld name)))
+          (and (= writable 1)
+               (= bits 0) ;; FIXME: support bitfields
+               (not (= struct-offset #x0ffff))
+               (make-lazy field-name
+                          (string->symbol (string-append "set-" (scheme-ified-string field-name)))
+                          (field-setter-method typelib tld type struct-offset))))))
     (define (property-maker blob)
       (let-attributes property-blob-fetcher blob
                       (name deprecated readable writable construct construct-only type)
@@ -759,7 +767,23 @@
                                                        #f
                                                        #f)))
             (lambda (obj)
-              (back-convert (getter (ginstance-ptr obj)))))))))
+              (let ((result (getter (ginstance-ptr obj))))
+                (if back-convert
+                    (back-convert result)
+                    result))))))))
+
+  (define (field-setter-method typelib tld stblob struct-offset)
+    (lambda (class)
+      (let ((ti (stblob-type-info typelib tld stblob #f #f #f)))
+        (receive (prim-type out-convert back-convert cleanup)
+                 (type-info/prim-type+procs ti)
+          (let ((setter (make-pointer-c-element-setter prim-type
+                                                       struct-offset
+                                                       #f
+                                                       #f)))
+            (lambda (obj val)
+              (setter (ginstance-ptr obj)
+                      (if out-convert (out-convert val) val))))))))
 
   (define (make/validate-signature typelib tld signature-offset constructor? container)
     (let-attributes signature-blob-fetcher
