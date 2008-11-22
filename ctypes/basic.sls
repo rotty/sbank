@@ -101,7 +101,7 @@
         (let ((prim-type (type-tag-symbol->prim-type type)))
           (case type
             ((int8 uint8 int16 uint16 int32 uint32
-                   int64 uint64 int uint long ulong ssize size
+                   int64 uint64 int uint long ulong ssize size time_t
                    float double)
              (values prim-type #f #f #f))
             ((boolean)
