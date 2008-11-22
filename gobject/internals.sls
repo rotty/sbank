@@ -251,7 +251,7 @@
         (let ((n (length props/vals)))
           (when (odd? n)
             (error 'gobject-new/props "odd number of colum/value arguments" props/vals))
-          (let ((parameters (g-param-alloc (/ n 2))))
+          (let ((parameters (if (= n 0) (integer->pointer 0) (g-param-alloc (/ n 2)))))
             (let loop ((i 0) (props/vals props/vals))
               (cond ((null? props/vals)
                      (make-ginstance class (g-object-newv (gobject-class-gtype class) i parameters)))
