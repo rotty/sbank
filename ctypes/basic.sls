@@ -291,7 +291,22 @@
              (error 'c-array->vector "cannot handle array without size information" atype)))))
 
   (define (->c-array val atype)
-    (vector->c-array (->vector val) atype))
+    (define (lose msg . irritants)
+      (apply error '->c-array msg irritants))
+    (let ((elt-type (array-element-type atype)))
+      (cond ((string? val)
+             (unless (memq elt-type '(int8 uint8))
+               (lose "cannot convert string to array of this type" val atype))
+             (let* ((bytes (string->utf8 val))
+                    (size (bytevector-length bytes)))
+               (memcpy (malloc size) bytes size)))
+            ((bytevector? val)
+             (unless (memq elt-type '(int8 uint8))
+               (lose "cannot convert bytevector to array of this type val atype"))
+             (let ((size (bytevector-length val)))
+               (memcpy (malloc size) val size)))
+            (else
+             (vector->c-array (->vector val) atype)))))
 
   (define (array-terminator prim-type)
     (case prim-type

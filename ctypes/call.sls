@@ -33,6 +33,7 @@
           (rnrs control)
           (rnrs conditions)
           (rnrs exceptions)
+          (rnrs bytevectors)
           (xitomatl srfi and-let*)
           (spells define-values)
           (spells receive)
@@ -157,11 +158,16 @@
                (vector-set! arg-vec i (car args))
                (cdr args))
               (else
-               (let ((vec (->vector (car args))))
-                 (vector-set! arg-vec i (convert vec))
+               (let ((val (cond ((or (vector? (car args)) (bytevector? (car args)))
+                                 (car args))
+                                ((string? (car args))
+                                 (string->utf8 (car args)))
+                                (else
+                                 (->vector (car args))))))
+                 (vector-set! arg-vec i (convert val))
                  (cond ((array-length-index atype)
                         => (lambda (l-index)
-                             (vector-set! arg-vec l-index (vector-length vec)))))
+                             (vector-set! arg-vec l-index (vec-length val)))))
                  (cdr args)))))))
 
   (define (get-array-length atype arg-vec)
@@ -256,6 +262,11 @@
 
   (define (flags-set/or? flags test-flags)
     (>= (length (lset-intersection eq? flags test-flags)) 1))
+
+  (define (vec-length x)
+    (cond ((vector? x) (vector-length x))
+          ((bytevector? x) (bytevector-length x))
+          (else (error 'vec-length "called with non-vector" x))))
 
   (define (make-callout rti arg-types
                         setup-steps collect-steps cleanup-steps
