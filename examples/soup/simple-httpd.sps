@@ -23,9 +23,13 @@
 ;;; Code:
 
 #!r6rs
-(import (rnrs)
+(import (except (rnrs) file-exists? delete-file)
         (spells parameter)
+        (only (spells strings) string-join)
         (spells string-substitute)
+        (spells pathname)
+        (spells filesys)
+        (spells tracing)
         (sbank soup)
         (sbank typelib)
         (sbank ctypes basic))
@@ -34,7 +38,8 @@
 (typelib-import
  (prefix (only ("GLib" #f)
                thread-init
-               main-loop-new main-loop-run)
+               main-loop-new main-loop-run
+               markup-escape-text)
          g-)
  (prefix (only ("Soup" #f) <server>)
          soup-))
@@ -54,19 +59,73 @@
 
 ;; Note that `user-data' will go away when I get around to implement hiding it
 (define (server-callback server msg path query client user-data)
-  (println "{0} {1} HTTP/1.{2}" (send msg (get 'method)) path (send msg (get 'http-version)))
-  (send (send msg (get-request-headers))
-    (foreach (lambda (name value user-data)
-               (println "{0}: {1}" name value))))
-  (let ((body (send msg (get-request-body))))
-    (when (> (send body (get-length)) 0)
-      (println (send body (get-data)))))
-  (send msg (set-status (soup-status 'not-implemented)))
-  (println " -> {0} {1}" (send msg (get 'status-code)) (send msg (get 'reason-phrase))))
+  (let ((method (send msg (get 'method)))
+        (file-path (string-append "." path)))
+    (println "{0} {1} HTTP/1.{2}" method  path (send msg (get 'http-version)))
+    (send (send msg (get-request-headers))
+      (foreach (lambda (name value user-data)
+                 (println "{0}: {1}" name value))))
+    (let ((body (send msg (get-request-body))))
+      (when (> (send body (get-length)) 0)
+        (println (send body (get-data)))))
+    (cond ((member method '("GET" "HEAD"))
+           (do-get server msg file-path))
+          (else
+           (send msg (set-status (soup-status 'not-implemented)))))
+    (println " -> {0} {1}" (send msg (get 'status-code)) (send msg (get 'reason-phrase)))))
+
+(define (do-get server msg path)
+  (let ((pathname (x->pathname path)))
+    (cond ((file-readable? pathname)
+           (cond ((file-directory? pathname)
+                  (if (pathname-file pathname)
+                      (let ((uri (send (send msg (get-uri)) (to-string))))
+                        (send (send msg (get-response-headers))
+                          (append "Location" (string-append uri "/"))))
+                      (let ((index-path (pathname-with-file pathname "index.html")))
+                        (if (file-exists? index-path)
+                            (do-get server msg index-path)
+                            (send msg (set-response "text/html"
+                                                    'copy (get-directory-listing pathname)))))))
+                 ((string=? "GET" (send msg (get-method)))
+                  (call-with-port (open-file-input-port (x->namestring pathname))
+                    (lambda (port)
+                      (send msg (set-response "application/octet-stream"
+                                              'copy (get-bytevector-all port))))))
+                 (else ;; "HEAD" method
+                  (send (send msg (get-response-headers))
+                    (append "Content-Length" (number->string (file-size-in-bytes pathname))))))
+           (send msg (set-status (soup-status 'ok))))
+          (else
+           (send msg
+             (set-status (soup-status (if (file-exists? pathname) 'forbidden 'not-found))))))))
+
+(define (get-directory-listing path)
+  (string-join
+   (append
+    (list "<html>")
+    (let ((escaped (g-markup-escape-text (file-namestring path) -1)))
+      (list (ssubst "<head><title>Index of {0}</title></head>" escaped)
+            "<body>"
+            (ssubst "<h1>Index of {0}</h1>" escaped)
+            "<p>"))
+    (directory-fold
+     path
+     (lambda (entry rest)
+       (let ((escaped (g-markup-escape-text (file-namestring entry) -1)))
+         (cons (ssubst "<a href=\"{0}\">{1}</a><br>" escaped escaped)
+               rest)))
+     '())
+    (list "</body>"
+          "</html>"))
+   "\n" 'suffix))
 
 (define (println fmt . args)
   (string-substitute #t fmt args)
   (newline))
+
+(define (ssubst fmt . args)
+  (string-substitute #f fmt args))
 
 (define (bail-out msg . args)
   (string-substitute (current-error-port) msg args)
