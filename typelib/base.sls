@@ -35,6 +35,7 @@
           typelib-get-entry)
   (import (rnrs)
           (xitomatl srfi and-let*)
+          (xitomatl srfi char-set)
           (spells foreign)
           (spells tracing)
           (spells alist)
@@ -42,6 +43,7 @@
           (spells table)
           (spells receive)
           (spells format)
+          (only (spells strings) string-index)
           (only (spells lists) filter-map iota)
           (spells define-values)
           (only (spells misc) or-map)
@@ -818,9 +820,15 @@
            (map (lambda (val-ptr)
                   (let-attributes value-blob-fetcher val-ptr
                                   (name value)
-                    (cons (scheme-ified-symbol (get/validate-string tld name))
-                          value)))
+                    (cons (enum-symbol tld name) value)))
                 (make-array-pointers values n-values ((header-fetcher 'value-blob-size) tld))))))))
+
+  (define (enum-symbol tld name-offset)
+    (let ((name (get/validate-string tld name-offset)))
+      (cond ((string-index name (char-set-complement char-set:digit))
+             (scheme-ified-symbol name))
+            (else ;; all digits
+             (string->number name)))))
 
   (define (make-constant-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
