@@ -172,7 +172,7 @@
                    ((pointer)
                     (get-pointer% gvalue))
                    ((string)
-                    (utf8z-ptr->string (get-string% gvalue)))
+                    (utf8z-ptr/null->string (get-string% gvalue)))
                    ((enum)
                     (let ((val (get-enum% gvalue)))
                       (cond ((find-enum-lookup gtype)
@@ -182,6 +182,14 @@
                              val))))
                    (else
                     (lose "not implemented for this type of value" (gtype->symbol gtype))))))))))
+
+  (define (utf8z-ptr/null->string ptr)
+    (convert/null ptr utf8z-ptr->string #f))
+
+  (define (convert/null ptr convert null-val)
+    (if (= (pointer->integer ptr) 0)
+        null-val
+        (convert ptr)))
 
   (define (free-g-value-array array size)
     (do ((i 0 (+ i 1)))
