@@ -173,7 +173,9 @@
   (define (get-array-length atype arg-vec)
     (cond ((array-length-index atype)
            => (lambda (l-index)
-                (vector-ref arg-vec l-index)))))
+                (vector-ref arg-vec l-index)))
+          (else
+           #f)))
 
   (define (array-arg-collect atype i)
     (lambda (arg-vec)

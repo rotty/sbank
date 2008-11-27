@@ -53,6 +53,9 @@
           glist?
           make-glist-class
 
+          ghash?
+          make-ghash-class
+
           send-message
           send
 
@@ -126,18 +129,38 @@
                                                      (values #f '() constructors methods '() '())))))
                     (p elt-out elt-back elt-cleanup))))))
 
+  (define-record-type gmapping-class
+    (parent gobject-class)
+    (fields key-out val-out key-back val-back key-cleanup val-cleanup)
+    (protocol (lambda (n)
+                (lambda (namespace name constructors methods
+                                   key-out val-out
+                                   key-back val-back
+                                   key-cleanup val-cleanup)
+                  (let ((p (n namespace name #f (lambda (class)
+                                                     (values #f '() constructors methods '() '())))))
+                    (p key-out val-out key-back val-back key-cleanup val-cleanup))))))
+
   (define-record-type gslist-class
     (parent gsequence-class)
     (protocol (lambda (n)
                 (lambda (elt-out elt-back elt-cleanup)
-                  (let ((p (n "GObject" "SList" '() '() elt-out elt-back elt-cleanup)))
+                  (let ((p (n "GLib" "SList" '() '() elt-out elt-back elt-cleanup)))
                     (p))))))
 
   (define-record-type glist-class
     (parent gsequence-class)
     (protocol (lambda (n)
                 (lambda (elt-out elt-back elt-cleanup)
-                  (let ((p (n "GObject" "SList" '() '() elt-out elt-back elt-cleanup)))
+                  (let ((p (n "GLib" "List" '() '() elt-out elt-back elt-cleanup)))
+                    (p))))))
+
+  (define-record-type ghash-class
+    (parent gmapping-class)
+    (protocol (lambda (n)
+                (lambda (key-out val-out key-back val-back key-cleanup val-cleanup)
+                  (let ((p (n "GLib" "HashTable" '() '()
+                              key-out val-out key-back val-back key-cleanup val-cleanup)))
                     (p))))))
 
   (define (gsequence? x)
@@ -151,6 +174,10 @@
   (define (glist? x)
     (and (ginstance? x)
          (gslist-class? (ginstance-class x))))
+
+  (define (ghash? x)
+    (and (ginstance? x)
+         (ghash-class? (ginstance-class x))))
 
   (define-record-type gerror-type)
 

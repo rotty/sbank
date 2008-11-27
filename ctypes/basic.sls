@@ -147,12 +147,17 @@
             ((ghash)
              (let ((key-ti (car (type-info-parameters ti)))
                    (val-ti (cadr (type-info-parameters ti))))
-               (values 'pointer
-                       (out-converter/null ginstance-ptr null-ok? #f)
-                       (back-converter/null (ginstance-maker gtype-lookup type)
-                                            null-ok?
-                                            #f)
-                       #f)))
+               (let-values (((key-pt key-out key-back key-cleanup)
+                             (type-info/prim-type+procs key-ti))
+                            ((val-pt val-out val-back val-cleanup)
+                             (type-info/prim-type+procs val-ti)))
+                 (let ((class (make-ghash-class key-out val-out
+                                                key-back val-back
+                                                key-cleanup val-cleanup)))
+                   (values 'pointer
+                           (out-converter/null (ghash-out-converter class) null-ok? #f)
+                           (back-converter/null (ghash-back-converter class) null-ok? #f)
+                           (ghash-cleanup class))))))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
             (else
@@ -489,6 +494,20 @@
                (elt-cleanup (g-list-data glist))
                (loop (g-list-next glist)))))
       (g-list-free glist)))
+
+  (define (ghash-out-converter class)
+    (lambda (val)
+      (unless (ghash? val)
+        (raise-sbank-callout-error "expected an GHash instance" val))
+      (ginstance-ptr val)))
+
+  (define (ghash-back-converter class)
+    (lambda (ghash-ptr)
+      (make-ginstance class ghash-ptr)))
+
+  (define (ghash-cleanup class)
+    (lambda (val)
+      #f))
 
   (define (fnamez-ptr->string ptr)
     (let ((error (malloc/set! 'pointer (integer->pointer 0)))
