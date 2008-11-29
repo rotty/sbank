@@ -288,7 +288,7 @@
                   (or (= (cdr blob-name/size) actual-size)
                       (raise-validation-error "blob size mismatch" blob-name/size actual-size))))
               '((entry . 12)
-                (function . 16)
+                (function . 20)
                 (callback . 12)
                 (signal . 12)
                 (vfunc . 16)

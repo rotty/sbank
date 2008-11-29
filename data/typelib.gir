@@ -271,6 +271,15 @@
       <field name="signature" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
+      <field name="is_static" writable="1" bits="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved" writable="1" bits="15">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved2" writable="1" bits="16">
+        <type name="uint16" c:type="guint16"/>
+      </field>
     </record>
     <record name="CallbackBlob" c:type="CallbackBlob">
       <field name="blob_type" writable="1">
@@ -431,7 +440,10 @@
       <field name="writable" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="reserved" writable="1" bits="6">
+      <field name="null_ok" writable="1" bits="1">
+        <type name="uint8" c:type="guint8"/>
+      </field>
+      <field name="reserved" writable="1" bits="5">
         <type name="uint8" c:type="guint8"/>
       </field>
       <field name="bits" writable="1">
