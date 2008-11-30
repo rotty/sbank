@@ -158,7 +158,9 @@
                (vector-set! arg-vec i (car args))
                (cdr args))
               (else
-               (let ((val (cond ((or (vector? (car args)) (bytevector? (car args)))
+               (let ((val (cond ((or (vector? (car args))
+                                     (bytevector? (car args))
+                                     (bytevector-portion? (car args)))
                                  (car args))
                                 ((string? (car args))
                                  (string->utf8 (car args)))
@@ -268,6 +270,7 @@
   (define (vec-length x)
     (cond ((vector? x) (vector-length x))
           ((bytevector? x) (bytevector-length x))
+          ((bytevector-portion? x) (bytevector-portion-count x))
           (else (error 'vec-length "called with non-vector" x))))
 
   (define (make-callout rti arg-types

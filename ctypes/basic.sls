@@ -31,6 +31,7 @@
           free-c-array
           c-array->vector
 
+          bytevector-portion bytevector-portion? bytevector-portion-count
           malloc/set!
 
           type-info->prim-type
@@ -92,6 +93,11 @@
     (gtype-class-gtype "g_type"))
 
   (define null-ok-always-on? (make-parameter #f))
+
+  (define-record-type (<bytevector-portion> bytevector-portion bytevector-portion?)
+    (fields (immutable bv bytevector-portion-bv)
+            (immutable start bytevector-portion-start)
+            (immutable count bytevector-portion-count)))
 
   (define (type-info/prim-type+procs ti)
     (let ((type (type-info-type ti))
@@ -310,6 +316,12 @@
                (lose "cannot convert bytevector to array of this type val atype"))
              (let ((size (bytevector-length val)))
                (memcpy (malloc size) val size)))
+            ((bytevector-portion? val)
+             (let ((count (bytevector-portion-count val)))
+               (memcpy (malloc count)
+                       (bytevector-portion-bv val)
+                       (bytevector-portion-start val)
+                       count)))
             (else
              (vector->c-array (->vector val) atype)))))
 
