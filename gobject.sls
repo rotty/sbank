@@ -31,6 +31,9 @@
           gobject-method-overrider
           ginstance? ginstance=?
           genum? genum-lookup
+          glist?
+          gslist?
+          ghash? ghash->alist
           gerror?
           send send-message
           gobject-setup!)

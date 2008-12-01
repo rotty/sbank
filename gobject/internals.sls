@@ -55,6 +55,7 @@
 
           ghash?
           make-ghash-class
+          ghash->alist
 
           send-message
           send
@@ -82,7 +83,8 @@
           (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject gparam)
-          (sbank gobject glist))
+          (sbank gobject glist)
+          (sbank gobject ghash))
 
   ;;
   ;; Object system
@@ -159,7 +161,10 @@
     (parent gmapping-class)
     (protocol (lambda (n)
                 (lambda (key-out val-out key-back val-back key-cleanup val-cleanup)
-                  (let ((p (n "GLib" "HashTable" '() '()
+                  (let ((p (n "GLib" "HashTable"
+                              '()
+                              `((foreach . ,ghash-foreach)
+                                (->alist . ,ghash->alist))
                               key-out val-out key-back val-back key-cleanup val-cleanup)))
                     (p))))))
 
@@ -178,6 +183,25 @@
   (define (ghash? x)
     (and (ginstance? x)
          (ghash-class? (ginstance-class x))))
+
+  (define (ghash-foreach ghash proc)
+    (unless (ghash? ghash)
+      (error 'ghash-foreach "need a GHash instance" ghash))
+    (let* ((class (ginstance-class ghash))
+           (key-back (gmapping-class-key-back class ))
+           (val-back (gmapping-class-val-back class)))
+      (g-hash-table-foreach (ginstance-ptr ghash)
+                            (lambda (key val user-data)
+                              (proc (key-back key) (val-back val)))
+                            (integer->pointer 0))))
+
+  (define (ghash->alist ghash)
+    (cond ((eqv? ghash #f) '())
+          (else
+           (let ((result '()))
+             (ghash-foreach ghash (lambda (key val)
+                                    (set! result (cons (cons key val) result))))
+             result))))
 
   (define-record-type gerror-type)
 
