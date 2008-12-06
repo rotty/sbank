@@ -62,7 +62,7 @@
           (rnrs records syntactic)
           (spells foreign)
           (spells tracing)
-          (sbank utils))
+          (sbank support utils))
 
   (define-record-type array-type
     (fields (immutable element-type-info array-element-type-info)

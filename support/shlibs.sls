@@ -22,7 +22,7 @@
 
 ;;; Code:
 
-(library (sbank shlibs)
+(library (sbank support shlibs)
   (export libgir libgobject libglib
           let-callouts
           define-callouts)

@@ -1,4 +1,4 @@
-;;; utils.scm --- Unit tests for (sbank utils)
+;;; utils.scm --- Unit tests for (sbank support utils)
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 

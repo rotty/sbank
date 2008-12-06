@@ -1,4 +1,4 @@
-;;; conditions.sls --- Condition types for sbank.
+;;; sxpath-utils.sls --- Utilities based on sxpath.
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,27 +23,18 @@
 ;;; Code:
 
 
-(library (sbank conditions)
-  (export &sbank-error
-          make-sbank-error
-          sbank-error?
-          
-          &sbank-callout-error
-          make-sbank-callout-error
-          sbank-callout-error?
-
-          &sbank-callback-error
-          make-sbank-callback-error
-          sbank-callback-error?)
-
+(library (sbank support sxpath-utils)
+  (export sxpath-ref sxpath-attr)
   (import (rnrs base)
-          (rnrs conditions))
+          (xitomatl srfi and-let*)
+          (xitomatl sxml-tools sxpath))
 
-  (define-condition-type &sbank-error &error
-    make-sbank-error sbank-error?)
-
-  (define-condition-type &sbank-callout-error &sbank-error
-    make-sbank-callout-error sbank-callout-error?)
-
-  (define-condition-type &sbank-callback-error &sbank-error
-    make-sbank-callback-error sbank-callback-error?))
+  (define (sxpath-ref sxml path)
+    (and-let* ((result ((sxpath path) sxml))
+               ((pair? result)))
+      (car result)))
+  
+  (define (sxpath-attr sxml path)
+    (and-let* ((result ((sxpath path) sxml))
+               ((pair? result)))
+      (cadar result))))

@@ -35,7 +35,7 @@
 ;;; Code:
 #!r6rs
 
-(library (sbank stypes)
+(library (sbank support stypes)
   (export primitive-stypes
           stypes-adjoin
           stypes-ref
@@ -61,8 +61,8 @@
           (spells receive)
           (spells format)
           (for (spells define-values) run expand)
-          (sbank utils)
-          (sbank sxpath-utils))
+          (sbank support utils)
+          (sbank support sxpath-utils))
 
   (define primitive-stypes
     (cons
@@ -277,7 +277,7 @@
                      (equal? names `((name ,name)))))))
 
   (define (warning msg . args)
-    (display "WARNING (sbank stypes): " (current-error-port))
+    (display "WARNING (sbank support stypes): " (current-error-port))
     (apply format (current-error-port) msg args)
     (newline (current-error-port)))
 

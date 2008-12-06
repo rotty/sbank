@@ -1,4 +1,4 @@
-;;; stypes.scm --- Unit tests for (sbank stypes)
+;;; stypes.scm --- Unit tests for (sbank support stypes)
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 

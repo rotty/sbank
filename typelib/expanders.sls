@@ -34,7 +34,7 @@
           (rnrs syntax-case)
           (spells receive)
           (spells tracing)
-          (sbank utils)
+          (sbank support utils)
           (sbank typelib base))
 
 

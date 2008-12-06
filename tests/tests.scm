@@ -25,10 +25,10 @@
 
 ((systems sbank)
  (files
-  ("utils.scm" (sbank utils))
+  ("utils.scm" (sbank support utils))
 
   ("stypes.scm"
-   (sbank stypes)
+   (sbank support stypes)
    (spells foreign)
    (only (spells lists) make-list iota)
    (rnrs control)

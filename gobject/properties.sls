@@ -30,7 +30,7 @@
           (spells receive)
           (spells foreign)
           (spells tracing)
-          (sbank shlibs)
+          (sbank support shlibs)
           (sbank ctypes basic)
           (sbank type-data)
           (sbank gobject gvalue)

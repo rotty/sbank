@@ -37,9 +37,9 @@
           g-slist-data
           g-slist-free)
   (import (rnrs base)
-          (sbank shlibs)
+          (sbank support shlibs)
           (sbank typelib stypes)
-          (sbank stypes))
+          (sbank support stypes))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
 

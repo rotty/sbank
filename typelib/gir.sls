@@ -44,7 +44,7 @@
           (xitomatl sxml-tools sxpathlib)
           (xitomatl sxml-tools sxpath-ext)
           (xitomatl srfi and-let*)
-          (sbank sxpath-utils))
+          (sbank support sxpath-utils))
 
   (define (gir-xml->stype-list port)
 

@@ -37,8 +37,8 @@
           (spells misc)
           (spells foreign)
           (spells tracing)
-          (sbank utils)
-          (sbank shlibs))
+          (sbank support utils)
+          (sbank support shlibs))
 
   ;; Note these must be in sync with gtype.h
   (define-enum (gtype->symbol% symbol->gtype%)

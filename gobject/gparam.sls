@@ -29,7 +29,7 @@
           g-param-size)
   (import (rnrs base)
           (spells foreign)
-          (sbank stypes)
+          (sbank support stypes)
           (sbank typelib stypes))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))

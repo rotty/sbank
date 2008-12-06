@@ -26,9 +26,9 @@
   (export g-hash-table-foreach)
   (import (rnrs base)
           (spells foreign)
-          (sbank shlibs)
+          (sbank support shlibs)
           (sbank typelib stypes)
-          (sbank stypes))
+          (sbank support stypes))
 
 
   (define g-hash-table-foreach

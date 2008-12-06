@@ -33,7 +33,7 @@
           (spells pathname)
           (spells tracing)
           (sbank gobject gtype)
-          (sbank stypes))
+          (sbank support stypes))
 
   (define (slurp-types)
     (let* ((relpath '((sbank data) "typelib.scm"))

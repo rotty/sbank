@@ -23,7 +23,7 @@
 ;;; Code:
 
 
-(library (sbank utils)
+(library (sbank support utils)
   (export define-enum
           vector-index
           ->vector

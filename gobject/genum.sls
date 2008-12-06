@@ -25,7 +25,7 @@
 (library (sbank gobject genum)
   (export make-genum genum? genum-lookup genum-values genum-symbols genum-gtype)
   (import (rnrs)
-          (sbank utils))
+          (sbank support utils))
 
   (define-record-type genum
     (fields gtype symbols values)
