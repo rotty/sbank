@@ -1,4 +1,4 @@
-;;; gparam.sls --- GEnum support.
+;;; genum.sls --- support for enumerations and flags.
 
 ;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,23 +23,71 @@
 ;;; Code:
 
 (library (sbank gobject genum)
-  (export make-genum genum? genum-lookup genum-values genum-symbols genum-gtype)
+  (export
+   genumerated?
+   genumerated-lookup genumerated-values genumerated-symbols genumerated-gtype
+
+   make-genum genum?
+
+   make-gflags gflags?
+   gflags->integer integer->gflags
+   )
   (import (rnrs)
+          (only (xitomatl srfi vectors) vector-fold)
+          (spells tracing)
           (sbank support utils))
 
-  (define-record-type genum
-    (fields gtype symbols values)
+  (define-record-type genumerated
+    (fields set? gtype symbols values)
     (protocol (lambda (p)
-                (lambda (gtype alist)
-                  (p gtype (list->vector (map car alist)) (list->vector (map cdr alist)))))))
+                (lambda (set? gtype alist)
+                  (p set? gtype (list->vector (map car alist)) (list->vector (map cdr alist)))))))
+
+  (define (make-genum gtype alist)
+    (make-genumerated #f gtype alist))
+
+  (define (genum? thing)
+    (and (genumerated? thing)
+         (not (genumerated-set? thing))))
+
+  (define (make-gflags gtype alist)
+    (make-genumerated #t gtype alist))
+
+  (define (gflags? thing)
+    (and (genumerated? thing)
+         (genumerated-set? thing)))
 
   ;; Note: this could be made more efficient by using sorted vectors
   ;; (but only in one direction)
-  (define (genum-lookup enum sym-or-val)
+  (define (genumerated-lookup enum sym-or-val)
     (if (symbol? sym-or-val)
-        (cond ((vector-index eq? (genum-symbols enum) sym-or-val)
-               => (lambda (i) (vector-ref (genum-values enum) i)))
+        (cond ((vector-index eq? (genumerated-symbols enum) sym-or-val)
+               => (lambda (i) (vector-ref (genumerated-values enum) i)))
               (else #f))
-        (cond ((vector-index eqv? (genum-values enum) sym-or-val)
-               => (lambda (i) (vector-ref (genum-symbols enum) i)))
-              (else #f)))))
+        (cond ((vector-index eqv? (genumerated-values enum) sym-or-val)
+               => (lambda (i) (vector-ref (genumerated-symbols enum) i)))
+              (else #f))))
+
+  (define (gflags->integer flags lst)
+    (fold-left (lambda (val elt)
+                 (bitwise-ior
+                  (cond ((and (symbol? elt) (genumerated-lookup flags elt))
+                         => values)
+                        ((integer? elt) elt)
+                        (else
+                         (error 'gflags->integer "could not convert flag to integer" elt)))
+                  val))
+               0
+               lst))
+
+  (define (integer->gflags flags n)
+    (let ((val-vec (genumerated-values flags))
+          (sym-vec (genumerated-symbols flags)))
+      (vector-fold (lambda (i val sym result)
+                     (if (= (bitwise-and n val) val)
+                         (cons sym result)
+                         result))
+                   (genumerated-values flags)
+                   (genumerated-symbols flags))))
+
+  )

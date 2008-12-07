@@ -142,7 +142,7 @@
     (and-let* ((type (gtype-lookup gtype)))
       (and (genum? type)
            (lambda (val)
-             (genum-lookup type val)))))
+             (genumerated-lookup type val)))))
 
   (define g-value-ref
     (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))

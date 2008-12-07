@@ -68,7 +68,7 @@
   ;; is not a symbol, it is returned with any action done.
   (define (soup-status code)
     (if (symbol? code)
-        (genum-lookup <known-status-code> code)
+        (genumerated-lookup <known-status-code> code)
         code))
 
   ;;@ Do the setup necessary for using Soup. You should call this

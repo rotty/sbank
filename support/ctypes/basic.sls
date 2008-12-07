@@ -172,13 +172,21 @@
         (values 'int                    ; Is int always OK?
                 (lambda (val)
                   (if (symbol? val)
-                      (or (genum-lookup type val)
+                      (or (genumerated-lookup type val)
                           (raise-sbank-callout-error
-                           "invalid enumeration value" val (genum-symbols type)))
+                           "invalid enumeration value" val (genumerated-symbols type)))
                       val))
                 (lambda (val)
-                  (or (genum-lookup type val) val))
+                  (or (genumerated-lookup type val) val))
                 #f))
+       ((gflags? type)
+        (values 'int
+                (lambda (val)
+                  (if (integer? val)
+                      val
+                      (gflags->integer type val)))
+                (lambda (val)
+                  (integer->gflags type val))))
        ((array-type? type)
         (unless (or (array-size type) (array-is-zero-terminated? type))
           (raise-sbank-callout-error "cannot handle array without size information" type))
@@ -249,7 +257,7 @@
           ((string? value)    'string)))
 
   (define (type->gtype type)
-    (cond ((genum? type)         (genum-gtype type))
+    (cond ((genum? type)         (genumerated-gtype type))
           ((gobject-class? type) (gobject-class-gtype type))
           (else type)))
 
@@ -378,7 +386,7 @@
              ((utf8) free)
              ((gvalue) g-value-unset!)
              (else (lose))))
-          ((genum? type) #f)
+          ((genumerated? type) #f)
           ((array-type? type)
            (lambda (ptr)
              (free-c-array ptr type #f)))
@@ -569,7 +577,7 @@
                  (gobject-class? type)
                  (signature? type))
              'pointer)
-            ((genum? type)
+            ((genumerated? type)
              'int)
             ((symbol? type)
              (case type

@@ -351,7 +351,7 @@
                    ((2) make-callback-loader)
                    ((3) make-record-loader)
                    ((5) make-enum-loader)
-                   ((6) make-enum-loader) ;; FIXME: need to treat flags differently
+                   ((6) make-flags-loader)
                    ((7) make-class-loader)
                    ((8) make-interface-loader)
                    ((9) make-constant-loader)
@@ -806,22 +806,29 @@
           (lambda ()
             (make/validate-callback typelib tld signature-offset (not constructor?) container)))))))
 
+  (define (make/validate-enum/flags typelib tld entry-ptr entry-name gtype constructor)
+    (let ((blob (validated-pointer+ tld
+                                    ((dir-entry-fetcher 'offset) entry-ptr)
+                                    ((header-fetcher 'enum-blob-size) tld))))
+      (let-attributes enum-blob-fetcher blob
+                      (blob-type gtype-init n-values values)
+        (unless (or (= blob-type 5) (= blob-type 6)) ;; FIXME: need to treat flags
+          (raise-validation-error "invalid blob type for enum entry" blob-type))
+        (constructor
+         (get/validate-gtype typelib tld gtype-init)
+         (map (lambda (val-ptr)
+                (let-attributes value-blob-fetcher val-ptr
+                                (name value)
+                  (cons (enum-symbol tld name) value)))
+              (make-array-pointers values n-values ((header-fetcher 'value-blob-size) tld)))))))
+
   (define (make-enum-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
-      (let ((blob (validated-pointer+ tld
-                                      ((dir-entry-fetcher 'offset) entry-ptr)
-                                      ((header-fetcher 'enum-blob-size) tld))))
-        (let-attributes enum-blob-fetcher blob
-                        (blob-type gtype-init n-values values)
-          (unless (or (= blob-type 5) (= blob-type 6)) ;; FIXME: need to treat flags
-            (raise-validation-error "invalid blob type for enum entry" blob-type))
-          (make-genum
-           (get/validate-gtype typelib tld gtype-init)
-           (map (lambda (val-ptr)
-                  (let-attributes value-blob-fetcher val-ptr
-                                  (name value)
-                    (cons (enum-symbol tld name) value)))
-                (make-array-pointers values n-values ((header-fetcher 'value-blob-size) tld))))))))
+      (make/validate-enum/flags typelib tld entry-ptr entry-name gtype make-genum)))
+
+  (define (make-flags-loader typelib tld entry-ptr entry-name gtype)
+    (lambda ()
+      (make/validate-enum/flags typelib tld entry-ptr entry-name gtype make-gflags)))
 
   (define (enum-symbol tld name-offset)
     (let ((name (get/validate-string tld name-offset)))

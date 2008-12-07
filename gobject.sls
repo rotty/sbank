@@ -30,7 +30,8 @@
           gobject-class-decorate
           gobject-method-overrider
           ginstance? ginstance=?
-          genum? genum-lookup
+          genum? genumerated-lookup
+          gflags? gflags->integer integer->gflags
           glist?
           gslist?
           ghash? ghash->alist
@@ -45,6 +46,7 @@
           (spells tracing)
           (sbank typelib decorators)
           (sbank gobject gtype)
+          (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject signals)
           (sbank gobject properties)

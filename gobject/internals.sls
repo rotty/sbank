@@ -60,7 +60,10 @@
           send-message
           send
 
-          make-genum genum? genum-lookup genum-values genum-symbols genum-gtype
+          make-genum genum?
+          make-gflags gflags?
+          
+          genumerated-lookup genumerated-values genumerated-symbols genumerated-gtype
 
           gerror-type? make-gerror-type
           gerror? make-gerror gerror-domain gerror-code)
