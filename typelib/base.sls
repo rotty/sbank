@@ -442,13 +442,13 @@
 
   (define (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size)
     (map (lambda (blob)
-           (let-attributes arg-blob-fetcher blob (has-closure has-destroy closure destroy)
+           (let-attributes arg-blob-fetcher blob (closure destroy)
              (stblob-type-info typelib
                                tld
                                (arg-type blob)
                                (bool (arg-null-ok blob))
-                               (and (= has-closure 1) closure)
-                               (and (= has-destroy 1) destroy))))
+                               (and (>= closure 0) closure)
+                               (and (>= destroy 0) destroy))))
          (reverse (make-array-pointers arg-blobs n-args arg-blob-size))))
 
   (define (type-infos-length-indices type-infos)

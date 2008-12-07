@@ -176,23 +176,17 @@
       <field name="return_value" writable="1" bits="1">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="has_closure" writable="1" bits="1">
-        <type name="uint" c:type="guint"/>
-      </field>
-      <field name="has_destroy" writable="1" bits="1">
-        <type name="uint" c:type="guint"/>
-      </field>
       <field name="scope" writable="1" bits="3">
         <type name="uint" c:type="guint"/>
       </field>
-      <field name="reserved" writable="1" bits="19">
+      <field name="reserved" writable="1" bits="21">
         <type name="uint" c:type="guint"/>
       </field>
       <field name="closure" writable="1">
-        <type name="uint16" c:type="guint16"/>
+        <type name="int8" c:type="gint8"/>
       </field>
       <field name="destroy" writable="1">
-        <type name="uint16" c:type="guint16"/>
+        <type name="int8" c:type="gint8"/>
       </field>
       <field name="arg_type" writable="1">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
