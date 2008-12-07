@@ -186,7 +186,8 @@
                       val
                       (gflags->integer type val)))
                 (lambda (val)
-                  (integer->gflags type val))))
+                  (integer->gflags type val))
+                #f))
        ((array-type? type)
         (unless (or (array-size type) (array-is-zero-terminated? type))
           (raise-sbank-callout-error "cannot handle array without size information" type))
