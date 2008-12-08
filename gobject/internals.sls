@@ -33,7 +33,6 @@
           gobject-class-get-signal-signature
           gobject-class-get-signal-rti
           gobject-class-get-property-info
-          gobject-class-size
           gobject-class-decorate
           gobject-method-overrider
           make-gobject-new/props
@@ -62,7 +61,7 @@
 
           make-genum genum?
           make-gflags gflags?
-          
+
           genumerated-lookup genumerated-values genumerated-symbols genumerated-gtype
 
           gerror-type? make-gerror-type
@@ -119,23 +118,36 @@
                 (lambda (namespace name gtype load-members)
                   (p namespace name gtype load-members #f #f #f #f #f #f)))))
 
+  ;; A simple class is one that is not part of the GObject class
+  ;; hierarchy, e.g. plain structs and unions. It has therefore no
+  ;; parent, no interfaces, no signals and no properties.
+  (define-record-type gobject-simple-class
+    (parent gobject-class)
+    (protocol (lambda (n)
+                (lambda (namespace name gtype load-members)
+                  (let ((p (n namespace name gtype
+                              (lambda (class)
+                                (receive (constructors methods) (load-members class)
+                                  (values #f '() constructors methods '() '()))))))
+                    (p))))))
+
   (define-record-type gobject-record-class
-    (parent gobject-class))
+    (parent gobject-simple-class))
 
   (define-record-type gobject-union-class
-    (parent gobject-class))
+    (parent gobject-simple-class))
 
   (define-record-type gsequence-class
-    (parent gobject-class)
+    (parent gobject-simple-class)
     (fields elt-out elt-back elt-cleanup)
     (protocol (lambda (n)
                 (lambda (namespace name constructors methods elt-out elt-back elt-cleanup)
                   (let ((p (n namespace name #f (lambda (class)
-                                                     (values #f '() constructors methods '() '())))))
+                                                  (values constructors methods)))))
                     (p elt-out elt-back elt-cleanup))))))
 
   (define-record-type gmapping-class
-    (parent gobject-class)
+    (parent gobject-simple-class)
     (fields key-out val-out key-back val-back key-cleanup val-cleanup)
     (protocol (lambda (n)
                 (lambda (namespace name constructors methods
@@ -143,7 +155,7 @@
                                    key-back val-back
                                    key-cleanup val-cleanup)
                   (let ((p (n namespace name #f (lambda (class)
-                                                     (values #f '() constructors methods '() '())))))
+                                                  (values constructors methods)))))
                     (p key-out val-out key-back val-back key-cleanup val-cleanup))))))
 
   (define-record-type gslist-class
@@ -221,10 +233,6 @@
 
   (define (gobject-class-get-property-info class property)
     (lookup-property class property))
-
-  (define (gobject-class-size class)
-    ;; FIXME: gross hack, we need to calc size based on fields
-    (* 14 (c-type-sizeof 'pointer)))
 
   (define (gobject-class-decorate class
                                   constructors-decorator

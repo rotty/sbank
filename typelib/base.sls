@@ -877,7 +877,7 @@
            gtype
            (lambda (class)
              (let-attributes record-blob-fetcher blob
-                             (blob-type deprecated unregistered name
+                             (blob-type deprecated unregistered name size
                                         gtype-name gtype-init
                                         n-fields n-methods)
                (let ((fields (pointer+ blob struct-blob-size))
@@ -889,16 +889,16 @@
                            n-fields fields
                            (+ offset struct-blob-size fields-size)
                            0 n-methods 0 0 0)
-                   (values parent
-                           interfaces
-                           (append `((alloc . ,(make-lazy-entry record-alloc))) constructors)
-                           (append `((free . ,record-free)) methods)
-                           signals
-                           properties))))))))))
+                   (if (> size 0)
+                       (values (append `((alloc . ,(make-lazy-entry (record-allocator size))))
+                                       constructors)
+                               (append `((free . ,record-free)) methods))
+                       (values constructors methods)))))))))))
 
-  (define (record-alloc class)
-    (lambda ()
-      (make-ginstance class (malloc (gobject-class-size class)))))
+  (define (record-allocator size)
+    (lambda (class)
+      (lambda ()
+        (make-ginstance class (malloc size)))))
 
   (define (record-free next-method)
     (lambda (instance)
@@ -910,7 +910,7 @@
                                 entry-name
                                 gtype
                                 (lambda (class)
-                                  (values #f '() '() '() '() '())))))
+                                  (values '() '())))))
 
   (define (proc/validation-context proc)
     (let ((context (validation-context)))
