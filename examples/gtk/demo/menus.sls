@@ -27,9 +27,10 @@
              (if tearoff (send menu (append (send <gtk-tearoff-menu-item> (new)))))
              (let loop ((i     0)
                         (group #f))
-               (let ((menuitem (send <gtk-radio-menu-item>
-                                 (new-with-label group
-                                                 (format #f "item ~A - ~A" depth (+ 1 i))))))
+               (let ((menuitem
+                      (send <gtk-radio-menu-item>
+                        (new-with-label group
+                                        (format #f "item ~A - ~A" depth (+ 1 i))))))
                  (send menu (append menuitem))
                  (send menuitem (set-sensitive (not (eq? i 3))))
                  (if (> depth 1)

@@ -19,17 +19,19 @@
     (gobject-class-decorate
      class
      values
-     (gobject-method-overrider `((create-tag . ,text-buffer-create-tag)
-                                 (get-bounds . ,text-buffer-get-bounds)
-                                 (get-iter-at-offset . ,text-buffer-get-iter-at-offset)))
+     (gobject-method-overrider
+      `((create-tag . ,text-buffer-create-tag)
+        (get-bounds . ,text-buffer-get-bounds)
+        (get-iter-at-offset . ,text-buffer-get-iter-at-offset)))
      values))
 
   (define (tree-model-decorator class)
-    (gobject-class-decorate class
-                            values
-                            (gobject-method-overrider `((get-iter . ,tree-model-get-iter)
-                                                        (get-value . ,tree-model-get-value)))
-                            values))
+    (gobject-class-decorate
+     class
+     values
+     (gobject-method-overrider `((get-iter . ,tree-model-get-iter)
+                                 (get-value . ,tree-model-get-value)))
+     values))
 
   (define (tree-selection-decorator class)
     (gobject-class-decorate class
@@ -39,12 +41,13 @@
                             values))
 
   (define (list-store-decorator class)
-    (gobject-class-decorate class
-                            values
-                            (gobject-method-overrider `((append . ,list-store-append)
-                                                        (set-values . ,list-store-set-values)
-                                                        (set-value . ,list-store-set-values)))
-                            values))
+    (gobject-class-decorate
+     class
+     values
+     (gobject-method-overrider `((append . ,list-store-append)
+                                 (set-values . ,list-store-set-values)
+                                 (set-value . ,list-store-set-values)))
+     values))
 
   (define (list-store-append next-method)
     (case-lambda
@@ -57,7 +60,8 @@
     (lambda (store iter . cols/vals)
       (let ((n (length cols/vals)))
         (when (odd? n)
-          (error 'list-store-set-values "odd number of colum/value arguments" cols/vals))
+          (error 'list-store-set-values
+                 "odd number of colum/value arguments" cols/vals))
         ;; note that this will be free'd by the array arg cleanup code
         (let ((gvalues (g-value-alloc (/ n 2))))
           (let loop ((cols '())  (cols/vals cols/vals) (i 0))
@@ -127,7 +131,8 @@
           (register-typelib-decorator "Gtk" "ListStore" list-store-decorator)
           (register-typelib-decorator "Gtk" "TextBuffer" text-buffer-decorator)
           (register-typelib-decorator "Gtk" "TreeModel" tree-model-decorator)
-          (register-typelib-decorator "Gtk" "TreeSelection" tree-selection-decorator)
+          (register-typelib-decorator "Gtk" "TreeSelection"
+                                      tree-selection-decorator)
           (set! installed? #t)))))
 
   (define (gtk-stock-id nick)

@@ -16,7 +16,10 @@
 
   (define (create-bbox horizontal title spacing layout)
     (let ((frame (send <gtk-frame> (new title)))
-          (bbox  (send (if horizontal <gtk-h-button-box> <gtk-v-button-box>) (new))))
+          (bbox  (send (if horizontal
+                           <gtk-h-button-box>
+                           <gtk-v-button-box>)
+                   (new))))
       (send bbox
             (set-layout layout)
             (set-spacing spacing)
@@ -24,9 +27,10 @@
     
       (send frame (add bbox))
     
-      (for-each (lambda (s)
-                  (send bbox (add (send <gtk-button> (new-from-stock (gtk-stock-id s))))))
-                '(ok cancel help))
+      (for-each
+       (lambda (s)
+         (send bbox (add (send <gtk-button> (new-from-stock (gtk-stock-id s))))))
+       '(ok cancel help))
     
       frame))
 

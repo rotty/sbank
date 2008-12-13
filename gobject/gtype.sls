@@ -70,13 +70,12 @@
   (define gtype-size (c-type-sizeof gtype-ctype))
 
   (define gtype->symbol
-    (let-callouts libgobject ((fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype)))
-      (lambda (gtype)
-        (if (= gtype (g-boxed-value-type))
-            'boxed
-            (gtype->symbol% (bitwise-arithmetic-shift-right
-                             (fundamental% gtype)
-                             *fundamental-shift*))))))
+    (lambda (gtype)
+      (if (= gtype (g-boxed-value-type))
+          'boxed
+          (gtype->symbol% (bitwise-arithmetic-shift-right
+                           (fundamental% gtype)
+                           *fundamental-shift*)))))
 
   (define (symbol->gtype sym)
     (case sym
@@ -119,4 +118,8 @@
 
   (define-callouts libgobject
     (g-type-init 'void "g_type_init" '())
-    (g-pointer-type-register-static% gtype-ctype "g_pointer_type_register_static" '(pointer))))
+    (g-pointer-type-register-static%
+     gtype-ctype "g_pointer_type_register_static" '(pointer))
+    (fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype)))
+
+  )

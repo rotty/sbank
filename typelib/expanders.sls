@@ -42,31 +42,46 @@
     (lambda (stx)
       (syntax-case stx ()
         ((k <import-spec> ...)
-         (with-syntax ((typelib-names (generate-temporaries #'(<import-spec> ...))))
-           (with-syntax (((form ...)
-                          (apply append
-                                 (map (lambda (import-spec name)
-                                        (expand-import who #'k name (syntax->datum import-spec)))
-                                      #'(<import-spec> ...)
-                                      #'typelib-names))))
+         (with-syntax ((typelib-names
+                        (generate-temporaries #'(<import-spec> ...))))
+           (with-syntax
+               (((form ...)
+                 (apply
+                  append
+                  (map
+                   (lambda (import-spec name)
+                     (expand-import who #'k name (syntax->datum import-spec)))
+                   #'(<import-spec> ...)
+                   #'typelib-names))))
              #'(begin form ...)))))))
 
   (define (expand-import who k typelib import-spec)
-    (receive (namespace version prefix bindings) (destructure-import-spec who import-spec)
+    (receive (namespace version prefix bindings)
+             (destructure-import-spec who import-spec)
       (let ((bindings (or bindings (get-bindings who namespace version))))
-        (cons #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
-                                                   #,(datum->syntax k version)
-                                                   0))
-              (map (lambda (name)
-                     #`(define #,(datum->syntax k (if prefix (name-symbol/prefix name prefix) name))
-                         (or (typelib-get-entry #,typelib #,(datum->syntax k (c-ified-string name)))
-                             (error '#,(datum->syntax #'k who) "unable to import binding"
-                                    '#,(datum->syntax #'k name)))))
-                   bindings)))))
+        (cons
+         #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
+                                              #,(datum->syntax k version)
+                                              0))
+         (map
+          (lambda (name)
+            #`(define #,(datum->syntax
+                         k
+                         (if prefix (name-symbol/prefix name prefix) name))
+                (or (typelib-get-entry
+                     #,typelib
+                     #,(datum->syntax k (c-ified-string name)))
+                    (error '#,(datum->syntax #'k who) "unable to import binding"
+                           '#,(datum->syntax #'k name)))))
+          bindings)))))
 
   (define (destructure-import-spec who import-spec)
     (define (lose msg . irritants)
-      (apply syntax-violation who (string-append "invalid import spec - " msg) import-spec irritants))
+      (apply syntax-violation
+             who
+             (string-append "invalid import spec - " msg)
+             import-spec
+             irritants))
     (cond ((not (pair? import-spec))
            (lose "must be a pair"))
           ((string? (car import-spec)) ; (<namespace> <version>)

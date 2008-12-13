@@ -35,15 +35,16 @@
                                       '()
                                       '()))))
   (test-define "window" <gtk-window>
-               (make-gobject-class "Gtk" "Window" #f
-                                   (lambda (class)
-                                     (values
-                                      <gtk-widget>
-                                      '()
-                                      `((new . ,(lambda () (make-ginstance class 'new-widget))))
-                                      '()
-                                      '()
-                                      '()))))
+    (make-gobject-class
+     "Gtk" "Window" #f
+     (lambda (class)
+       (values
+        <gtk-widget>
+        '()
+        `((new . ,(lambda () (make-ginstance class 'new-widget))))
+        '()
+        '()
+        '()))))
   (test/equal "construct/show"
     (send (send <gtk-window> (new)) (show))
     'show-result))
@@ -57,7 +58,8 @@
   (test-define "creating/setting (bool)" bool-gv (->g-value #f 'boolean))
   (test/equal "getting (bool)" (g-value-ref bool-gv) #f)
 
-  (test-define "creating/setting (boxed)" boxed-gv (->g-value (list 'foo 42) 'boxed))
+  (test-define "creating/setting (boxed)"
+      boxed-gv (->g-value (list 'foo 42) 'boxed))
   (test/equal "getting (boxed)" (g-value-ref boxed-gv) (list 'foo 42))
 
   (test-define "creating/setting (string)" string-gv (->g-value "FooBar" 'string))

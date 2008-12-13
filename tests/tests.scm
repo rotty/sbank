@@ -42,7 +42,8 @@
    (sbank gobject internals)
    (spells foreign))
 
-  ("everything.scm"
+  ((code (gobject-setup!))
+   "everything.scm"
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
    (spells parameter)

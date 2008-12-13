@@ -61,10 +61,12 @@
       (let ((file (pathname-file pathname)))
         (if (and (file-regular? pathname)
                  (string=? (file-type file) "sls"))
-            (cons (cons (environment `(sbank examples gtk demo ,(string->symbol (file-name file))))
-                        (call-with-input-file (x->namestring pathname)
-                          port->string))
-                  demos)
+            (cons
+             (cons (environment
+                    `(sbank examples gtk demo ,(string->symbol (file-name file))))
+                   (call-with-input-file (x->namestring pathname)
+                     port->string))
+             demos)
             demos)))
     (or dir
         (error 'get-demos "unable to locate demo dir"

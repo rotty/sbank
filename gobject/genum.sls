@@ -41,7 +41,9 @@
     (fields set? gtype symbols values)
     (protocol (lambda (p)
                 (lambda (set? gtype alist)
-                  (p set? gtype (list->vector (map car alist)) (list->vector (map cdr alist)))))))
+                  (p set? gtype
+                     (list->vector (map car alist))
+                     (list->vector (map cdr alist)))))))
 
   (define (make-genum gtype alist)
     (make-genumerated #f gtype alist))
@@ -69,16 +71,18 @@
               (else #f))))
 
   (define (gflags->integer flags lst)
-    (fold-left (lambda (val elt)
-                 (bitwise-ior
-                  (cond ((and (symbol? elt) (genumerated-lookup flags elt))
-                         => values)
-                        ((integer? elt) elt)
-                        (else
-                         (error 'gflags->integer "could not convert flag to integer" elt)))
-                  val))
-               0
-               lst))
+    (fold-left
+     (lambda (val elt)
+       (bitwise-ior
+        (cond ((and (symbol? elt) (genumerated-lookup flags elt))
+               => values)
+              ((integer? elt) elt)
+              (else
+               (error 'gflags->integer
+                      "could not convert flag to integer" elt)))
+        val))
+     0
+     lst))
 
   (define (integer->gflags flags n)
     (let ((val-vec (genumerated-values flags))

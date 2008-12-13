@@ -98,7 +98,8 @@
       (if (null? types)
           result
           (loop (cons (car result)
-                      (append (cdr result) (list (resolve-types (car types) result))))
+                      (append (cdr result)
+                              (list (resolve-types (car types) result))))
                 (cdr types)))))
 
   (define (stype-attribute stype name)
@@ -113,7 +114,9 @@
                  ((pair? (cadr type))
                   (case (caadr type)
                     ((pointer)
-                     (list 'type (append (resolve-types (cadr type) types) pointer-attrs)))
+                     (list 'type
+                           (append (resolve-types (cadr type) types)
+                                   pointer-attrs)))
                     ((array)
                      (list 'type (array-resolver (cadr type) types)))
                     ((record union)
@@ -152,11 +155,12 @@
             (and-let* ((alignment (type-attr et-resolved 'alignment)))
               `((alignment ,alignment)))))
 
-      (cond ((and size alignment)
-             (append resolved size alignment))
-            (else
-             (warning "array with unknown element size/alignment encountered: ~s" type)
-             resolved))))
+      (cond
+       ((and size alignment)
+        (append resolved size alignment))
+       (else
+        (warning "array with unknown element size/alignment encountered: ~s" type)
+        resolved))))
 
 
   (define (compound-resolver type types)
@@ -235,7 +239,10 @@
           (type (sxpath-attr component '(type))))
       (case (car type)
         ((primitive)
-         (values (string->symbol (stype-attribute type 'name)) offset bit-offset bits))
+         (values (string->symbol (stype-attribute type 'name))
+                 offset
+                 bit-offset
+                 bits))
         ((record union)
          (values (car type) offset #f #f))
         ((array)
@@ -246,7 +253,8 @@
         ((pointer)
          (values 'pointer offset #f #f))
         (else
-         (error 'stype-compound-element-fetcher-values "invalid component type" component)))))
+         (error 'stype-compound-element-fetcher-values
+                "invalid component type" component)))))
 
   (define (fetcher-chain stype path)
     (let loop ((fetchers '()) (stype stype) (path path))
@@ -261,10 +269,11 @@
 
   (define (stype-ref stype name)
     (let ((components ((select-component name) stype))
-          (anonymous ((select-kids (lambda (node)
-                                     (and
-                                      (null? ((select-kids (ntype?? 'name)) node))
-                                      (pair? ((select-kids (ntype?? 'size)) node)))))
+          (anonymous ((select-kids
+                       (lambda (node)
+                         (and
+                          (null? ((select-kids (ntype?? 'name)) node))
+                          (pair? ((select-kids (ntype?? 'size)) node)))))
                       stype)))
       (if (null? components)
           (and (pair? anonymous)
@@ -319,7 +328,10 @@
                (size 0) (max-align 0) (bwcomps '()) (bwlist '())
                (components components))
       (define (result-with-bitfields)
-        (let loop ((result result) (bit-offset 0) (comps (reverse bwcomps)) (bws (reverse bwlist)))
+        (let loop ((result result)
+                   (bit-offset 0)
+                   (comps (reverse bwcomps))
+                   (bws (reverse bwlist)))
           (if (null? comps)
               result
               (loop (cons (extend (car comps) `(bit-offset ,bit-offset))
@@ -336,10 +348,11 @@
             size
             (updated-size size (bitfield-size) (bitfield-align))))
       (if (null? components)
-          (let ((max-align (and max-align
-                                (max max-align (if (null? bwlist)
-                                                   0
-                                                   (component-alignment (car bwcomps))))))
+          (let ((max-align
+                 (and max-align
+                      (max max-align (if (null? bwlist)
+                                         0
+                                         (component-alignment (car bwcomps))))))
                 (size (and size (updated-size/bitfield size))))
             (values (reverse (result-with-bitfields))
                     (and size max-align (align size max-align))
@@ -351,7 +364,9 @@
               (max max-align comp-align (bitfield-align)))
             (cond ((and size comp-size comp-align)
                    (let ((cur-offset (updated-size/bitfield size)))
-                     (loop (cons (apply extend (car components) (offset cur-offset comp-align))
+                     (loop (cons (apply extend
+                                        (car components)
+                                        (offset cur-offset comp-align))
                                  (result-with-bitfields))
                            (updated-size cur-offset comp-size comp-align)
                            (alignment)
@@ -359,9 +374,12 @@
                            (cdr components))))
                   ((and comp-bits
                         (or (null? bwlist)
-                            (and-let* ((bwtype (sxpath-attr (car bwcomps) '(type)))
-                                       ((eq? bwtype (sxpath-attr (car components) '(type)))))
-                              (bitfields-fit-inside? bwlist (sxpath-attr bwtype '(size))))))
+                            (and-let*
+                                ((bwtype (sxpath-attr (car bwcomps) '(type)))
+                                 ((eq? bwtype
+                                       (sxpath-attr (car components) '(type)))))
+                              (bitfields-fit-inside?
+                               bwlist (sxpath-attr bwtype '(size))))))
                    (loop result size max-align
                          (cons (apply extend
                                       (car components)
@@ -418,9 +436,13 @@
                                              (datum->syntax #'k (cadr spec))))
                                       specs)))
              #`(define-values (fetcher-name ... setter-name ...)
-                 (apply values
-                        (append (map-apply make-pointer-c-element-getter '(all-args ...))
-                                (map-apply make-pointer-c-element-setter '(setter-args ...)))))))))))
+                 (apply
+                  values
+                  (append
+                   (map-apply make-pointer-c-element-getter
+                              '(all-args ...))
+                   (map-apply make-pointer-c-element-setter
+                              '(setter-args ...)))))))))))
 
   (define (map-apply proc lst)
     (map (lambda (elt)
@@ -432,9 +454,10 @@
       (syntax-case stx ()
         ((k <name> <type-name>)
          (with-syntax (((field ...)
-                        (append-map (lambda (comp)
-                                      (component-fetcher-alist comp 0))
-                                    (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
+                        (append-map
+                         (lambda (comp)
+                           (component-fetcher-alist comp 0))
+                         (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
            #'(define <name>
                (let ((fields '(field ...)))
                  (lambda (sym)
@@ -462,15 +485,16 @@
       ((field record array union)
        (let ((name (sxpath-attr comp '(name)))
              (offset (sxpath-attr comp '(offset))))
-         (cond (name
-                (list
-                 (datum->syntax
-                  #'k
-                  (cons (scheme-ified-symbol name)
-                        (receive (type offset bit-offset bit-size)
+         (cond
+          (name
+           (list
+            (datum->syntax
+             #'k
+             (cons (scheme-ified-symbol name)
+                   (receive (type offset bit-offset bit-size)
                             (stype-compound-element-fetcher-values comp)
-                          (list type (+ base-offset offset) bit-offset bit-size))))))
-               (else (append-map (lambda (nested-comp)
-                                   (component-fetcher-alist nested-comp offset))
-                                 (cdr comp))))))
+                     (list type (+ base-offset offset) bit-offset bit-size))))))
+          (else (append-map (lambda (nested-comp)
+                              (component-fetcher-alist nested-comp offset))
+                            (cdr comp))))))
       (else '()))))

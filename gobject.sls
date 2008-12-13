@@ -54,13 +54,14 @@
   
 
   (define (gobject-decorator class)
-    (gobject-class-decorate class
-                            values
-                            (gobject-method-overrider `((connect . ,g-object-connect)
-                                                        (emit . ,g-object-emit)
-                                                        (get . ,g-object-get)
-                                                        (set . ,g-object-set)))
-                            values))
+    (gobject-class-decorate
+     class
+     values
+     (gobject-method-overrider `((connect . ,g-object-connect)
+                                 (emit . ,g-object-emit)
+                                 (get . ,g-object-get)
+                                 (set . ,g-object-set)))
+     values))
 
   (define (gvalue-decorator class)
     'gvalue)
@@ -86,7 +87,8 @@
       (let loop ((vals '()) (props properties))
         (if (null? props)
             (apply values (reverse vals))
-            (loop (cons (g-object-get-property instance (car props)) vals) (cdr props))))))
+            (loop (cons (g-object-get-property instance (car props)) vals)
+                  (cdr props))))))
 
   (define (gvalue-new class)
     (lambda (next-method)

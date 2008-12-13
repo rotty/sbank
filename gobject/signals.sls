@@ -49,66 +49,61 @@
        ;; current ikarus FFI doesn't allow us doing that
        #f)))
 
-  (define g-signal-connect
-    (let-callouts libgobject
-        ((g-signal-connect-data
-          'ulong "g_signal_connect_data" '(pointer pointer pointer pointer pointer int)))
-      (define (lose msg . irritants)
-        (apply error 'g-signal-connect msg irritants))
-      (lambda (instance signal callback)
-        (let*-values (((signal detail detailed-signal) (parse-signal-spec signal lose))
-                      ((detailed-signal-ptr) (string->utf8z-ptr detailed-signal)))
-          (let ((id (g-signal-connect-data
-                     (ginstance-ptr instance)
-                     detailed-signal-ptr
-                     (cond ((gobject-class-get-signal-callback
-                             (ginstance-class instance)
-                             signal) => (lambda (wrap) (wrap callback)))
-                           (else
-                            (lose "no such signal" detailed-signal)))
-                     (integer->pointer 0)
-                     signal-destroy-notify-ptr
-                     0)))
-            (free detailed-signal-ptr)
-            id)))))
+  (define (g-signal-connect instance signal callback)
+    (define (lose msg . irritants)
+      (apply error 'g-signal-connect msg irritants))
+    (let*-values
+        (((signal detail detailed-signal) (parse-signal-spec signal lose))
+         ((detailed-signal-ptr) (string->utf8z-ptr detailed-signal)))
+      (let ((id (connect-data%
+                 (ginstance-ptr instance)
+                 detailed-signal-ptr
+                 (cond ((gobject-class-get-signal-callback
+                         (ginstance-class instance)
+                         signal) => (lambda (wrap) (wrap callback)))
+                       (else
+                        (lose "no such signal" detailed-signal)))
+                 (integer->pointer 0)
+                 signal-destroy-notify-ptr
+                 0)))
+        (free detailed-signal-ptr)
+        id)))
 
   (define gquark-ctype 'uint32)
 
   (define g-signal-lookup
-    (let-callouts libgobject ((lookup% 'uint "g_signal_lookup" `(pointer ,gtype-ctype)))
-      (lambda (signal class)
-        (let* ((name-ptr (string->utf8z-ptr (symbol->string signal)))
-               (rv (lookup% name-ptr (gobject-class-gtype class))))
-          (free name-ptr)
-          rv))))
+    
+    (lambda (signal class)
+      (let* ((name-ptr (string->utf8z-ptr (symbol->string signal)))
+             (rv (lookup% name-ptr (gobject-class-gtype class))))
+        (free name-ptr)
+        rv)))
 
-  (define g-signal-emit
-    (let-callouts libgobject ((g-signal-emitv
-                               'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
-      (lambda (instance signal . args)
-        (define (lose msg . irritants)
-          (apply error 'signal-emit msg irritants))
-        (receive (signal detail detailed-signal) (parse-signal-spec signal lose)
-          (let* ((signal-id (g-signal-lookup signal (ginstance-class instance)))
-                 (signature (gobject-class-get-signal-signature (ginstance-class instance) signal))
-                 (rti (signature-rti signature))
-                 (atis (signature-atis signature))
-                 (n-args (+ (length atis) 1))
-                 (arg-gvs (->g-value-array
-                           (cons (ginstance-ptr instance) args)
-                           #f
-                           (cons (gobject-class-gtype (ginstance-class instance))
-                                 (map type-info-gtype atis)))))
-            (cond ((eq? (type-info-type rti) 'void)
-                   (g-signal-emitv arg-gvs signal-id detail (integer->pointer 0))
-                   (free-g-value-array arg-gvs n-args))
-                  (else
-                   (let ((ret-gv (g-value-new (type-info-gtype rti))))
-                     (g-signal-emitv arg-gvs signal-id detail ret-gv)
-                     (free-g-value-array arg-gvs n-args)
-                     (let ((rv (g-value-ref ret-gv)))
-                       (g-value-free ret-gv)
-                       rv)))))))))
+  (define (g-signal-emit instance signal . args)
+    (define (lose msg . irritants)
+      (apply error 'signal-emit msg irritants))
+    (receive (signal detail detailed-signal) (parse-signal-spec signal lose)
+      (let* ((signal-id (g-signal-lookup signal (ginstance-class instance)))
+             (signature (gobject-class-get-signal-signature
+                         (ginstance-class instance) signal))
+             (rti (signature-rti signature))
+             (atis (signature-atis signature))
+             (n-args (+ (length atis) 1))
+             (arg-gvs (->g-value-array
+                       (cons (ginstance-ptr instance) args)
+                       #f
+                       (cons (gobject-class-gtype (ginstance-class instance))
+                             (map type-info-gtype atis)))))
+        (cond ((eq? (type-info-type rti) 'void)
+               (emitv% arg-gvs signal-id detail (integer->pointer 0))
+               (free-g-value-array arg-gvs n-args))
+              (else
+               (let ((ret-gv (g-value-new (type-info-gtype rti))))
+                 (emitv% arg-gvs signal-id detail ret-gv)
+                 (free-g-value-array arg-gvs n-args)
+                 (let ((rv (g-value-ref ret-gv)))
+                   (g-value-free ret-gv)
+                   rv)))))))
 
   (define (parse-signal-spec signal lose)
     (cond ((string? signal)
@@ -121,4 +116,13 @@
           ((symbol? signal)
            (values signal 0 (symbol->string signal)))
           (else
-           (lose "invalid signal specification" signal)))))
+           (lose "invalid signal specification" signal))))
+
+
+  (define-callouts libgobject
+    (connect-data% 'ulong "g_signal_connect_data"
+                   '(pointer pointer pointer pointer pointer int))
+    (lookup% 'uint "g_signal_lookup" `(pointer ,gtype-ctype))
+    (emitv% 'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
+  
+  )

@@ -59,21 +59,23 @@
            primlist)
       (make-list (length primlist) '(name #t size #t alignment #t)))))
 
-(let* ((stypes (stypes-adjoin primitive-stypes
-                              '(record
-                                (name "Foo")
-                                (field (name "frobotz") (type "uint"))
-                                (field (name "val")
-                                       (type (array (element-type (type "double"))
-                                                    (element-count 3))))
-                                (field (name "data") (type (pointer (type "uint8"))))
-                                (field (name "tag") (type "uint8") (bits 5))
-                                (union
-                                 (field (name "u1") (type "double"))
-                                 (field (name "u2") (type "uint16")))
-                                (field (name "last") (type "boolean")))))
-       (data-offset (c-type-align 'uint (+ (c-type-align 'double (c-type-sizeof 'uint))
-                                           (* 3 (c-type-sizeof 'double)))))
+(let* ((stypes (stypes-adjoin
+                primitive-stypes
+                '(record
+                  (name "Foo")
+                  (field (name "frobotz") (type "uint"))
+                  (field (name "val")
+                         (type (array (element-type (type "double"))
+                                      (element-count 3))))
+                  (field (name "data") (type (pointer (type "uint8"))))
+                  (field (name "tag") (type "uint8") (bits 5))
+                  (union
+                   (field (name "u1") (type "double"))
+                   (field (name "u2") (type "uint16")))
+                  (field (name "last") (type "boolean")))))
+       (data-offset (c-type-align 'uint
+                                  (+ (c-type-align 'double (c-type-sizeof 'uint))
+                                     (* 3 (c-type-sizeof 'double)))))
        (tag-offset (c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
        (u-offset (c-type-align 'double (+ tag-offset 1)))
        (last-offset (c-type-align 'int (+ u-offset (c-type-sizeof 'double)))))
@@ -86,10 +88,12 @@
                       (type ,(stypes-ref stypes "uint"))
                       (offset 0))
                (field (name "val")
-                      (type (array (element-type (type ,(stypes-ref stypes "double")))
-                                   (element-count 3)
-                                   (size ,(* 3 (c-type-sizeof 'double)))
-                                   (alignment ,(c-type-alignof 'double))))
+                      (type
+                       (array
+                        (element-type (type ,(stypes-ref stypes "double")))
+                        (element-count 3)
+                        (size ,(* 3 (c-type-sizeof 'double)))
+                        (alignment ,(c-type-alignof 'double))))
                       (offset ,(c-type-align 'double (c-type-sizeof 'uint))))
                (field (name "data")
                       (type (pointer (type ,(stypes-ref stypes "uint8"))
@@ -99,10 +103,14 @@
                (field (name "tag")
                       (type ,(stypes-ref stypes "uint8"))
                       (bits 5)
-                      (offset ,(c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
+                      (offset ,(c-type-align
+                                'uint8
+                                (+ data-offset (c-type-sizeof 'pointer))))
                       (bit-offset 0))
-               (union (field (name "u1") (type ,(stypes-ref stypes "double")) (offset 0))
-                      (field (name "u2") (type ,(stypes-ref stypes "uint16")) (offset 0))
+               (union (field (name "u1")
+                             (type ,(stypes-ref stypes "double")) (offset 0))
+                      (field (name "u2")
+                             (type ,(stypes-ref stypes "uint16")) (offset 0))
                       (size ,(c-type-sizeof 'double))
                       (alignment ,(c-type-alignof 'double))
                       (offset ,u-offset))
@@ -124,11 +132,12 @@
                   (field (name "g_type") (type "gtype"))
                   (field
                    (name "data")
-                   (type (array (element-type
-                                 (type
-                                  (union (field (name "v_int") (type "int"))
-                                         (field (name "v_double") (type "double")))))
-                                (element-count 2)))))))
+                   (type (array
+                          (element-type
+                           (type
+                            (union (field (name "v_int") (type "int"))
+                                   (field (name "v_double") (type "double")))))
+                          (element-count 2)))))))
        (gv-stype (stypes-ref stypes "GValue")))
   (testeez "Size calculation"
     (test-true "GValue size sane" (>= (stype-attribute gv-stype 'size)
@@ -165,7 +174,8 @@
                                  (bitwise-arithmetic-shift 1 i)
                                  (native-endianness)
                                  (c-type-sizeof 'uint)))
-         (bytevector-uint-set! bv ptr-offset 0 (native-endianness) (c-type-sizeof 'pointer))
+         (bytevector-uint-set! bv ptr-offset 0 (native-endianness)
+                               (c-type-sizeof 'pointer))
          (memcpy (malloc byte-size) bv byte-size))))
 
   (let* ((stblob (stypes-ref stypes "SimpleTypeBlob"))

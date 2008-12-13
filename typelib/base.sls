@@ -79,7 +79,8 @@
     (tl-data "data"))
 
   (define-accessors "Header"
-    ;; This needs to be reasonably fast, so we don't use let-attribute/fetchers here
+    ;; This needs to be reasonably fast, so we don't use
+    ;; let-attribute/fetchers here
     (header-size "size"))
 
   (define-accessors "ArgBlob"
@@ -91,7 +92,8 @@
     (arg-transfer-container-ownership "transfer_container_ownership")
     (arg-type "arg_type"))
 
-  (define-syntax define-fetcher (stype-fetcher-factory-definer (typelib-stypes)))
+  (define-syntax define-fetcher
+    (stype-fetcher-factory-definer (typelib-stypes)))
 
   (define-fetcher header-fetcher "Header")
   (define-fetcher function-blob-fetcher "FunctionBlob")
@@ -150,19 +152,25 @@
                       (cerr "DEPRECATED: item " name " of namespace "
                             (typelib-namespace typelib) "\n"))))
 
+  (define (names->shlibs names)
+    (filter-map
+     (lambda (name)
+       (let ((shlib (or (dlopen name #t #t)
+                        (dlopen (string-append "lib" name ".so") #t #t))))
+         (unless shlib
+           (warning
+            "failed to load shared library '~a' referenced by the typelib: ~a"
+            name (dlerror)))
+         shlib))
+     (string-split names #\,)))
+  
   ;; See comments in gtypelib.c (_g_typelib_init)
   (define (typelib-shlibs typelib)
     (or (%typelib-shlibs typelib)
         (let* ((tld (tl-data (typelib-tl typelib)))
-               (names (get/validate-string tld (typelib-header typelib 'shared-library)))
-               (shlibs (filter-map
-                        (lambda (name)
-                          (let ((shlib (or (dlopen name #t #t)
-                                           (dlopen (string-append "lib" name ".so") #t #t))))
-                            (unless shlib
-                              (warning "failed to load shared library '~a' referenced by the typelib: ~a" (dlerror)))
-                            shlib))
-                        (string-split names #\,))))
+               (names (get/validate-string
+                       tld (typelib-header typelib 'shared-library)))
+               (shlibs (names->shlibs names)))
           (let* ((app-dl (dlopen))
                  (shlibs (if app-dl (append shlibs (list app-dl)) shlibs)))
             (%typelib-set-shlibs! typelib shlibs)
@@ -185,26 +193,28 @@
 
   (define (require-typelib namespace version flags)
     (or (table-ref *registered-typelibs* namespace)
-        (let ((typelib (require-typelib% 'require-typelib namespace version flags)))
+        (let ((typelib (require-typelib% 'require-typelib
+                                         namespace version flags)))
           (table-set! *registered-typelibs* namespace typelib)
           typelib)))
 
-  (define require-typelib%
-    (let ((g-ir-require ((make-c-callout 'pointer '(pointer pointer pointer uint pointer))
-                           (dlsym libgir "g_irepository_require"))))
-      (lambda (who namespace version flags)
-        (with-validation-context namespace
-          (let ((c-namespace (->utf8z-ptr/null who namespace))
-                (c-version (->utf8z-ptr/null who version))
-                (gerror (malloc/set! 'pointer (integer->pointer 0))))
-            (let ((result
-                   (g-ir-require (integer->pointer 0) c-namespace c-version flags gerror)))
-              (cond ((= 0 (pointer->integer result))
-                     (let ((e (pointer-ref-c-pointer gerror 0)))
-                       (free gerror)
-                       (raise-gerror/free 'require-typelib #f e namespace version)))
-                    (else
-                     (make/validate-typelib result namespace)))))))))
+  (define (require-typelib% who namespace version flags)
+    (with-validation-context namespace
+      (let ((c-namespace (->utf8z-ptr/null who namespace))
+            (c-version (->utf8z-ptr/null who version))
+            (gerror (malloc/set! 'pointer (integer->pointer 0))))
+        (let ((result
+               (g-ir-require% (integer->pointer 0)
+                              c-namespace
+                              c-version
+                              flags
+                              gerror)))
+          (cond ((= 0 (pointer->integer result))
+                 (let ((e (pointer-ref-c-pointer gerror 0)))
+                   (free gerror)
+                   (raise-gerror/free 'require-typelib #f e namespace version)))
+                (else
+                 (make/validate-typelib result namespace)))))))
 
 
   (define (typelib-magic typelib)
@@ -254,9 +264,12 @@
   (define-syntax with-validation-context
     (syntax-rules ()
       ((_ <context> <body> ...)
-       (parameterize ((validation-context (cons <context> (validation-context))))
+       (parameterize ((validation-context
+                       (cons <context> (validation-context))))
          <body> ...))))
 
+  (define tl-magic-bytes (string->utf8 "GOBJ\nMETADATA\r\n\x1a;"))
+  
   (define (make/validate-typelib tl namespace)
     (define (lose msg . irritants)
       (apply raise-validation-error msg irritants))
@@ -264,7 +277,7 @@
       (let-attributes header-fetcher tld
                       (magic major-version minor-version n-entries)
         (and-let* ((magic (memcpy (make-bytevector 16) magic 16))
-                   ((not (bytevector=? magic (string->utf8 "GOBJ\nMETADATA\r\n\x1a;")))))
+                   ((not (bytevector=? magic tl-magic-bytes))))
           (lose "invalid magic" magic))
         (or (and (= major-version 2) (= minor-version 0))
             (lose "version mismatch" major-version minor-version))
@@ -281,30 +294,33 @@
           typelib))))
 
   (define (validate-blob-sizes tld)
-    (for-each (lambda (blob-name/size)
-                (let ((actual-size ((header-fetcher
-                                     (symbol-append (car blob-name/size) '- 'blob-size))
-                                    tld)))
-                  (or (= (cdr blob-name/size) actual-size)
-                      (raise-validation-error "blob size mismatch" blob-name/size actual-size))))
-              '((entry . 12)
-                (function . 20)
-                (callback . 12)
-                (signal . 12)
-                (vfunc . 16)
-                (arg . 16)
-                (property . 12)
-                (field . 12)
-                (value . 12)
-                (constant . 20)
-                (error-domain . 16)
-                (annotation . 12)
-                (signature . 8)
-                (enum . 20)
-                (struct . 24)
-                (object . 32)
-                (interface . 28)
-                (union . 32))))
+    (for-each
+     (lambda (blob-name/size)
+       (let ((actual-size ((header-fetcher
+                            (symbol-append (car blob-name/size) '- 'blob-size))
+                           tld)))
+         (or (= (cdr blob-name/size) actual-size)
+             (raise-validation-error "blob size mismatch"
+                                     blob-name/size
+                                     actual-size))))
+     '((entry . 12)
+       (function . 20)
+       (callback . 12)
+       (signal . 12)
+       (vfunc . 16)
+       (arg . 16)
+       (property . 12)
+       (field . 12)
+       (value . 12)
+       (constant . 20)
+       (error-domain . 16)
+       (annotation . 12)
+       (signature . 8)
+       (enum . 20)
+       (struct . 24)
+       (object . 32)
+       (interface . 28)
+       (union . 32))))
 
   (define (fill/validate-directory! typelib tld)
     (let-attributes header-fetcher tld
@@ -314,14 +330,18 @@
            (gtype-table (typelib-gtype-table typelib))
            (i 0 (+ i 1))
            (entry-ptr
-            (validated-pointer+ tld directory (* n-local-entries entry-blob-size))
+            (validated-pointer+ tld directory
+                                (* n-local-entries entry-blob-size))
             (pointer+ entry-ptr entry-blob-size)))
           ((>= i n-entries))
         (let-attributes dir-entry-fetcher entry-ptr
                         (name)
           (let* ((name (get/validate-string tld name))
-                 (gtype (get/validate-dir-entry-gtype typelib tld name entry-ptr)))
-            (vector-set! dir i (make-lazy-entry (make-entry-loader typelib tld name entry-ptr gtype)))
+                 (gtype (get/validate-dir-entry-gtype typelib tld
+                                                      name entry-ptr)))
+            (vector-set! dir i
+                         (make-lazy-entry
+                          (make-entry-loader typelib tld name entry-ptr gtype)))
             (when gtype
               (table-set! gtype-table gtype (+ i 1)))
             (when (< i n-local-entries)
@@ -359,19 +379,22 @@
                    (else
                     (lambda args
                       (lambda ()
-                        (raise-validation-error "unknown entry type encountered" blob-type)))))
+                        (raise-validation-error
+                         "unknown entry type encountered" blob-type)))))
                  typelib tld entry-ptr entry-name gtype))))))))
 
   (define (make-function-loader typelib tld entry-ptr name gtype)
-    (let ((blob (validated-pointer+ tld
-                                    ((dir-entry-fetcher 'offset) entry-ptr)
-                                    ((header-fetcher 'function-blob-size) tld))))
+    (let ((blob (validated-pointer+
+                 tld
+                 ((dir-entry-fetcher 'offset) entry-ptr)
+                 ((header-fetcher 'function-blob-size) tld))))
       (lambda ()
         (make/validate-function typelib tld blob #f))))
 
   (define (get-signature typelib tld signature constructor? container)
     (or (table-ref (typelib-signatures typelib) signature)
-        (let ((result (make/validate-signature typelib tld signature constructor? container)))
+        (let ((result (make/validate-signature
+                       typelib tld signature constructor? container)))
           (table-set! (typelib-signatures typelib) signature result)
           result)))
 
@@ -382,54 +405,67 @@
                        constructor getter setter)
       (let ((name (get/validate-string tld name)))
         (unless (= blob-type 1)
-          (raise-validation-error "invalid blob type for function entry" blob-type))
+          (raise-validation-error
+           "invalid blob type for function entry" blob-type))
         (when (and (bool constructor) (not container))
           (raise-validation-error "constructor without container"))
         (unless (or (= index 0) (bool setter) (bool getter) (bool wraps-vfunc))
-          (raise-validation-error "indexed function blob must be setter getter or wrapper"))
-        (let ((signature (get-signature typelib tld signature (bool constructor) container)))
-          (cond ((= wraps-vfunc 1)
-                 (make/validate-vfunc-caller tld index (signature-callout signature)))
-                ((= getter 1)
-                 (raise-validation-error "getters not yet supported"))
-                ((= setter 1)
-                 (raise-validation-error "setters not yet supported"))
-                (else
-                 (let* ((sym-name (get/validate-string tld symbol))
-                        (proc ((signature-callout signature)
-                              (or
-                               (typelib-dlsym typelib sym-name)
-                               (raise-validation-error "unable to lookup symbol"
-                                                       (typelib-namespace typelib)
-                                                       sym-name)))))
-                   (if (= deprecated 1)
-                       (mark-deprecated typelib tld name proc)
-                       proc))))))))
+          (raise-validation-error
+           "indexed function blob must be setter getter or wrapper"))
+        (let ((signature (get-signature typelib tld signature
+                                        (bool constructor) container)))
+          (cond
+           ((= wraps-vfunc 1)
+            (make/validate-vfunc-caller tld index (signature-callout signature)))
+           ((= getter 1)
+            (raise-validation-error "getters not yet supported"))
+           ((= setter 1)
+            (raise-validation-error "setters not yet supported"))
+           (else
+            (let* ((sym-name (get/validate-string tld symbol))
+                   (proc ((signature-callout signature)
+                          (or
+                           (typelib-dlsym typelib sym-name)
+                           (raise-validation-error "unable to lookup symbol"
+                                                   (typelib-namespace typelib)
+                                                   sym-name)))))
+              (if (= deprecated 1)
+                  (mark-deprecated typelib tld name proc)
+                  proc))))))))
 
   (define (make-callback-loader typelib tld entry-ptr name gtype)
-    (let ((blob (validated-pointer+ tld
-                                    ((dir-entry-fetcher 'offset) entry-ptr)
-                                    ((header-fetcher 'callback-blob-size) tld))))
+    (let ((blob (validated-pointer+
+                 tld
+                 ((dir-entry-fetcher 'offset) entry-ptr)
+                 ((header-fetcher 'callback-blob-size) tld))))
       (lambda ()
         (let-attributes callback-blob-fetcher blob (deprecated signature)
           (make/validate-signature typelib tld signature #f #f)))))
 
-  (define (make/validate-callout typelib tld signature-offset constructor? container)
+  (define (make/validate-callout typelib tld signature-offset
+                                 constructor? container)
     (let-attributes signature-blob-fetcher
-        (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
-        (return-type may-return-null caller-owns-return-value caller-owns-return-container
-                     n-arguments arguments)
-      (let-values (((rti)
-                    (if constructor?
-                        (make-type-info container #t (bool may-return-null))
-                        (stblob-type-info typelib tld return-type (bool may-return-null) #f #f)))
-                   ((arg-types setup collect cleanup arg-flags)
-                    (arg-blobs-callout-values typelib
-                                              tld
-                                              arguments
-                                              n-arguments
-                                              constructor?
-                                              container)))
+        (validated-pointer+ tld signature-offset
+                            ((header-fetcher 'signature-blob-size) tld))
+        (return-type
+         may-return-null
+         caller-owns-return-value
+         caller-owns-return-container
+         n-arguments
+         arguments)
+      (let-values
+          (((rti)
+            (if constructor?
+                (make-type-info container #t (bool may-return-null))
+                (stblob-type-info typelib tld return-type
+                                  (bool may-return-null) #f #f)))
+           ((arg-types setup collect cleanup arg-flags)
+            (arg-blobs-callout-values typelib
+                                      tld
+                                      arguments
+                                      n-arguments
+                                      constructor?
+                                      container)))
         (when (and constructor? (not (gobject-class? (type-info-type rti))))
           (raise-validation-error "constructor does not return a class type"))
         (make-callout rti arg-types
@@ -458,9 +494,11 @@
                          (array-length-index type))))
                 type-infos))
 
-  (define (arg-blobs-callout-values typelib tld arg-blobs n-args constructor? container)
+  (define (arg-blobs-callout-values typelib tld arg-blobs n-args
+                                    constructor? container)
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
-           (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
+           (type-infos (arg-blobs-type-infos typelib tld
+                                             arg-blobs n-args arg-blob-size))
            (length-indices (type-infos-length-indices type-infos))
            (closure-indices (filter-map type-info-closure-index type-infos))
            (destroy-indices (filter-map type-info-destroy-index type-infos))
@@ -476,7 +514,8 @@
         (if (< i 0)
             (if has-self-ptr?
                 (receive (setup! collect cleanup)
-                         (arg-callout-steps (make-type-info container #t #f) 0 '(in) gtype-lookup)
+                         (arg-callout-steps
+                          (make-type-info container #t #f) 0 '(in) gtype-lookup)
                   (assert (not (or collect cleanup)))
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons setup! setup-steps)
@@ -523,13 +562,15 @@
                  ((eqv? i #f) '()) ;; return value
                  (else
                   (raise-validation-error "argument has no direction" i)))))
-      (append direction
-              (if transfer-ownership? '(transfer-ownership) '())
-              (if transfer-container-ownership? '(transfer-container-ownership) '()))))
+      (append
+       direction
+       (if transfer-ownership? '(transfer-ownership) '())
+       (if transfer-container-ownership? '(transfer-container-ownership) '()))))
 
   (define (arg-blobs-callback-values typelib tld arg-blobs n-args method? container)
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
-           (type-infos (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size))
+           (type-infos (arg-blobs-type-infos typelib tld
+                                             arg-blobs n-args arg-blob-size))
            (length-indices (type-infos-length-indices type-infos))
            (has-self-ptr? (and method? container))
            (gtype-lookup (typelib-gtype-lookup typelib)))
@@ -542,7 +583,9 @@
         (if (< i 0)
             (if has-self-ptr?
                 (receive (prepare store)
-                         (arg-callback-steps (make-type-info container #t #f) 0 gtype-lookup)
+                         (arg-callback-steps (make-type-info container #t #f)
+                                             0
+                                             gtype-lookup)
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons prepare prepare-steps)
                           store-steps
@@ -552,12 +595,17 @@
                    (in? (bool (arg-in arg-blob)))
                    (out? (bool (arg-out arg-blob)))
                    (transfer-ownership? (bool (arg-transfer-ownership arg-blob)))
-                   (transfer-container-ownership? (bool (arg-transfer-container-ownership arg-blob)))
+                   (transfer-container-ownership?
+                    (bool (arg-transfer-container-ownership arg-blob)))
                    (length? (memv i length-indices)))
               (define (arg-flags)
-                (calc-flags i in? out? transfer-ownership? transfer-container-ownership?))
+                (calc-flags i in? out?
+                            transfer-ownership?
+                            transfer-container-ownership?))
               (receive (prepare store)
-                       (arg-callback-steps (car tis) (if has-self-ptr? (+ i 1) i) gtype-lookup)
+                       (arg-callback-steps (car tis)
+                                           (if has-self-ptr? (+ i 1) i)
+                                           gtype-lookup)
                 (cond (length?
                        (loop (cons (car tis) arg-types)
                              prepare-steps
@@ -577,7 +625,8 @@
 
   (define (make/validate-callback typelib tld signature-offset method? container)
     (let-attributes signature-blob-fetcher
-        (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
+        (validated-pointer+ tld signature-offset
+                            ((header-fetcher 'signature-blob-size) tld))
         (return-type n-arguments arguments may-return-null)
       (receive (arg-types prepare store flags)
                (arg-blobs-callback-values typelib
@@ -586,12 +635,13 @@
                                           n-arguments
                                           method?
                                           container)
-        (make-callback (stblob-type-info typelib tld return-type (bool may-return-null) #f #f)
-                       arg-types
-                       prepare
-                       store
-                       flags
-                       (typelib-gtype-lookup typelib)))))
+        (make-callback
+         (stblob-type-info typelib tld return-type (bool may-return-null) #f #f)
+         arg-types
+         prepare
+         store
+         flags
+         (typelib-gtype-lookup typelib)))))
 
   (define (make-interface-loader typelib tld entry-ptr name gtype)
     (let-attributes header-fetcher tld (interface-blob-size field-blob-size)
@@ -604,11 +654,13 @@
            gtype
            (lambda (class)
              (let-attributes interface-blob-fetcher blob
-                             (blob-type deprecated name
-                                        n-prerequisites n-properties n-methods n-signals
-                                        n-vfuncs n-constants)
+                             (blob-type
+                              deprecated name
+                              n-prerequisites n-properties n-methods n-signals
+                              n-vfuncs n-constants)
                (unless (= blob-type 8)
-                 (raise-validation-error "invalid blob type for object entry" blob-type))
+                 (raise-validation-error
+                  "invalid blob type for object entry" blob-type))
                (let ((prereq-size (c-type-align 'uint32 (* 2 n-prerequisites))))
                  (validated-pointer+ tld offset (+ interface-blob-size prereq-size))
                  (let* ((prereqs (pointer+ blob interface-blob-size)))
@@ -625,7 +677,8 @@
 
   (define (make-class-loader typelib tld entry-ptr name gtype)
     (let* ((offset ((dir-entry-fetcher 'offset) entry-ptr))
-           (blob (validated-pointer+ tld offset ((header-fetcher 'object-blob-size) tld))))
+           (blob (validated-pointer+ tld offset
+                                     ((header-fetcher 'object-blob-size) tld))))
       (lambda ()
         (make-gobject-class
          (typelib-namespace typelib)
@@ -637,16 +690,21 @@
                                              function-blob-size signal-blob-size
                                              vfunc-blob-size constant-blob-size)
              (let-attributes object-blob-fetcher blob
-                             (blob-type deprecated name gtype-name gtype-init parent
-                                        n-interfaces n-fields n-properties n-methods n-signals
-                                        n-vfuncs n-constants)
+                             (blob-type
+                              deprecated name gtype-name gtype-init parent
+                              n-interfaces n-fields n-properties n-methods n-signals
+                              n-vfuncs n-constants)
                (unless (= blob-type 7)
-                 (raise-validation-error "invalid blob type for object entry" blob-type))
+                 (raise-validation-error
+                  "invalid blob type for object entry" blob-type))
                (when (= deprecated 1)
-                 ((typelib-deprecation-handler) typelib (get/validate-string tld name)))
+                 ((typelib-deprecation-handler)
+                  typelib
+                  (get/validate-string tld name)))
                (let ((ifaces-size (c-type-align 'uint32 (* 2 n-interfaces)))
                      (fields-size (* field-blob-size n-fields)))
-                 (validated-pointer+ tld offset (+ object-blob-size ifaces-size fields-size))
+                 (validated-pointer+ tld offset
+                                     (+ object-blob-size ifaces-size fields-size))
                  (let* ((ifaces (pointer+ blob object-blob-size))
                         (fields (pointer+ ifaces ifaces-size))
                         (parent (and (> parent 0)
@@ -661,7 +719,9 @@
 
 
   (define gtype-additional-constructors
-    (let ((gobject-acs `((new/props . ,(make-lazy-entry (make-gobject-new/props type->gtype))))))
+    (let ((gobject-acs
+           `((new/props
+              . ,(make-lazy-entry (make-gobject-new/props type->gtype))))))
       (lambda (gtype)
         (if gtype
             (case (gtype->symbol gtype)
@@ -689,8 +749,10 @@
     (define (signal-maker blob)
       (let-attributes signal-blob-fetcher blob
                         (name signature)
-        (make-lazy/offset name (lambda (container)
-                                 (make/validate-signature typelib tld signature #f container)))))
+        (make-lazy/offset
+         name
+         (lambda (container)
+           (make/validate-signature typelib tld signature #f container)))))
     (define (field-getter-maker blob)
       (let-attributes field-blob-fetcher blob
                       (name readable bits struct-offset type)
@@ -699,7 +761,8 @@
                (= bits 0) ;; FIXME: support bitfields
                (not (= struct-offset #x0ffff))
                (make-lazy field-name
-                          (string->symbol (string-append "get-" (scheme-ified-string field-name)))
+                          (string->symbol
+                           (string-append "get-" (scheme-ified-string field-name)))
                           (field-getter-method typelib tld type struct-offset))))))
     (define (field-setter-maker blob)
       (let-attributes field-blob-fetcher blob
@@ -709,20 +772,26 @@
                (= bits 0) ;; FIXME: support bitfields
                (not (= struct-offset #x0ffff))
                (make-lazy field-name
-                          (string->symbol (string-append "set-" (scheme-ified-string field-name)))
+                          (string->symbol
+                           (string-append "set-" (scheme-ified-string field-name)))
                           (field-setter-method typelib tld type struct-offset))))))
     (define (property-maker blob)
       (let-attributes property-blob-fetcher blob
-                      (name deprecated readable writable construct construct-only type)
-        (make-lazy/offset name (lambda (class)
-                                 (make-property-info (stblob-type-info typelib tld type #f #f #f)
-                                                     (bool readable)
-                                                     (bool writable)
-                                                     (bool construct)
-                                                     (bool construct-only))))))
+                      (name
+                       deprecated readable writable
+                       construct construct-only type)
+        (make-lazy/offset name
+                          (lambda (class)
+                            (make-property-info
+                             (stblob-type-info typelib tld type #f #f #f)
+                             (bool readable)
+                             (bool writable)
+                             (bool construct)
+                             (bool construct-only))))))
     (let-attributes header-fetcher tld
-                    (property-blob-size function-blob-size signal-blob-size
-                                        field-blob-size vfunc-blob-size constant-blob-size)
+                    (property-blob-size
+                     function-blob-size signal-blob-size
+                     field-blob-size vfunc-blob-size constant-blob-size)
       (when (= deprecated 1)
         ((typelib-deprecation-handler) typelib (gobject-class-name class)))
       (let ((properties-size (* property-blob-size n-properties))
@@ -730,8 +799,9 @@
             (vfuncs-size (* vfunc-blob-size n-vfuncs))
             (signals-size (* signal-blob-size n-signals))
             (constants-size (* constant-blob-size n-constants)))
-        (validated-pointer+ tld prop-offset (+ properties-size methods-size signals-size
-                                               vfuncs-size constants-size))
+        (validated-pointer+ tld prop-offset
+                            (+ properties-size methods-size signals-size
+                               vfuncs-size constants-size))
         (let* ((properties (pointer+ tld prop-offset))
                (methods (pointer+ properties properties-size))
                (signals (pointer+ methods methods-size))
@@ -742,8 +812,10 @@
                                 (let-attributes function-blob-fetcher m
                                                 (constructor)
                                   (= constructor 1)))
-                              (make-array-pointers methods n-methods function-blob-size))
-            (let ((field-blob-ptrs (make-array-pointers fields n-fields field-blob-size)))
+                              (make-array-pointers methods n-methods
+                                                   function-blob-size))
+            (let ((field-blob-ptrs
+                   (make-array-pointers fields n-fields field-blob-size)))
               (values parent
                       (map interface-maker (iota n-interfaces))
                       (append (gtype-additional-constructors gtype)
@@ -787,26 +859,32 @@
               (setter (ginstance-ptr obj)
                       (if out-convert (out-convert val) val))))))))
 
-  (define (make/validate-signature typelib tld signature-offset constructor? container)
+  (define (make/validate-signature typelib tld signature-offset
+                                   constructor? container)
     (let-attributes signature-blob-fetcher
-        (validated-pointer+ tld signature-offset ((header-fetcher 'signature-blob-size) tld))
+        (validated-pointer+ tld signature-offset
+                            ((header-fetcher 'signature-blob-size) tld))
         (return-type n-arguments arguments may-return-null)
       (let ((arg-blob-size ((header-fetcher 'arg-blob-size) tld)))
         (make-signature
          (proc/validation-context
           (lambda ()
-            (stblob-type-info typelib tld return-type (bool may-return-null) #f #f)))
+            (stblob-type-info typelib tld return-type
+                              (bool may-return-null) #f #f)))
          (proc/validation-context
           (lambda ()
             (arg-blobs-type-infos typelib tld arguments n-arguments arg-blob-size)))
          (proc/validation-context
           (lambda ()
-            (make/validate-callout typelib tld signature-offset constructor? container)))
+            (make/validate-callout typelib tld signature-offset
+                                   constructor? container)))
          (proc/validation-context
           (lambda ()
-            (make/validate-callback typelib tld signature-offset (not constructor?) container)))))))
+            (make/validate-callback typelib tld signature-offset
+                                    (not constructor?) container)))))))
 
-  (define (make/validate-enum/flags typelib tld entry-ptr entry-name gtype constructor)
+  (define (make/validate-enum/flags typelib tld entry-ptr entry-name
+                                    gtype constructor)
     (let ((blob (validated-pointer+ tld
                                     ((dir-entry-fetcher 'offset) entry-ptr)
                                     ((header-fetcher 'enum-blob-size) tld))))
@@ -820,15 +898,18 @@
                 (let-attributes value-blob-fetcher val-ptr
                                 (name value)
                   (cons (enum-symbol tld name) value)))
-              (make-array-pointers values n-values ((header-fetcher 'value-blob-size) tld)))))))
+              (make-array-pointers values n-values
+                                   ((header-fetcher 'value-blob-size) tld)))))))
 
   (define (make-enum-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
-      (make/validate-enum/flags typelib tld entry-ptr entry-name gtype make-genum)))
+      (make/validate-enum/flags typelib tld entry-ptr entry-name
+                                gtype make-genum)))
 
   (define (make-flags-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
-      (make/validate-enum/flags typelib tld entry-ptr entry-name gtype make-gflags)))
+      (make/validate-enum/flags typelib tld entry-ptr entry-name
+                                gtype make-gflags)))
 
   (define (enum-symbol tld name-offset)
     (let ((name (get/validate-string tld name-offset)))
@@ -845,7 +926,8 @@
         (let-attributes constant-blob-fetcher blob
                         (blob-type deprecated name type size offset)
           (unless (= blob-type 9)
-            (raise-validation-error "invalid blob type for constant entry" blob-type))
+            (raise-validation-error
+             "invalid blob type for constant entry" blob-type))
           (let* ((ti (stblob-type-info typelib tld type #f #f #f))
                  (type (type-info-type ti))
                  (pointer? (type-info-is-pointer? ti)))
@@ -882,17 +964,20 @@
                                         n-fields n-methods)
                (let ((fields (pointer+ blob struct-blob-size))
                      (fields-size (* n-fields field-blob-size)))
-                 (receive (parent interfaces constructors methods signals properties)
-                          (make/validate-gobject-class-attributes
-                           typelib tld class deprecated gtype #f
-                           0 #f
-                           n-fields fields
-                           (+ offset struct-blob-size fields-size)
-                           0 n-methods 0 0 0)
+                 (receive
+                     (parent interfaces constructors methods signals properties)
+                     (make/validate-gobject-class-attributes
+                      typelib tld class deprecated gtype #f
+                      0 #f
+                      n-fields fields
+                      (+ offset struct-blob-size fields-size)
+                      0 n-methods 0 0 0)
                    (if (> size 0)
-                       (values (append `((alloc . ,(make-lazy-entry (record-allocator size))))
-                                       constructors)
-                               (append `((free . ,record-free)) methods))
+                       (values
+                        (append
+                         `((alloc . ,(make-lazy-entry (record-allocator size))))
+                         constructors)
+                        (append `((free . ,record-free)) methods))
                        (values constructors methods)))))))))))
 
   (define (record-allocator size)
@@ -960,7 +1045,8 @@
   ;;
   ;; Helpers
   ;;
-  (define (stblob-type-info typelib tld st-blob null-ok? closure-index destroy-index)
+  (define (stblob-type-info typelib tld st-blob null-ok?
+                            closure-index destroy-index)
     (let-attributes simple-type-blob-fetcher st-blob
                     (offset reserved reserved2 pointer tag)
       (cond ((and (= reserved 0) (= reserved2 0))
@@ -969,15 +1055,18 @@
              (when (and (>= tag type-tag-utf8) (= pointer 0))
                (raise-validation-error "pointer type expected for tag" tag))
              (when (or closure-index destroy-index)
-               (raise-validation-error "no closure or destroy notification expected for tag" tag))
+               (raise-validation-error
+                "no closure or destroy notification expected for tag" tag))
              (let ((tag-symbol (type-tag->symbol tag)))
                (if (and (= pointer 1) (eq? tag-symbol 'void))
                    (make-type-info 'pointer #f null-ok?)
                    (make-type-info tag-symbol (bool pointer) null-ok?))))
             (else
-             (make/validate-type-info typelib tld offset null-ok? closure-index destroy-index)))))
+             (make/validate-type-info typelib tld offset null-ok?
+                                      closure-index destroy-index)))))
 
-  (define (make/validate-type-info typelib tld offset null-ok? closure-index destroy-index)
+  (define (make/validate-type-info typelib tld offset null-ok?
+                                   closure-index destroy-index)
     (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
                     (tag)
       (let ((tag-symbol (type-tag->symbol tag)))
@@ -989,7 +1078,9 @@
           ((array)
            (assert-no-closure)
            (let-attributes array-type-blob-fetcher (validated-pointer+ tld offset 4)
-                           (pointer tag zero-terminated has-length has-size length size type)
+                           (pointer
+                            tag zero-terminated
+                            has-length has-size length size type)
              (when (and (= has-length 1) (= has-size 1))
                (raise-validation-error "array type has both length and size"))
              (make-type-info
@@ -1000,13 +1091,15 @@
               #f
               null-ok?)))
           ((interface)
-           (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
-                           (interface)
+           (let-attributes interface-type-blob-fetcher
+               (validated-pointer+ tld offset 4)
+               (interface)
              (let* ((entry (typelib-get-entry/index typelib interface))
                     (pointer? (not (genum? entry))))
                (unless (signature? entry)
                  (assert-no-closure))
-               (make-type-info entry pointer? null-ok? closure-index destroy-index))))
+               (make-type-info entry pointer? null-ok?
+                               closure-index destroy-index))))
           ((error)
            (assert-no-closure)
            (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
@@ -1014,7 +1107,8 @@
              (make-type-info (make-gerror-type) #t #f)))
           ((glist gslist ghash)
            (assert-no-closure)
-           (let-attributes parameter-type-blob-fetcher (validated-pointer+ tld offset 4)
+           (let-attributes parameter-type-blob-fetcher
+               (validated-pointer+ tld offset 4)
                (pointer tag n-types type)
              (make-type-info tag-symbol
                              #t
@@ -1023,8 +1117,9 @@
                                     (stblob-type-info typelib tld blob #f #f #f))
                                   (make-array-pointers type n-types 4)))))
           (else
-           (raise-validation-error "non-simple type of this kind not yet implemented"
-                                   (type-tag->symbol tag)))))))
+           (raise-validation-error
+            "non-simple type of this kind not yet implemented"
+            (type-tag->symbol tag)))))))
 
   (define type-tag-utf8 (symbol->type-tag 'utf8))
   (define type-tag-array (symbol->type-tag 'array))
@@ -1036,7 +1131,8 @@
 
   (define (validated-pointer+ tld offset size)
     (when (> (+ offset size) (header-size tld))
-      (raise-validation-error "offset/size out of bounds" offset size (header-size tld)))
+      (raise-validation-error
+       "offset/size out of bounds" offset size (header-size tld)))
     (pointer+ tld offset))
 
   (define (make-array-pointers base n size)
@@ -1051,5 +1147,9 @@
     (apply format (current-error-port) msg args)
     (newline (current-error-port)))
 
+  (define-callouts libgir
+    (g-ir-require% 'pointer "g_irepository_require"
+                   '(pointer pointer pointer uint pointer)))
+  
   ;; Initialize the GObject type system
   (g-type-init))

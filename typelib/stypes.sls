@@ -57,24 +57,17 @@
               (field (name "next") (type (pointer (base-type (type "GList")))))
               (field (name "prev") (type (pointer (base-type (type "void"))))))
       (record (name "GSList")
-              (field (name "data") (type (pointer (base-type (type "void")))))
-              (field (name "next") (type (pointer (base-type (type "GSList"))))))
+              (field (name "data")
+                     (type (pointer (base-type (type "void")))))
+              (field (name "next")
+                     (type (pointer (base-type (type "GSList"))))))
       (record (name "GValue")
               (field (name "g_type") (type "gtype"))
               (field
                (name "data")
-               (type (array (element-type
-                             (type
-                              (union (field (name "v_int")    (type "int"))
-                                     (field (name "v_uint")   (type "uint"))
-                                     (field (name "v_long")   (type "long"))
-                                     (field (name "v_ulong")  (type "ulong"))
-                                     (field (name "v_int64")  (type "int64"))
-                                     (field (name "v_uint64") (type "uint64"))
-                                     (field (name "v_float") (type "float"))
-                                     (field (name "v_double") (type "double"))
-                                     (field (name "v_pointer") (type (pointer (type "void")))))))
-                            (element-count 2)))))
+               (type (array
+                      (element-type (type ,gvalue-data-union))
+                      (element-count 2)))))
       (record (name "GParameter")
               (field (name "name") (type (pointer (base-type (type "void")))))
               (field (name "value") (type "GValue")))
@@ -83,6 +76,18 @@
       (record (name "GTypeClass")
               (field (name "g_type") (type "gtype")))))
   
+
+  (define gvalue-data-union
+    '(union (field (name "v_int")     (type "int"))
+            (field (name "v_uint")    (type "uint"))
+            (field (name "v_long")    (type "long"))
+            (field (name "v_ulong")   (type "ulong"))
+            (field (name "v_int64")   (type "int64"))
+            (field (name "v_uint64")  (type "uint64"))
+            (field (name "v_float")   (type "float"))
+            (field (name "v_double")  (type "double"))
+            (field (name "v_pointer") (type (pointer (type "void"))))))
+
   (define typelib-stypes
     (let ((stypes #f))
       (lambda ()

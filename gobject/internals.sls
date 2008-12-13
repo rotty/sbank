@@ -62,7 +62,10 @@
           make-genum genum?
           make-gflags gflags?
 
-          genumerated-lookup genumerated-values genumerated-symbols genumerated-gtype
+          genumerated-lookup
+          genumerated-values
+          genumerated-symbols
+          genumerated-gtype
 
           gerror-type? make-gerror-type
           gerror? make-gerror gerror-domain gerror-code)
@@ -140,23 +143,26 @@
   (define-record-type gsequence-class
     (parent gobject-simple-class)
     (fields elt-out elt-back elt-cleanup)
-    (protocol (lambda (n)
-                (lambda (namespace name constructors methods elt-out elt-back elt-cleanup)
-                  (let ((p (n namespace name #f (lambda (class)
-                                                  (values constructors methods)))))
-                    (p elt-out elt-back elt-cleanup))))))
+    (protocol
+     (lambda (n)
+       (lambda (namespace name constructors methods
+                          elt-out elt-back elt-cleanup)
+         (let ((p (n namespace name #f (lambda (class)
+                                         (values constructors methods)))))
+           (p elt-out elt-back elt-cleanup))))))
 
   (define-record-type gmapping-class
     (parent gobject-simple-class)
     (fields key-out val-out key-back val-back key-cleanup val-cleanup)
-    (protocol (lambda (n)
-                (lambda (namespace name constructors methods
-                                   key-out val-out
-                                   key-back val-back
-                                   key-cleanup val-cleanup)
-                  (let ((p (n namespace name #f (lambda (class)
-                                                  (values constructors methods)))))
-                    (p key-out val-out key-back val-back key-cleanup val-cleanup))))))
+    (protocol
+     (lambda (n)
+       (lambda (namespace name constructors methods
+                          key-out val-out
+                          key-back val-back
+                          key-cleanup val-cleanup)
+         (let ((p (n namespace name #f (lambda (class)
+                                         (values constructors methods)))))
+           (p key-out val-out key-back val-back key-cleanup val-cleanup))))))
 
   (define-record-type gslist-class
     (parent gsequence-class)
@@ -174,14 +180,15 @@
 
   (define-record-type ghash-class
     (parent gmapping-class)
-    (protocol (lambda (n)
-                (lambda (key-out val-out key-back val-back key-cleanup val-cleanup)
-                  (let ((p (n "GLib" "HashTable"
-                              '()
-                              `((foreach . ,ghash-foreach)
-                                (->alist . ,ghash->alist))
-                              key-out val-out key-back val-back key-cleanup val-cleanup)))
-                    (p))))))
+    (protocol
+     (lambda (n)
+       (lambda (key-out val-out key-back val-back key-cleanup val-cleanup)
+         (let ((p (n "GLib" "HashTable"
+                     '()
+                     `((foreach . ,ghash-foreach)
+                       (->alist . ,ghash->alist))
+                     key-out val-out key-back val-back key-cleanup val-cleanup)))
+           (p))))))
 
   (define (gsequence? x)
     (and (ginstance? x)
@@ -238,25 +245,27 @@
                                   constructors-decorator
                                   methods-decorator
                                   signals-decorator)
-    (make-gobject-class (gobject-class-namespace class)
-                        (gobject-class-name class)
-                        (gobject-class-gtype class)
-                        (lambda (new-class)
-                          (receive (parent interfaces constructors methods signals properties)
-                                   ((gobject-class-load-members class) class)
-                            (values parent
-                                    interfaces
-                                    (constructors-decorator constructors)
-                                    (methods-decorator methods)
-                                    (signals-decorator signals)
-                                    properties)))))
+    (make-gobject-class
+     (gobject-class-namespace class)
+     (gobject-class-name class)
+     (gobject-class-gtype class)
+     (lambda (new-class)
+       (receive (parent interfaces constructors methods signals properties)
+                ((gobject-class-load-members class) class)
+         (values parent
+                 interfaces
+                 (constructors-decorator constructors)
+                 (methods-decorator methods)
+                 (signals-decorator signals)
+                 properties)))))
 
   (define (apply-override method override)
     (cons (car override)
           (if (lazy-entry? (cdr method))
-              (make-lazy-entry (lambda (class)
-                                 (let ((next-method ((lazy-entry-proc (cdr method)) class)))
-                                   ((cdr override) next-method))))
+              (make-lazy-entry
+               (lambda (class)
+                 (let ((next-method ((lazy-entry-proc (cdr method)) class)))
+                   ((cdr override) next-method))))
               ((cdr override) (cdr method)))))
 
   (define (gobject-method-overrider overrides)
@@ -319,24 +328,30 @@
       (lambda props/vals
         (let ((n (length props/vals)))
           (when (odd? n)
-            (error 'gobject-new/props "odd number of colum/value arguments" props/vals))
-          (let ((parameters (if (= n 0) (integer->pointer 0) (g-param-alloc (/ n 2)))))
+            (error 'gobject-new/props
+                   "odd number of colum/value arguments" props/vals))
+          (let ((parameters
+                 (if (= n 0) (integer->pointer 0) (g-param-alloc (/ n 2)))))
             (let loop ((i 0) (props/vals props/vals))
               (cond ((null? props/vals)
-                     (make-ginstance class (g-object-newv (gobject-class-gtype class) i parameters)))
+                     (make-ginstance
+                      class
+                      (g-object-newv (gobject-class-gtype class) i parameters)))
                     (else
                      (let* ((prop (car props/vals))
                             (prop-name (string->utf8z-ptr (symbol->string prop)))
                             (param (pointer+ parameters (* i g-param-size)))
                             (gv (g-param-value param))
                             (gtype (type->gtype
-                                    (property-info-type
-                                     (gobject-class-get-property-info class prop)))))
+                                    (gobject-class-property-type class prop))))
                        (g-param-name-set! param prop-name)
                        (g-value-init! gv gtype)
                        (g-value-set! gv (cadr props/vals)))
                      (loop (+ i 1) (cddr props/vals))))))))))
 
+  (define (gobject-class-property-type class prop)
+    (property-info-type (gobject-class-get-property-info class prop)))
+  
   (define (send-message obj msg . args)
     (cond ((ginstance? obj)
            (let ((method (send-message (ginstance-class obj) msg)))

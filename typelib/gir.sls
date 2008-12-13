@@ -56,25 +56,29 @@
     (pre-post-order
      (ssax:xml->sxml port '((core . "http://www.gtk.org/introspection/core/1.0")
                             (c . "http://www.gtk.org/introspection/c/1.0")))
-     `((*TOP* *MACRO* . ,(lambda top
-                           ((sxpath '(// core:namespace (*OR* core:record core:union))) top)))
+     `((*TOP* *MACRO*
+              . ,(lambda top
+                   ((sxpath '(// core:namespace (*OR* core:record core:union)))
+                    top)))
        (core:record . ,(compound-maker 'record))
        (core:union . ,(compound-maker 'union))
-       (core:field . ,(lambda field
-                              (cons* 'field
-                                     (sxpath-ref field '(^ name))
-                                     (sxpath-ref field '(type))
-                                     (or
-                                      (and-let* ((bits (sxpath-attr field '(^ bits))))
-                                        (list (list 'bits (string->number bits))))
-                                      '()))))
-       (core:array . ,(lambda array
-                        (let ((element-count (cond ((sxpath-attr array '(^ fixed-size))
-                                                    => (lambda (size)
-                                                         (string->number size)))
-                                                   (else 0))))
-                          `(type (array (element-type ,(sxpath-ref array '(type)))
-                                        (element-count ,element-count))))))
+       (core:field
+        . ,(lambda field
+             (cons* 'field
+                    (sxpath-ref field '(^ name))
+                    (sxpath-ref field '(type))
+                    (or
+                     (and-let* ((bits (sxpath-attr field '(^ bits))))
+                       (list (list 'bits (string->number bits))))
+                     '()))))
+       (core:array
+        . ,(lambda array
+             (let ((element-count (cond ((sxpath-attr array '(^ fixed-size))
+                                         => (lambda (size)
+                                              (string->number size)))
+                                        (else 0))))
+               `(type (array (element-type ,(sxpath-ref array '(type)))
+                             (element-count ,element-count))))))
        (core:type *PREORDER* . ,type-pointifier)
        (^ *PREORDER* . ,list))))
 

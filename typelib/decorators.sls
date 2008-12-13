@@ -38,7 +38,9 @@
   (define (register-typelib-decorator namespace name decorator)
     (let* ((key (cons namespace name))
            (old-decorator (table-ref *typelib-decorators* key)))
-      (table-set! *typelib-decorators* key (if old-decorator
-                                               (lambda (obj)
-                                                 (decorator (old-decorator obj)))
-                                               decorator)))))
+      (table-set! *typelib-decorators*
+                  key
+                  (if old-decorator
+                      (lambda (obj)
+                        (decorator (old-decorator obj)))
+                      decorator)))))

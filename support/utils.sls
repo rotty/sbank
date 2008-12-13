@@ -124,7 +124,9 @@
           (list->string (reverse result-chars))
           (let ((c (string-ref s i)))
             (cond ((and in-word? (char-upper-case? c))
-                   (loop (append (list (char-downcase c) #\-) result-chars) (+ i 1) #t))
+                   (loop (append (list (char-downcase c) #\-) result-chars)
+                         (+ i 1)
+                         #t))
                   ((or (char-alphabetic? c) (char-numeric? c))
                    (loop (cons (char-downcase c) result-chars) (+ i 1) #t))
                   (else

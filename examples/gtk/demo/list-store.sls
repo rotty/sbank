@@ -21,7 +21,8 @@
   
 (define data
   '((#f 60482 "Normal"      "scrollable notebooks and hidden tabs")
-    (#f 60620 "Critical"    "gdk_window_clear_area (gdkwindow-win32.c) is not thread-safe")
+    (#f 60620 "Critical"
+        "gdk_window_clear_area (gdkwindow-win32.c) is not thread-safe")
     (#f 50214 "Major"       "Xft support does not clean up correctly")
     (#t 52877 "Major"       "GtkFileSelection needs a refresh method. ")
     (#f 56070 "Normal"      "Can't click button after setting in sensitive")
@@ -112,10 +113,11 @@
 	 ;; create window, etc
 	 (window   (send <gtk-window> (new 'toplevel)))
 	 (vbox     (send <gtk-v-box> (new #f 8)))
-	 (label    (send <gtk-label> (new (string-append 
-                                           "This is the bug list (note: not based on real "
-                                           "data, it would be nice to have a nice ODBC "
-                                           "interface to bugzilla or so, though)."))))
+	 (label    (send <gtk-label>
+                     (new (string-append 
+                           "This is the bug list (note: not based on real "
+                           "data, it would be nice to have a nice ODBC "
+                           "interface to bugzilla or so, though)."))))
 	 (sw       (send <gtk-scrolled-window> (new #f #f)))
 	 ;; create list store
 	 (model    (send <gtk-list-store> (newv (list 'boolean

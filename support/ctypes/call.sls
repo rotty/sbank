@@ -70,9 +70,10 @@
         ((>= i (vector-length arg-vec)))
       (let ((prim-type (type-info->prim-type (car arg-types) #f)))
         (flags-case (car flags)
-          ((in-out) (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
-          ((out) (vector-set! arg-vec i
-                              (malloc (c-type-sizeof prim-type))))))))
+          ((in-out)
+           (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
+          ((out)
+           (vector-set! arg-vec i (malloc (c-type-sizeof prim-type))))))))
 
   (define (args-post-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
@@ -81,38 +82,47 @@
         ((>= i (vector-length arg-vec)))
       (flags-case (car flags)
         ((in-out out)
-         (vector-set! arg-vec i (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
+         (vector-set! arg-vec i
+                      (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
 
   (define (arg-callout-steps ti i flags gtype-lookup)
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
-        (values (and (not (memq 'out flags)) (array-arg-setup type i (type-info-null-ok? ti)))
-                (and (not (memq 'in flags)) (array-arg-collect type i))
-                (array-arg-cleanup type i)))
+        (values
+         (and (not (memq 'out flags))
+              (array-arg-setup type i (type-info-null-ok? ti)))
+         (and (not (memq 'in flags))
+              (array-arg-collect type i))
+         (array-arg-cleanup type i)))
        ((gerror-type? type)
         (unless (memq 'in flags)
-          (raise-sbank-callout-error "GError arguments must have direction 'in'" ti flags))
+          (raise-sbank-callout-error
+           "GError arguments must have direction 'in'" ti flags))
         (values (gerror-arg-setup type i)
                 #f
                 (gerror-arg-cleanup type i)))
        ((signature? type)
         (unless (memq 'in flags)
-          (raise-sbank-callout-error "callback arguments must have direction 'in'" ti flags))
+          (raise-sbank-callout-error
+           "callback arguments must have direction 'in'" ti flags))
         (values (callback-arg-setup ti i)
                 #f
                 #f))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
-          (values (and (not (memq 'out flags)) (if out-convert (converter-setup i out-convert) i))
-                  (and (not (memq 'in flags)) (if back-convert (converter-collect i back-convert) i))
-                  (and cleanup
-                       (cond ((flags-set/or? flags '(out in-out))
-                              (memq 'transfer-ownership flags))
-                             (else
-                              (not (memq 'transfer-ownership flags))))
-                       (cleanup-step i cleanup))))))))
+          (values
+           (and (not (memq 'out flags))
+                (if out-convert (converter-setup i out-convert) i))
+           (and (not (memq 'in flags))
+                (if back-convert (converter-collect i back-convert) i))
+           (and cleanup
+                (cond ((flags-set/or? flags '(out in-out))
+                       (memq 'transfer-ownership flags))
+                      (else
+                       (not (memq 'transfer-ownership flags))))
+                (cleanup-step i cleanup))))))))
 
   (define (arg-callback-steps ti i gtype-lookup)
     (let ((type (type-info-type ti)))
@@ -123,7 +133,8 @@
                       (back-convert (vector-ref arg-vec i)))
                     i)
                 (lambda (arg-vec val)
-                  (set-pointer (vector-ref arg-vec i) ti (if out-convert (out-convert val) val)))))))
+                  (set-pointer (vector-ref arg-vec i) ti
+                               (if out-convert (out-convert val) val)))))))
 
   (define (cleanup-step i cleanup-proc)
     (lambda (arg-vec)
@@ -181,11 +192,13 @@
 
   (define (array-arg-collect atype i)
     (lambda (arg-vec)
-      (c-array->vector (vector-ref arg-vec i) atype (get-array-length atype arg-vec))))
+      (c-array->vector (vector-ref arg-vec i) atype
+                       (get-array-length atype arg-vec))))
 
   (define (array-arg-cleanup atype i)
     (lambda (arg-vec)
-      (free-c-array (vector-ref arg-vec i) atype (get-array-length atype arg-vec))))
+      (free-c-array (vector-ref arg-vec i) atype
+                    (get-array-length atype arg-vec))))
 
   (define (gerror-arg-setup etype i)
     (lambda (args arg-vec)
@@ -285,7 +298,9 @@
                                    (flags-set/or? arg-flags '(out in-out))))
                                 arg-types
                                 flags)))
-          (out-args? (any (lambda (arg-flags) (flags-set/or? arg-flags '(out in-out))) flags))
+          (out-args? (any (lambda (arg-flags)
+                            (flags-set/or? arg-flags '(out in-out)))
+                          flags))
           (setup (args-setup-procedure (length arg-types) setup-steps))
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
@@ -303,7 +318,9 @@
                          (if (and (eqv? ret-consume #f))
                              (apply values out-vals)
                              (apply values
-                                    (if (procedure? ret-consume) (ret-consume ret-val) ret-val)
+                                    (if (procedure? ret-consume)
+                                        (ret-consume ret-val)
+                                        ret-val)
                                     out-vals)))))))))
             (setup
              (assert (not (or collect out-args?)))
@@ -315,7 +332,9 @@
                      (if cleanup (cleanup arg-vec))
                      (if (eqv? ret-consume #f)
                          (unspecific)
-                         (if (procedure? ret-consume) (ret-consume ret-val) ret-val)))))))
+                         (if (procedure? ret-consume)
+                             (ret-consume ret-val)
+                             ret-val)))))))
             ((procedure? ret-consume)
              (assert (not (or setup collect out-args? cleanup)))
              (lambda (ptr)
@@ -323,19 +342,22 @@
                  (let ((do-callout (prim-callout ptr)))
                    (ret-consume (apply do-callout args))))))
             (else
-             (assert (and (not (or setup collect out-args?)) (boolean? ret-consume)))
+             (assert (and (not (or setup collect out-args?))
+                          (boolean? ret-consume)))
              prim-callout))))
 
   (define (make-callback rti arg-types prepare-steps store-steps flags gtype-lookup)
     (receive (prim-ret ret-out-convert ret-back-convert cleanup)
              (type-info/prim-type+procs rti)
       (let ((prim-callback
-             (make-c-callback prim-ret
-                              (map (lambda (type flag)
-                                     (type-info->prim-type type (memq flag '(out in-out))))
-                                   arg-types
-                                   flags))))
-        (cond ((and (not ret-out-convert) (equal? prepare-steps (iota (length arg-types))))
+             (make-c-callback
+              prim-ret
+              (map (lambda (type flag)
+                     (type-info->prim-type type (memq flag '(out in-out))))
+                   arg-types
+                   flags))))
+        (cond ((and (not ret-out-convert)
+                    (equal? prepare-steps (iota (length arg-types))))
                prim-callback)
               (else
                (let ((arg-len (length arg-types)))
@@ -348,7 +370,9 @@
   (define (make-callback-wrapper proc prim-ret ret-out-convert arg-types
                                   prepare-steps store-steps flags)
     (let ((arg-len (length arg-types))
-          (out-args? (any (lambda (arg-flags) (flags-set/or? arg-flags '(out in-out))) flags)))
+          (out-args? (any (lambda (arg-flags)
+                            (flags-set/or? arg-flags '(out in-out)))
+                          flags)))
       (lambda args
         (assert (= arg-len (length args)))
         (let* ((arg-vec (list->vector args))
@@ -369,8 +393,9 @@
                        (steps store-steps))
               (cond ((null? vals)
                      (unless (null? steps)
-                       (raise-sbank-callback-error "called procedure returned not enough values"
-                                                   ret-values prim-ret))
+                       (raise-sbank-callback-error
+                        "called procedure returned not enough values"
+                        ret-values prim-ret))
                      (cond ((eq? prim-ret 'void)
                             (unspecific))
                            (ret-out-convert
@@ -378,8 +403,9 @@
                            (else
                             (car ret-values))))
                     ((null? steps)
-                     (raise-sbank-callback-error "called procedure returned too many values"
-                                                 ret-values prim-ret))
+                     (raise-sbank-callback-error
+                      "called procedure returned too many values"
+                      ret-values prim-ret))
                     (else
                      (loop ((car steps) (car vals) arg-vec))))))))))
 

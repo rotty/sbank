@@ -140,7 +140,8 @@
                         (type-info/prim-type+procs elt-ti)
                  (values 'pointer
                          (gslist-out-converter elt-out)
-                         (gslist-back-converter (make-gslist-class elt-out elt-back elt-cleanup))
+                         (gslist-back-converter
+                          (make-gslist-class elt-out elt-back elt-cleanup))
                          (gslist-cleanup elt-cleanup)))))
             ((glist)
              (let ((elt-ti (car (type-info-parameters ti))))
@@ -148,7 +149,8 @@
                         (type-info/prim-type+procs elt-ti)
                  (values 'pointer
                          (glist-out-converter elt-out)
-                         (glist-back-converter (make-glist-class elt-out elt-back elt-cleanup))
+                         (glist-back-converter
+                          (make-glist-class elt-out elt-back elt-cleanup))
                          (glist-cleanup elt-cleanup)))))
             ((ghash)
              (let ((key-ti (car (type-info-parameters ti)))
@@ -160,21 +162,24 @@
                  (let ((class (make-ghash-class key-out val-out
                                                 key-back val-back
                                                 key-cleanup val-cleanup)))
-                   (values 'pointer
-                           (out-converter/null (ghash-out-converter class) null-ok? #f)
-                           (back-converter/null (ghash-back-converter class) null-ok? #f)
-                           (ghash-cleanup class))))))
+                   (values
+                    'pointer
+                    (out-converter/null (ghash-out-converter class) null-ok? #f)
+                    (back-converter/null (ghash-back-converter class) null-ok? #f)
+                    (ghash-cleanup class))))))
             ((gtype)
              (values prim-type symbol->gtype gtype->symbol #f))
             (else
-             (raise-sbank-callout-error "argument passing for this type not implemented" ti)))))
+             (raise-sbank-callout-error
+              "argument passing for this type not implemented" ti)))))
        ((genum? type)
         (values 'int                    ; Is int always OK?
                 (lambda (val)
                   (if (symbol? val)
                       (or (genumerated-lookup type val)
                           (raise-sbank-callout-error
-                           "invalid enumeration value" val (genumerated-symbols type)))
+                           "invalid enumeration value"
+                           val (genumerated-symbols type)))
                       val))
                 (lambda (val)
                   (or (genumerated-lookup type val) val))
@@ -190,7 +195,8 @@
                 #f))
        ((array-type? type)
         (unless (or (array-size type) (array-is-zero-terminated? type))
-          (raise-sbank-callout-error "cannot handle array without size information" type))
+          (raise-sbank-callout-error
+           "cannot handle array without size information" type))
         (values 'pointer
                 (out-converter/null ->c-array null-ok? #f)
                 (back-converter/null c-array->vector null-ok? #f)
@@ -209,7 +215,8 @@
                 (back-converter/null (signature-callout type) null-ok? #f)
                 #f))
        (else
-        (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
+        (raise-sbank-callout-error
+         "argument/return type not yet implemented" type)))))
 
   (define (ginstance-maker gtype-lookup declared-class)
     (cond ((or (gobject-record-class? declared-class)
@@ -220,7 +227,8 @@
            (lambda (instance)
              (let ((class
                      (or
-                      (and-let* ((gtype (gtype-class-gtype (gtype-instance-class instance))))
+                      (and-let* ((gtype (gtype-class-gtype
+                                         (gtype-instance-class instance))))
                         (gtype-lookup gtype))
                       declared-class)))
                (make-ginstance class instance))))))
@@ -246,7 +254,8 @@
               (convert ptr)))
         (lambda (ptr)
           (when (= (pointer->integer ptr) 0)
-            (raise-sbank-callout-error "unexpect NULL pointer when converting back to Scheme"))
+            (raise-sbank-callout-error
+             "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
 
   ;; GValue utilities
@@ -282,8 +291,10 @@
 
   (define (vector->c-array vec atype)
     (let ((len (vector-length vec)))
-      (receive (prim-type element-size element-ref element-set!) (array-type-values atype)
-        (let ((mem (malloc (* element-size (+ len (if (array-is-zero-terminated? atype) 1 0))))))
+      (receive (prim-type element-size element-ref element-set!)
+               (array-type-values atype)
+        (let ((mem (malloc (* element-size
+                              (+ len (if (array-is-zero-terminated? atype) 1 0))))))
           (do ((i 0 (+ i 1)))
               ((>= i len))
             (element-set! mem (* i element-size) (vector-ref vec i)))
@@ -294,7 +305,8 @@
           mem))))
 
   (define (c-array->vector ptr atype size)
-    (receive (prim-type element-size element-ref element-set!) (array-type-values atype)
+    (receive (prim-type element-size element-ref element-set!)
+             (array-type-values atype)
       (cond ((or size (array-size atype))
              => (lambda (size)
                   (do ((vec (make-vector size))
@@ -306,9 +318,11 @@
                (let loop ((offset 0) (elts '()))
                  (if (terminator? offset)
                      (list->vector (reverse elts))
-                     (loop (+ offset element-size) (cons (element-ref ptr offset) elts))))))
+                     (loop (+ offset element-size)
+                           (cons (element-ref ptr offset) elts))))))
             (else
-             (error 'c-array->vector "cannot handle array without size information" atype)))))
+             (error 'c-array->vector
+                    "cannot handle array without size information" atype)))))
 
   (define (->c-array val atype)
     (define (lose msg . irritants)
@@ -359,7 +373,8 @@
              => (lambda (size)
                   (do ((i 0 (+ i 1)))
                       ((>= i size))
-                    (proc (deref-pointer (pointer+ ptr (* i element-size)) element-ti)))))
+                    (proc (deref-pointer (pointer+ ptr (* i element-size))
+                                         element-ti)))))
             ((array-is-zero-terminated? atype)
              (let ((terminator? (array-terminator-predicate atype)))
                (let loop ((offset 0) (elts '()))
@@ -367,7 +382,8 @@
                    (proc (deref-pointer (pointer+ ptr offset) element-ti))
                    (loop (+ offset element-size))))))
             (else
-             (raise-sbank-callout-error "cannot iterate over array of unknown size" ptr atype)))))
+             (raise-sbank-callout-error
+              "cannot iterate over array of unknown size" ptr atype)))))
 
   (define (free-c-array ptr atype size)
     (let ((cleanup (type-cleanup (array-element-type atype))))
@@ -404,7 +420,10 @@
                         (elt-size (array-element-size atype)))
                    (case et
                      ((utf8)
-                      (values prim-type elt-size pointer-utf8z-ptr-ref pointer-utf8z-ptr-set!))
+                      (values prim-type
+                              elt-size
+                              pointer-utf8z-ptr-ref
+                              pointer-utf8z-ptr-set!))
                      ((gtype)
                       (values prim-type
                               elt-size
@@ -431,12 +450,13 @@
                          (lambda (ptr i)
                            (make-ginstance et (pointer-ref-c-pointer ptr i)))
                          (lambda (ptr i v)
-                           (pointer-set-c-pointer! ptr i (if (ginstance? v)
-                                                             (ginstance-ptr v)
-                                                             (ginstance-ptr
-                                                              (send et (new v))))))))
+                           (pointer-set-c-pointer!
+                            ptr i (if (ginstance? v)
+                                      (ginstance-ptr v)
+                                      (ginstance-ptr (send et (new v))))))))
                 (else
-                 (raise-sbank-callout-error "non-simple array element types not yet supported")))))))
+                 (raise-sbank-callout-error
+                  "non-simple array element types not yet supported")))))))
 
   (define (gslist-out-converter elt-convert)
     (lambda (lst)
@@ -533,7 +553,8 @@
   (define (fnamez-ptr->string ptr)
     (let ((error (malloc/set! 'pointer (integer->pointer 0)))
           (bytes-written (malloc/set! 'size_t 0)))
-      (let ((result (g-filename-to-utf8 ptr -1 (integer->pointer 0) bytes-written error)))
+      (let ((result (g-filename-to-utf8 ptr -1 (integer->pointer 0)
+                                        bytes-written error)))
         (when (pointer-null? result)
           (free bytes-written)
           (raise-gerror/free error))
@@ -589,7 +610,8 @@
                ((utf8 filename gvalue gslist glist ghash) 'pointer)
                (else type)))
             (else
-             (raise-sbank-callout-error "argument/return type not yet implemented" type)))))
+             (raise-sbank-callout-error
+              "argument/return type not yet implemented" type)))))
 
 
   ;; Allocate memory as needed for the type @2, store a representation
@@ -624,7 +646,8 @@
                     conditions))))
 
   (define-callouts libglib
-    (g-filename-to-utf8 'pointer "g_filename_to_utf8" '(ssize_t pointer pointer pointer))
+    (g-filename-to-utf8 'pointer "g_filename_to_utf8"
+                        '(ssize_t pointer pointer pointer))
     (gerror-free 'void "g_error_free" '(pointer)))
 
   (define-accessors "GError"

@@ -72,33 +72,40 @@
            (do-get server msg file-path))
           (else
            (send msg (set-status (soup-status 'not-implemented)))))
-    (println " -> {0} {1}" (send msg (get 'status-code)) (send msg (get 'reason-phrase)))))
+    (println " -> {0} {1}"
+             (send msg (get 'status-code))
+             (send msg (get 'reason-phrase)))))
 
 (define (do-get server msg path)
   (let ((pathname (x->pathname path)))
-    (cond ((file-readable? pathname)
-           (cond ((file-directory? pathname)
-                  (if (pathname-file pathname)
-                      (let ((uri (send (send msg (get-uri)) (to-string))))
-                        (send (send msg (get-response-headers))
-                          (append "Location" (string-append uri "/"))))
-                      (let ((index-path (pathname-with-file pathname "index.html")))
-                        (if (file-exists? index-path)
-                            (do-get server msg index-path)
-                            (send msg (set-response "text/html"
-                                                    'copy (get-directory-listing pathname)))))))
-                 ((string=? "GET" (send msg (get-method)))
-                  (call-with-port (open-file-input-port (x->namestring pathname))
-                    (lambda (port)
-                      (send msg (set-response "application/octet-stream"
-                                              'copy (get-bytevector-all port))))))
-                 (else ;; "HEAD" method
-                  (send (send msg (get-response-headers))
-                    (append "Content-Length" (number->string (file-size-in-bytes pathname))))))
-           (send msg (set-status (soup-status 'ok))))
-          (else
-           (send msg
-             (set-status (soup-status (if (file-exists? pathname) 'forbidden 'not-found))))))))
+    (cond
+     ((file-readable? pathname)
+      (cond
+       ((file-directory? pathname)
+        (if (pathname-file pathname)
+            (let ((uri (send (send msg (get-uri)) (to-string))))
+              (send (send msg (get-response-headers))
+                (append "Location" (string-append uri "/"))))
+            (let ((index-path (pathname-with-file pathname "index.html")))
+              (if (file-exists? index-path)
+                  (do-get server msg index-path)
+                  (send msg
+                    (set-response "text/html"
+                                  'copy (get-directory-listing pathname)))))))
+       ((string=? "GET" (send msg (get-method)))
+        (call-with-port (open-file-input-port (x->namestring pathname))
+          (lambda (port)
+            (send msg (set-response "application/octet-stream"
+                                    'copy (get-bytevector-all port))))))
+       (else ;; "HEAD" method
+        (send (send msg (get-response-headers))
+          (append "Content-Length"
+                  (number->string (file-size-in-bytes pathname))))))
+      (send msg (set-status (soup-status 'ok))))
+     (else
+      (send msg
+        (set-status (soup-status
+                     (if (file-exists? pathname) 'forbidden 'not-found))))))))
 
 (define (get-directory-listing path)
   (string-join

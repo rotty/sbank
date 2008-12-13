@@ -9,7 +9,8 @@
     (println "Usage: " (car argv) " <image-file>")
     (exit #f))
   (let ((p (send <pixbuf> (new-from-file (cadr argv)))))
-    (println "Size of " (cadr argv) " is " (send p (get-width)) "x" (send p (get-height)))))
+    (println "Size of " (cadr argv) " is "
+             (send p (get-width)) "x" (send p (get-height)))))
 
 (define (println . args)
   (for-each display args)

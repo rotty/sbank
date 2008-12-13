@@ -92,8 +92,7 @@
           (count 0))
       (define (new-count)
         (unless (< count max-val)
-          (error 'register-value
-                 "oops, out of value identifiers -- time someone implements reclaiming them"))
+          (error 'register-value "oops, out of value identifiers"))
         (+ count 1))
       (values
        (lambda (val)
@@ -105,13 +104,14 @@
          (table-ref registered-values val failure-thunk)))))
 
   (define g-value-set!
-    (let-callouts libgobject ((set-object% 'void "g_value_set_object" '(pointer pointer))
-                              (set-bool% 'void "g_value_set_boolean" '(pointer int))
-                              (set-enum% 'void "g_value_set_enum" '(pointer int))
-                              (set-uint% 'void "g_value_set_uint" '(pointer uint))
-                              (set-int% 'void "g_value_set_int" '(pointer int))
-                              (set-string% 'void "g_value_set_string" '(pointer pointer))
-                              (set-pointer% 'void "g_value_set_pointer" '(pointer pointer)))
+    (let-callouts libgobject
+        ((set-object% 'void "g_value_set_object" '(pointer pointer))
+         (set-bool% 'void "g_value_set_boolean" '(pointer int))
+         (set-enum% 'void "g_value_set_enum" '(pointer int))
+         (set-uint% 'void "g_value_set_uint" '(pointer uint))
+         (set-int% 'void "g_value_set_int" '(pointer int))
+         (set-string% 'void "g_value_set_string" '(pointer pointer))
+         (set-pointer% 'void "g_value_set_pointer" '(pointer pointer)))
       (define (lose msg . irritants)
         (apply error 'g-value-set! msg irritants))
       (lambda (gvalue val)
@@ -136,7 +136,8 @@
             ((pointer) (set-pointer% gvalue val))
             ((boxed) (set-pointer% gvalue (integer->pointer (register-value val))))
             (else
-             (lose "type not implemented" (gtype->symbol (g-value-gtype% gvalue)))))))))
+             (lose "type not implemented"
+                   (gtype->symbol (g-value-gtype% gvalue)))))))))
 
   (define (find-enum-lookup gtype)
     (and-let* ((type (gtype-lookup gtype)))
@@ -145,20 +146,22 @@
              (genumerated-lookup type val)))))
 
   (define g-value-ref
-    (let-callouts libgobject ((get-object% 'pointer "g_value_get_object" '(pointer))
-                              (get-pointer% 'pointer "g_value_get_pointer" '(pointer))
-                              (get-bool% 'int "g_value_get_boolean" '(pointer))
-                              (get-string% 'pointer "g_value_get_string" '(pointer))
-                              (get-int% 'int "g_value_get_int" '(pointer))
-                              (get-uint% 'uint "g_value_get_uint" '(pointer))
-                              (get-enum% 'int "g_value_get_enum" '(pointer)))
+    (let-callouts libgobject
+        ((get-object% 'pointer "g_value_get_object" '(pointer))
+         (get-pointer% 'pointer "g_value_get_pointer" '(pointer))
+         (get-bool% 'int "g_value_get_boolean" '(pointer))
+         (get-string% 'pointer "g_value_get_string" '(pointer))
+         (get-int% 'int "g_value_get_int" '(pointer))
+         (get-uint% 'uint "g_value_get_uint" '(pointer))
+         (get-enum% 'int "g_value_get_enum" '(pointer)))
       (define (lose msg . irritants)
         (apply error 'g-value-ref msg irritants))
       (lambda (gvalue)
         (let ((gtype (g-value-gtype% gvalue)))
           (cond ((= gtype (g-boxed-value-type))
                  (let ((i (pointer->integer (get-pointer% gvalue))))
-                   (lookup-value i (lambda () (lose "could not find boxed value" i)))))
+                   (lookup-value i (lambda ()
+                                     (lose "could not find boxed value" i)))))
                 (else
                  (case (gtype->symbol gtype)
                    ((int)
@@ -181,7 +184,8 @@
                             (else
                              val))))
                    (else
-                    (lose "not implemented for this type of value" (gtype->symbol gtype))))))))))
+                    (lose "not implemented for this type of value"
+                          (gtype->symbol gtype))))))))))
 
   (define (utf8z-ptr/null->string ptr)
     (convert/null ptr utf8z-ptr->string #f))
