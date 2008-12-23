@@ -63,7 +63,7 @@
                          signal) => (lambda (wrap) (wrap callback)))
                        (else
                         (lose "no such signal" detailed-signal)))
-                 (integer->pointer 0)
+                 (null-pointer)
                  signal-destroy-notify-ptr
                  0)))
         (free detailed-signal-ptr)
@@ -95,7 +95,7 @@
                        (cons (gobject-class-gtype (ginstance-class instance))
                              (map type-info-gtype atis)))))
         (cond ((eq? (type-info-type rti) 'void)
-               (emitv% arg-gvs signal-id detail (integer->pointer 0))
+               (emitv% arg-gvs signal-id detail (null-pointer))
                (free-g-value-array arg-gvs n-args))
               (else
                (let ((ret-gv (g-value-new (type-info-gtype rti))))

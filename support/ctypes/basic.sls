@@ -242,18 +242,18 @@
     (if (or (null-ok-always-on?) null-ok?)
         (lambda (val)
           (if (equal? val null-val)
-              (integer->pointer 0)
+              (null-pointer)
               (convert val)))
         convert))
 
   (define (back-converter/null convert null-ok? null-val)
     (if (or (null-ok-always-on?) null-ok?)
         (lambda (ptr)
-          (if (= (pointer->integer ptr) 0)
+          (if (null-pointer? ptr)
               null-val
               (convert ptr)))
         (lambda (ptr)
-          (when (= (pointer->integer ptr) 0)
+          (when (null-pointer? ptr)
             (raise-sbank-callout-error
              "unexpect NULL pointer when converting back to Scheme"))
           (convert ptr))))
@@ -351,7 +351,7 @@
   (define (array-terminator prim-type)
     (case prim-type
       ((char uchar short ushort int uint long ulong size_t) 0)
-      ((pointer) (integer->pointer 0))
+      ((pointer) (null-pointer))
       (else
        (raise-sbank-callout-error
         "zero-termination of arrays of this type not implemented" prim-type))))
@@ -361,8 +361,8 @@
           (elt-ref (make-pointer-c-getter elt-prim-type)))
       (if (pointer? terminator)
           (lambda (ptr offset)
-            (= (pointer->integer (pointer-ref-c-pointer ptr offset))
-               (pointer->integer terminator)))
+            (pointer=? (pointer-ref-c-pointer ptr offset)
+                       terminator))
           (lambda (ptr offset)
             (= (elt-ref ptr offset) terminator)))))
 
@@ -461,13 +461,13 @@
   (define (gslist-out-converter elt-convert)
     (lambda (lst)
       (cond ((eqv? lst #f)
-             (integer->pointer 0))
+             (null-pointer))
             ((pointer? lst)
              lst)
             ((gslist? lst)
              (ginstance-ptr lst))
             (else
-             (let loop ((gslist (integer->pointer 0))
+             (let loop ((gslist (null-pointer))
                         (lst lst))
                (if (null? lst)
                    (g-slist-reverse gslist)
@@ -479,7 +479,7 @@
 
   (define (gslist->list gslist elt-convert)
     (let loop ((lst '()) (gslist gslist))
-      (if (pointer-null? gslist)
+      (if (null-pointer? gslist)
           (reverse lst)
           (loop (cons (elt-convert (g-slist-data gslist)) lst)
                 (g-slist-next gslist)))))
@@ -492,7 +492,7 @@
     (lambda (gslist)
       (and elt-cleanup
            (let loop ((gslist gslist))
-             (unless (pointer-null? gslist)
+             (unless (null-pointer? gslist)
                (elt-cleanup (g-slist-data gslist))
                (loop (g-slist-next gslist)))))
       (g-slist-free gslist)))
@@ -500,13 +500,13 @@
   (define (glist-out-converter elt-convert)
     (lambda (lst)
       (cond ((eqv? lst #f)
-             (integer->pointer 0))
+             (null-pointer))
             ((pointer? lst)
              lst)
             ((glist? lst)
              (ginstance-ptr lst))
             (else
-             (let loop ((glist (integer->pointer 0))
+             (let loop ((glist (null-pointer))
                         (lst lst))
                (if (null? lst)
                    glist
@@ -518,7 +518,7 @@
 
   (define (glist->list glist elt-convert)
     (let loop ((lst '()) (glist (g-list-last glist)))
-      (if (pointer-null? glist)
+      (if (null-pointer? glist)
           lst
           (loop (cons (elt-convert (g-list-data glist)) lst)
                 (g-list-prev glist)))))
@@ -531,7 +531,7 @@
     (lambda (glist)
       (and elt-cleanup
            (let loop ((glist glist))
-             (unless (pointer-null? glist)
+             (unless (null-pointer? glist)
                (elt-cleanup (g-list-data glist))
                (loop (g-list-next glist)))))
       (g-list-free glist)))
@@ -551,11 +551,11 @@
       #f))
 
   (define (fnamez-ptr->string ptr)
-    (let ((error (malloc/set! 'pointer (integer->pointer 0)))
+    (let ((error (malloc/set! 'pointer (null-pointer)))
           (bytes-written (malloc/set! 'size_t 0)))
-      (let ((result (g-filename-to-utf8 ptr -1 (integer->pointer 0)
+      (let ((result (g-filename-to-utf8 ptr -1 (null-pointer)
                                         bytes-written error)))
-        (when (pointer-null? result)
+        (when (null-pointer? result)
           (free bytes-written)
           (raise-gerror/free error))
         (utf8z-ptr->string result))))

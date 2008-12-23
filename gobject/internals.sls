@@ -102,8 +102,7 @@
   (define (ginstance=? x y)
     (unless (and (ginstance? x) (ginstance? y))
       (error 'ginstance=? "invalid argument types" x y))
-    (= (pointer->integer (ginstance-ptr x))
-       (pointer->integer (ginstance-ptr y))))
+    (pointer=? (ginstance-ptr x) (ginstance-ptr y)))
 
   (define-record-type gobject-class
     ;;(opaque #t)
@@ -215,7 +214,7 @@
       (g-hash-table-foreach (ginstance-ptr ghash)
                             (lambda (key val user-data)
                               (proc (key-back key) (val-back val)))
-                            (integer->pointer 0))))
+                            (null-pointer))))
 
   (define (ghash->alist ghash)
     (cond ((eqv? ghash #f) '())
@@ -331,7 +330,7 @@
             (error 'gobject-new/props
                    "odd number of colum/value arguments" props/vals))
           (let ((parameters
-                 (if (= n 0) (integer->pointer 0) (g-param-alloc (/ n 2)))))
+                 (if (= n 0) (null-pointer) (g-param-alloc (/ n 2)))))
             (let loop ((i 0) (props/vals props/vals))
               (cond ((null? props/vals)
                      (make-ginstance
@@ -351,7 +350,7 @@
 
   (define (gobject-class-property-type class prop)
     (property-info-type (gobject-class-get-property-info class prop)))
-  
+
   (define (send-message obj msg . args)
     (cond ((ginstance? obj)
            (let ((method (send-message (ginstance-class obj) msg)))

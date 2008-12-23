@@ -202,7 +202,7 @@
 
   (define (gerror-arg-setup etype i)
     (lambda (args arg-vec)
-      (vector-set! arg-vec i (malloc/set! 'pointer (integer->pointer 0)))
+      (vector-set! arg-vec i (malloc/set! 'pointer (null-pointer)))
       args))
 
   (define (gerror-arg-cleanup etype i)
@@ -210,7 +210,7 @@
       (let* ((gerror-ptr (vector-ref arg-vec i))
              (gerror (pointer-ref-c-pointer gerror-ptr 0)))
         (free gerror-ptr)
-        (unless (= (pointer->integer gerror) 0)
+        (unless (null-pointer? gerror)
           (raise (apply condition
                         (make-sbank-callout-error)
                         (gerror-conditions/free etype gerror)))))))
@@ -224,9 +224,9 @@
       (lambda (args arg-vec)
         (vector-set! arg-vec i (convert (car args)))
         (when closure-i
-          (vector-set! arg-vec closure-i (integer->pointer 0)))
+          (vector-set! arg-vec closure-i (null-pointer)))
         (when destroy-i
-          (vector-set! arg-vec destroy-i (integer->pointer 0)))
+          (vector-set! arg-vec destroy-i (null-pointer)))
         (cdr args))))
 
   (define (args-setup-procedure n-args steps)

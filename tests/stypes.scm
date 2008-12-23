@@ -195,9 +195,9 @@
          (data-fetcher (stype-fetcher record "data"))
          (ptr-fetcher (stype-fetcher record "ptr")))
     (testeez "array member fetching"
-      (test/equal "pointer correct"
-        (pointer->integer (data-fetcher record-mem))
-        (+ (pointer->integer record-mem) (c-type-sizeof 'uint)))
-      (test/equal "correctness when the 'array' is really a pointer"
-        (pointer->integer (ptr-fetcher record-mem))
-        0))))
+      (test/equiv "pointer correct"
+        (data-fetcher record-mem)
+        (pointer+ record-mem (c-type-sizeof 'uint))
+        (pointer=?))
+      (test-true "correctness when the 'array' is really a pointer"
+        (null-pointer? (ptr-fetcher record-mem))))))

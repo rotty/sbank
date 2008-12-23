@@ -202,14 +202,14 @@
     (with-validation-context namespace
       (let ((c-namespace (->utf8z-ptr/null who namespace))
             (c-version (->utf8z-ptr/null who version))
-            (gerror (malloc/set! 'pointer (integer->pointer 0))))
+            (gerror (malloc/set! 'pointer (null-pointer))))
         (let ((result
-               (g-ir-require% (integer->pointer 0)
+               (g-ir-require% (null-pointer)
                               c-namespace
                               c-version
                               flags
                               gerror)))
-          (cond ((= 0 (pointer->integer result))
+          (cond ((null-pointer? result)
                  (let ((e (pointer-ref-c-pointer gerror 0)))
                    (free gerror)
                    (raise-gerror/free 'require-typelib #f e namespace version)))

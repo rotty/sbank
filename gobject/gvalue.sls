@@ -134,7 +134,10 @@
             ((enum)
              (set-enum% gvalue (enum->integer val)))
             ((pointer) (set-pointer% gvalue val))
-            ((boxed) (set-pointer% gvalue (integer->pointer (register-value val))))
+            ((boxed)
+             (let ((ptr (malloc 4)))
+               (pointer-uint32-set! ptr 0 (register-value val))
+               (set-pointer% gvalue ptr)))
             (else
              (lose "type not implemented"
                    (gtype->symbol (g-value-gtype% gvalue)))))))))
@@ -159,7 +162,7 @@
       (lambda (gvalue)
         (let ((gtype (g-value-gtype% gvalue)))
           (cond ((= gtype (g-boxed-value-type))
-                 (let ((i (pointer->integer (get-pointer% gvalue))))
+                 (let ((i (pointer-uint32-ref (get-pointer% gvalue) 0)))
                    (lookup-value i (lambda ()
                                      (lose "could not find boxed value" i)))))
                 (else
@@ -191,7 +194,7 @@
     (convert/null ptr utf8z-ptr->string #f))
 
   (define (convert/null ptr convert null-val)
-    (if (= (pointer->integer ptr) 0)
+    (if (null-pointer? ptr)
         null-val
         (convert ptr)))
 
