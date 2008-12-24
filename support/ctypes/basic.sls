@@ -24,6 +24,7 @@
 ;; machinery or any shlibs.
 
 ;;; Code:
+#!r6rs
 
 (library (sbank ctypes basic)
   (export vector->c-array ->c-array

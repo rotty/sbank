@@ -1,3 +1,5 @@
+#!r6rs
+
 (library (sbank gtk)
   (export send gtk-stock-id gtk-setup!)
   (import (rnrs base)

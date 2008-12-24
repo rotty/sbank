@@ -23,7 +23,7 @@
 ;; This library provides the interface to the GObject to Scheme mapping.
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank gobject)
   (export gobject-class?

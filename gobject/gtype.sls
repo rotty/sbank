@@ -21,6 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
 (library (sbank gobject gtype)
   (export symbol->gtype gtype->symbol

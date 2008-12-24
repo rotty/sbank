@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank ctypes call)
   (export make-callout

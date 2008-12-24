@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank support utils)
   (export define-enum
