@@ -208,7 +208,7 @@
   (define (gerror-arg-cleanup etype i)
     (lambda (arg-vec)
       (let* ((gerror-ptr (vector-ref arg-vec i))
-             (gerror (pointer-ref-c-pointer gerror-ptr 0)))
+             (gerror (pointer-ptr-ref gerror-ptr 0)))
         (free gerror-ptr)
         (unless (null-pointer? gerror)
           (raise (apply condition

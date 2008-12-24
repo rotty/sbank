@@ -210,7 +210,7 @@
                               flags
                               gerror)))
           (cond ((null-pointer? result)
-                 (let ((e (pointer-ref-c-pointer gerror 0)))
+                 (let ((e (pointer-ptr-ref gerror 0)))
                    (free gerror)
                    (raise-gerror/free 'require-typelib #f e namespace version)))
                 (else

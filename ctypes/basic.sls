@@ -362,7 +362,7 @@
           (elt-ref (make-pointer-c-getter elt-prim-type)))
       (if (pointer? terminator)
           (lambda (ptr offset)
-            (pointer=? (pointer-ref-c-pointer ptr offset)
+            (pointer=? (pointer-ptr-ref offset)
                        terminator))
           (lambda (ptr offset)
             (= (elt-ref ptr offset) terminator)))))
@@ -449,9 +449,9 @@
                  (values 'pointer
                          (c-type-sizeof 'pointer)
                          (lambda (ptr i)
-                           (make-ginstance et (pointer-ref-c-pointer ptr i)))
+                           (make-ginstance et (pointer-ptr-ref ptr i)))
                          (lambda (ptr i v)
-                           (pointer-set-c-pointer!
+                           (pointer-ptr-set!
                             ptr i (if (ginstance? v)
                                       (ginstance-ptr v)
                                       (ginstance-ptr (send et (new v))))))))
@@ -574,7 +574,7 @@
                (else
                 ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))))
             ((or (array-type? type) (gobject-class? type))
-             (pointer-ref-c-pointer ptr 0))
+             (pointer-ptr-ref ptr 0))
             (else
              (error 'deref-pointer "not implemented for that type" ptr type)))))
 
@@ -625,7 +625,7 @@
                mem)))
           ((array-type? type)
            (let ((mem (malloc (c-type-sizeof 'pointer))))
-             (pointer-set-c-pointer! mem 0 val)
+             (pointer-ptr-set! mem 0 val)
              mem))
           (else
            (error 'malloc/set! "not implemented" type val))))
