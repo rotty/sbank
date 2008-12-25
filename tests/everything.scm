@@ -59,3 +59,16 @@
       (send obj (get-bare))
       other
       (ginstance=?))))
+
+(let ((signal-args #f))
+  (testeez "signals"
+    (test-define "obj" obj (send <test-obj> (new/props)))
+    (test-eval "connect" (send obj (connect 'test(lambda args
+                                                   (set! signal-args args)))))
+    (test-eval "emit" (send obj (emit 'test)))
+    (test/equiv "check" signal-args (list obj)
+                ((lambda (l1 l2)
+                   (and (= (length l1) (length l2))
+                        (every (lambda (x y)
+                                 (ginstance=? x y))
+                               l1 l2)))))))
