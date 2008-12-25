@@ -24,7 +24,7 @@
 ;; information, in a high-level way.
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank typelib base)
   (export require-typelib
@@ -50,7 +50,7 @@
           (only (spells assert) cerr cout)
           (sbank support utils)
           (sbank type-data)
-          (sbank support stypes)
+          (for (sbank support stypes) run expand)
           (sbank ctypes basic)
           (sbank ctypes call)
           (sbank support shlibs)

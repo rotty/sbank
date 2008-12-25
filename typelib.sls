@@ -24,11 +24,11 @@
 ;; used in a similiar way as R6RS `import'.
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank typelib)
   (export typelib-import)
-  (import (rnrs base)
+  (import (for (rnrs base) run expand)
           (for (sbank typelib expanders) expand))
          
   (define-syntax typelib-import (typelib-import-expander 'typelib-import)))

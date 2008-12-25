@@ -25,17 +25,17 @@
 ;; of `define-syntax'.
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank typelib expanders)
   (export typelib-import-expander)
-  (import (rnrs base)
+  (import (for (rnrs base) run expand (meta -1))
           (rnrs control)
           (rnrs syntax-case)
           (spells receive)
           (spells tracing)
           (sbank support utils)
-          (sbank typelib base))
+          (for (sbank typelib base) run expand (meta -1)))
 
 
   (define (typelib-import-expander who)
@@ -48,7 +48,7 @@
                (((form ...)
                  (apply
                   append
-                  (map
+                   (map
                    (lambda (import-spec name)
                      (expand-import who #'k name (syntax->datum import-spec)))
                    #'(<import-spec> ...)

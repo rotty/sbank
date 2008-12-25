@@ -21,6 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
 (library (sbank support shlibs)
   (export libgir libgobject libglib

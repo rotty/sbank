@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank typelib decorators)
   (export register-typelib-decorator

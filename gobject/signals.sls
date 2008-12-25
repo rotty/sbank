@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank gobject signals)
   (export g-signal-connect g-signal-emit)

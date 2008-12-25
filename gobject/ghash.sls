@@ -21,6 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
 (library (sbank gobject ghash)
   (export g-hash-table-foreach)

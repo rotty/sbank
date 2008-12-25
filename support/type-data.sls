@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank type-data)
   (export array-type?

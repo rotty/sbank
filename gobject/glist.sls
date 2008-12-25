@@ -21,6 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
 (library (sbank gobject glist)
   (export g-list-prepend
@@ -38,8 +39,8 @@
           g-slist-free)
   (import (rnrs base)
           (sbank support shlibs)
-          (sbank typelib stypes)
-          (sbank support stypes))
+          (for (sbank typelib stypes) expand)
+          (for (sbank support stypes) expand))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
 

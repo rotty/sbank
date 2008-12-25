@@ -21,6 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
 (library (sbank gobject internals)
   (export make-gobject-class gobject-class?
@@ -133,11 +134,18 @@
                                   (values #f '() constructors methods '() '()))))))
                     (p))))))
 
+
+  (define (simple-protocol n)
+    (lambda args
+      ((apply n args))))
+
   (define-record-type gobject-record-class
-    (parent gobject-simple-class))
+    (parent gobject-simple-class)
+    (protocol simple-protocol))
 
   (define-record-type gobject-union-class
-    (parent gobject-simple-class))
+    (parent gobject-simple-class)
+    (protocol simple-protocol))
 
   (define-record-type gsequence-class
     (parent gobject-simple-class)
@@ -285,10 +293,6 @@
                                result)
                          (cdr overrides))))))))
 
-  (define lookup-method (make-gobject-class-lookup gobject-class-methods))
-  (define lookup-property (make-gobject-class-lookup gobject-class-properties))
-  (define lookup-signal (make-gobject-class-lookup gobject-class-signals))
-
   (define (make-gobject-class-lookup accessor)
     (define (lookup class name)
       (cond ((assq name (accessor class))
@@ -308,6 +312,10 @@
                      (else
                       (loop (cdr ifaces))))))))
     lookup)
+
+  (define lookup-method (make-gobject-class-lookup gobject-class-methods))
+  (define lookup-property (make-gobject-class-lookup gobject-class-properties))
+  (define lookup-signal (make-gobject-class-lookup gobject-class-signals))
 
   (define (gobject-class-force! class)
     (cond ((gobject-class-load-members class)

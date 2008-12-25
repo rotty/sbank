@@ -25,6 +25,7 @@
 
 (library (sbank support utils)
   (export define-enum
+          map-apply
           vector-index
           ->vector
           make-lazy-entry lazy-entry? lazy-entry-proc
@@ -55,6 +56,11 @@
             ((equal (vector-ref vec i) val) i)
             (else (loop (+ i 1))))))
   
+  (define (map-apply proc lst)
+    (map (lambda (elt)
+           (apply proc elt))
+         lst))
+
   (define-record-type lazy-entry
     (fields
      (immutable proc lazy-entry-proc)))  

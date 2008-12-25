@@ -45,9 +45,9 @@
           stype-attribute-definer
           stype-accessor-definer
           stype-fetcher-factory-definer)
-  (import (rnrs base)
+  (import (for (rnrs base) run expand (meta -1))
           (rnrs control)
-          (rnrs lists)
+          (for (rnrs lists) run expand (meta -1))
           (rnrs syntax-case)
           (rnrs io simple)
           (xitomatl srfi and-let*)
@@ -57,11 +57,11 @@
           (only (spells strings) string-map)
           (spells alist)
           (spells tracing)
-          (spells foreign)
+          (for (spells foreign) run expand (meta -1))
           (spells receive)
           (spells format)
-          (for (spells define-values) run expand)
-          (sbank support utils)
+          (for (spells define-values) run expand (meta -1))
+          (for (sbank support utils) run expand (meta -1))
           (sbank support sxpath-utils))
 
   (define primitive-stypes
@@ -443,11 +443,6 @@
                               '(all-args ...))
                    (map-apply make-pointer-c-element-setter
                               '(setter-args ...)))))))))))
-
-  (define (map-apply proc lst)
-    (map (lambda (elt)
-           (apply proc elt))
-         lst))
 
   (define (stype-fetcher-factory-definer types)
     (lambda (stx)

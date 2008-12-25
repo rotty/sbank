@@ -21,6 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
 (library (sbank gobject gparam)
   (export g-param-alloc
@@ -29,8 +30,8 @@
           g-param-size)
   (import (rnrs base)
           (spells foreign)
-          (sbank support stypes)
-          (sbank typelib stypes))
+          (for (sbank support stypes) expand)
+          (for (sbank typelib stypes) expand))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
   (define-syntax define-attributes (stype-attribute-definer (typelib-stypes)))

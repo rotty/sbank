@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank gobject gvalue)
   (export g-value-alloc
@@ -36,7 +36,7 @@
 
           ->g-value-array
           free-g-value-array)
-  (import (rnrs)
+  (import (for (rnrs) run expand)
           (xitomatl srfi and-let*)
           (spells foreign)
           (spells receive)
@@ -48,8 +48,8 @@
           (sbank type-data)
           (sbank gobject genum)
           (sbank gobject gtype)
-          (sbank typelib stypes)
-          (sbank support stypes))
+          (for (sbank typelib stypes) expand)
+          (for (sbank support stypes) expand))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
   (define-syntax define-attributes (stype-attribute-definer (typelib-stypes)))

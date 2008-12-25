@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank typelib stypes)
   (export typelib-stypes)
@@ -44,6 +44,17 @@
                (x->namestring relpath)
                (library-search-paths)))
       (call-with-input-file (x->namestring filename) read)))
+
+  (define gvalue-data-union
+    '(union (field (name "v_int")     (type "int"))
+            (field (name "v_uint")    (type "uint"))
+            (field (name "v_long")    (type "long"))
+            (field (name "v_ulong")   (type "ulong"))
+            (field (name "v_int64")   (type "int64"))
+            (field (name "v_uint64")  (type "uint64"))
+            (field (name "v_float")   (type "float"))
+            (field (name "v_double")  (type "double"))
+            (field (name "v_pointer") (type (pointer (type "void"))))))
 
   (define extra-types
     `((alias (name "gtype") (target ,(symbol->string gtype-ctype)))
@@ -76,17 +87,6 @@
       (record (name "GTypeClass")
               (field (name "g_type") (type "gtype")))))
   
-
-  (define gvalue-data-union
-    '(union (field (name "v_int")     (type "int"))
-            (field (name "v_uint")    (type "uint"))
-            (field (name "v_long")    (type "long"))
-            (field (name "v_ulong")   (type "ulong"))
-            (field (name "v_int64")   (type "int64"))
-            (field (name "v_uint64")  (type "uint64"))
-            (field (name "v_float")   (type "float"))
-            (field (name "v_double")  (type "double"))
-            (field (name "v_pointer") (type (pointer (type "void"))))))
 
   (define typelib-stypes
     (let ((stypes #f))

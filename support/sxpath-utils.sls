@@ -21,7 +21,7 @@
 ;;; Commentary:
 
 ;;; Code:
-
+#!r6rs
 
 (library (sbank support sxpath-utils)
   (export sxpath-ref sxpath-attr)
