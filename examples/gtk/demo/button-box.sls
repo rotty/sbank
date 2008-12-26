@@ -1,6 +1,7 @@
 ;; Copyright (C) 2008 Andreas Rottmann
 ;; Copyright (C) 2004 Patrick Bernaud
 ;; GNU General Public License version 2 or later. No warrantee.
+#!r6rs
 
 (library (sbank examples gtk demo button-box)
   (export name main description)

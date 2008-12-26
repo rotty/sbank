@@ -597,9 +597,10 @@
     (let ((type (type-info-type ti)))
       (cond ((or out?
                  (array-type? type)
-                 (gobject-class? type)
-                 (signature? type))
+                 (gobject-class? type))
              'pointer)
+            ((signature? type)
+             'fpointer)
             ((genumerated? type)
              'int)
             ((symbol? type)

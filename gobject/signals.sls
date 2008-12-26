@@ -121,7 +121,7 @@
 
   (define-callouts libgobject
     (connect-data% 'ulong "g_signal_connect_data"
-                   '(pointer pointer pointer pointer pointer int))
+                   '(pointer pointer fpointer pointer fpointer int))
     (lookup% 'uint "g_signal_lookup" `(pointer ,gtype-ctype))
     (emitv% 'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
   
