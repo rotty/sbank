@@ -1,3 +1,5 @@
+#!r6rs
+
 (library (sbank soup)
   (export send
           soup-setup!
