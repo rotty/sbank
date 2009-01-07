@@ -42,7 +42,7 @@
     (lambda (stx)
       (syntax-case stx ()
         ((k <import-spec> ...)
-         (with-syntax ((typelib-names
+         (with-syntax (((typelib-name ...)
                         (generate-temporaries #'(<import-spec> ...))))
            (with-syntax
                (((form ...)
@@ -52,7 +52,7 @@
                    (lambda (import-spec name)
                      (expand-import who #'k name (syntax->datum import-spec)))
                    #'(<import-spec> ...)
-                   #'typelib-names))))
+                   #'(typelib-name ...)))))
              #'(begin form ...)))))))
 
   (define (expand-import who k typelib import-spec)
