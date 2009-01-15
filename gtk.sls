@@ -6,7 +6,7 @@
           (rnrs control)
           (spells tracing)
           (only (spells assert) cout)
-          (spells receive)
+          (xitomatl srfi receive)
           (spells foreign)
           (sbank ctypes basic)
           (sbank typelib)

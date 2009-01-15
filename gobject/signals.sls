@@ -27,7 +27,7 @@
   (export g-signal-connect g-signal-emit)
   (import (rnrs base)
           (rnrs control)
-          (spells receive)
+          (xitomatl srfi receive)
           (spells foreign)
           (spells tracing)
           (only (spells assert) cerr)

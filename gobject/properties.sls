@@ -27,7 +27,7 @@
   (export g-object-get-property
           g-object-set-property)
   (import (rnrs base)
-          (spells receive)
+          (xitomatl srfi receive)
           (spells foreign)
           (spells tracing)
           (sbank support shlibs)

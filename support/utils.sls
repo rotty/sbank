@@ -39,8 +39,8 @@
           (rnrs unicode)
           (rnrs records syntactic)
           (spells define-values)
-          (spells char-set)
-          (only (spells strings) string-map string-tokenize))
+          (xitomatl srfi char-set)
+          (only (xitomatl srfi strings) string-map string-tokenize))
 
   (define-syntax define-enum
     (syntax-rules ()

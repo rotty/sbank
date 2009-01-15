@@ -39,7 +39,7 @@
   (import (for (rnrs) run expand)
           (xitomatl srfi and-let*)
           (spells foreign)
-          (spells receive)
+          (xitomatl srfi receive)
           (spells table)
           (spells define-values)
           (spells tracing)

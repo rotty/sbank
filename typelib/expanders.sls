@@ -32,7 +32,7 @@
   (import (for (rnrs base) run expand (meta -1))
           (rnrs control)
           (rnrs syntax-case)
-          (spells receive)
+          (xitomatl srfi receive)
           (spells tracing)
           (sbank support utils)
           (for (sbank typelib base) run expand (meta -1)))

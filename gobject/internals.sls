@@ -78,7 +78,7 @@
           (rnrs conditions)
           (xitomatl srfi and-let*)
           (spells alist)
-          (spells receive)
+          (xitomatl srfi receive)
           (spells tracing)
           (only (spells assert) cout)
           (spells foreign)
