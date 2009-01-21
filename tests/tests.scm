@@ -25,18 +25,20 @@
 
 ((systems sbank)
  (files
-  ("utils.scm" (sbank support utils))
+  ("utils.scm" (testeez) (sbank support utils))
 
   ("stypes.scm"
+   (testeez)
    (sbank support stypes)
    (spells foreign)
-   (only (spells lists) make-list iota)
+   (only (srfi :1 lists) make-list iota)
    (rnrs control)
    (rnrs arithmetic bitwise)
    (rnrs bytevectors)
    (rnrs lists))
 
   ("gobject.scm"
+   (testeez)
    (sbank gobject gtype)
    (sbank gobject gvalue)
    (sbank gobject internals)
@@ -44,6 +46,7 @@
 
   ((code (gobject-setup!))
    "everything.scm"
+   (testeez)
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
    (spells parameter)
@@ -52,5 +55,6 @@
 
   ((code (gtk-setup!))
    "gtk.scm"
+   (testeez)
    (sbank gtk)
    (sbank typelib))))

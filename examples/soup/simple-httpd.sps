@@ -25,7 +25,7 @@
 #!r6rs
 (import (except (rnrs) file-exists? delete-file)
         (spells parameter)
-        (only (xitomatl srfi strings) string-join)
+        (only (srfi :13 strings) string-join)
         (spells string-substitute)
         (spells pathname)
         (spells filesys)

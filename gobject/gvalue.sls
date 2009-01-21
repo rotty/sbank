@@ -37,9 +37,9 @@
           ->g-value-array
           free-g-value-array)
   (import (for (rnrs) run expand)
-          (xitomatl srfi and-let*)
+          (srfi :2 and-let*)
           (spells foreign)
-          (xitomatl srfi receive)
+          (srfi :8 receive)
           (spells table)
           (spells define-values)
           (spells tracing)

@@ -58,8 +58,8 @@
 
           null-ok-always-on?)
   (import (rnrs)
-          (xitomatl srfi and-let*)
-          (xitomatl srfi receive)
+          (srfi :2 and-let*)
+          (srfi :8 receive)
           (spells parameter)
           (spells foreign)
           (spells tracing)

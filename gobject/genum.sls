@@ -34,7 +34,7 @@
    gflags->integer integer->gflags
    )
   (import (rnrs)
-          (only (xitomatl srfi vectors) vector-fold)
+          (only (srfi :43 vectors) vector-fold)
           (spells tracing)
           (sbank support utils))
 

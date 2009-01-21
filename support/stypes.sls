@@ -50,15 +50,15 @@
           (for (rnrs lists) run expand (meta -1))
           (rnrs syntax-case)
           (rnrs io simple)
-          (xitomatl srfi and-let*)
+          (srfi :2 and-let*)
           (xitomatl sxml-tools sxpathlib)
           (xitomatl sxml-tools sxpath)
-          (only (xitomatl srfi lists) append-map filter-map split-at)
-          (only (xitomatl srfi strings) string-map)
+          (only (srfi :1 lists) append-map filter-map split-at)
+          (only (srfi :13 strings) string-map)
           (spells alist)
           (spells tracing)
           (for (spells foreign) run expand (meta -1))
-          (xitomatl srfi receive)
+          (srfi :8 receive)
           (spells format)
           (for (spells define-values) run expand (meta -1))
           (for (sbank support utils) run expand (meta -1))
@@ -435,7 +435,7 @@
                                         (and (= (length spec) 3)
                                              (datum->syntax #'k (cadr spec))))
                                       specs)))
-             #`(define-values (fetcher-name ... setter-name ...)
+             #'(define-values (fetcher-name ... setter-name ...)
                  (apply
                   values
                   (append
