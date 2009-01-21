@@ -29,7 +29,7 @@
           (rnrs control)
           (rnrs lists)
           (rnrs io simple)
-          (spells find-file)
+          (spells filesys)
           (spells pathname)
           (spells tracing)
           (sbank gobject gtype)
