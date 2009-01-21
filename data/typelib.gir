@@ -1,4 +1,7 @@
 <?xml version="1.0"?>
+<!-- This file was automatically generated from C sources - DO NOT EDIT!
+To affect the contents of this file, edit the original C definitions,
+and/or use gtk-doc annotations.  -->
 <repository version="1.0"
             xmlns="http://www.gtk.org/introspection/core/1.0"
             xmlns:c="http://www.gtk.org/introspection/c/1.0"
@@ -212,7 +215,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="arguments" writable="1">
-        <array c:type="ArgBlob">
+        <array zero-terminated="0" c:type="ArgBlob">
           <type name="ArgBlob"/>
         </array>
       </field>
@@ -360,7 +363,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="type" writable="1">
-        <array c:type="SimpleTypeBlob">
+        <array zero-terminated="0" c:type="SimpleTypeBlob">
           <type name="SimpleTypeBlob"/>
         </array>
       </field>
@@ -382,7 +385,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="domains" writable="1">
-        <array c:type="guint16">
+        <array zero-terminated="0" c:type="guint16">
           <type name="uint16"/>
         </array>
       </field>
@@ -434,10 +437,7 @@
       <field name="writable" writable="1" bits="1">
         <type name="uint8" c:type="guint8"/>
       </field>
-      <field name="null_ok" writable="1" bits="1">
-        <type name="uint8" c:type="guint8"/>
-      </field>
-      <field name="reserved" writable="1" bits="5">
+      <field name="reserved" writable="1" bits="6">
         <type name="uint8" c:type="guint8"/>
       </field>
       <field name="bits" writable="1">
@@ -584,7 +584,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="values" writable="1">
-        <array c:type="ValueBlob">
+        <array zero-terminated="0" c:type="ValueBlob">
           <type name="ValueBlob"/>
         </array>
       </field>
@@ -738,7 +738,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="interfaces" writable="1">
-        <array c:type="guint16">
+        <array zero-terminated="0" c:type="guint16">
           <type name="uint16"/>
         </array>
       </field>
@@ -781,7 +781,7 @@
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="prerequisites" writable="1">
-        <array c:type="guint16">
+        <array zero-terminated="0" c:type="guint16">
           <type name="uint16"/>
         </array>
       </field>
