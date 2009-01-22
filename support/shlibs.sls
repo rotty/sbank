@@ -50,6 +50,6 @@
     (or (dlopen name)
         (error 'checked-dlopen "unable to open shared library" name (dlerror))))
   
-  (define libgir (checked-dlopen "libgirepository.so.0"))
+  (define libgir (checked-dlopen "libgirepository-1.0.so.0"))
   (define libgobject (checked-dlopen "libgobject-2.0.so.0"))
   (define libglib (checked-dlopen "libglib-2.0.so.0")))
