@@ -24,7 +24,6 @@
         (srfi :8 receive)
         (spells pathname)
         (spells filesys)
-        (spells find-file)
         (spells tracing)
         (only (srfi :13 strings) string-unfold)
         (only (spells assert) cout)

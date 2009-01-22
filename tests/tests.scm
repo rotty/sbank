@@ -50,7 +50,7 @@
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
    (spells parameter)
-   (spells lists)
+   (srfi :1 lists)
    (sbank gobject))
 
   ((code (gtk-setup!))
