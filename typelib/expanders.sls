@@ -48,7 +48,7 @@
                (((form ...)
                  (apply
                   append
-                   (map
+                  (map
                    (lambda (import-spec name)
                      (expand-import who #'k name (syntax->datum import-spec)))
                    #'(<import-spec> ...)

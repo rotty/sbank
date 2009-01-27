@@ -171,7 +171,7 @@
             name (dlerror)))
          shlib))
      (string-split names #\,)))
-  
+
   ;; See comments in gtypelib.c (_g_typelib_init)
   (define (typelib-shlibs typelib)
     (or (%typelib-shlibs typelib)
@@ -277,7 +277,7 @@
          <body> ...))))
 
   (define tl-magic-bytes (string->utf8 "GOBJ\nMETADATA\r\n\x1a;"))
-  
+
   (define (make/validate-typelib tl namespace)
     (define (lose msg . irritants)
       (apply raise-validation-error msg irritants))
@@ -1202,6 +1202,6 @@
   (define-callouts libgir
     (g-ir-require% 'pointer "g_irepository_require"
                    '(pointer pointer pointer uint pointer)))
-  
+
   ;; Initialize the GObject type system
   (g-type-init))
