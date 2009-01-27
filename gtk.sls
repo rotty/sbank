@@ -13,7 +13,8 @@
           (sbank typelib base)
           (sbank typelib decorators)
           (sbank gobject gvalue)
-          (sbank gobject))
+          (sbank gobject)
+          (sbank gdk))
 
   (typelib-import (only ("Gtk" #f) <tree-iter> <text-iter> <tree-path>))
 
@@ -129,7 +130,7 @@
     (let ((installed? #f))
       (lambda ()
         (unless installed?
-          (gobject-setup!)
+          (gdk-setup!)
           (register-typelib-decorator "Gtk" "ListStore" list-store-decorator)
           (register-typelib-decorator "Gtk" "TextBuffer" text-buffer-decorator)
           (register-typelib-decorator "Gtk" "TreeModel" tree-model-decorator)
