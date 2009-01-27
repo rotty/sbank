@@ -1,6 +1,6 @@
 ;;; base.sls --- gobject-introspection typelib destructuring
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -91,6 +91,14 @@
     (arg-transfer-ownership "transfer_ownership")
     (arg-transfer-container-ownership "transfer_container_ownership")
     (arg-type "arg_type"))
+
+  (define-accessors "FieldBlob"
+    (field-name "name")
+    (field-readable "readable")
+    (field-writable "writable")
+    (field-bits "bits")
+    (field-struct-offset "struct_offset")
+    (field-type "type"))
 
   (define-syntax define-fetcher
     (stype-fetcher-factory-definer (typelib-stypes)))
@@ -754,27 +762,29 @@
          (lambda (container)
            (make/validate-signature typelib tld signature #f container)))))
     (define (field-getter-maker blob)
-      (let-attributes field-blob-fetcher blob
-                      (name readable bits struct-offset type)
-        (let ((field-name (get/validate-string tld name)))
-          (and (= readable 1)
-               (= bits 0) ;; FIXME: support bitfields
-               (not (= struct-offset #x0ffff))
-               (make-lazy field-name
-                          (string->symbol
-                           (string-append "get-" (scheme-ified-string field-name)))
-                          (field-getter-method typelib tld type struct-offset))))))
+      (let ((name (get/validate-string tld (field-name blob)))
+            (struct-offset (field-struct-offset blob)))
+        (and (= (field-readable blob) 1)
+             (= (field-bits blob) 0) ;; FIXME: support bitfields
+             (not (= struct-offset #x0ffff))
+             (make-lazy name
+                        (string->symbol
+                         (string-append "get-" (scheme-ified-string name)))
+                        (field-getter-method typelib
+                                             tld
+                                             (field-type blob)
+                                             struct-offset)))))
     (define (field-setter-maker blob)
-      (let-attributes field-blob-fetcher blob
-                      (name writable bits struct-offset type)
-        (let ((field-name (get/validate-string tld name)))
-          (and (= writable 1)
-               (= bits 0) ;; FIXME: support bitfields
-               (not (= struct-offset #x0ffff))
-               (make-lazy field-name
-                          (string->symbol
-                           (string-append "set-" (scheme-ified-string field-name)))
-                          (field-setter-method typelib tld type struct-offset))))))
+      (let ((name (get/validate-string tld (field-name blob)))
+            (struct-offset (field-struct-offset blob)))
+        (and (field-writable? blob)
+             (make-lazy name
+                        (string->symbol
+                         (string-append "set-" (scheme-ified-string name)))
+                        (field-setter-method typelib
+                                             tld
+                                             (field-type blob)
+                                             struct-offset)))))
     (define (property-maker blob)
       (let-attributes property-blob-fetcher blob
                       (name
@@ -975,7 +985,13 @@
                    (if (> size 0)
                        (values
                         (append
-                         `((alloc . ,(make-lazy-entry (record-allocator size))))
+                         `((alloc . ,(make-lazy-entry (record-allocator size)))
+                           (new/alist . ,(make-lazy-entry
+                                          (record-alist-constructor typelib
+                                                                    tld
+                                                                    size
+                                                                    n-fields
+                                                                    fields))))
                          constructors)
                         (append `((free . ,record-free)) methods))
                        (values constructors methods)))))))))))
@@ -988,6 +1004,42 @@
   (define (record-free next-method)
     (lambda (instance)
       (free (ginstance-ptr instance))))
+
+  (define (field-writable? field-blob)
+    (and (= (field-writable field-blob) 1)
+         (= (field-bits field-blob) 0)  ;; FIXME: support bitfields
+         (not (= (field-struct-offset field-blob) #x0ffff))))
+
+  (define (record-alist-constructor typelib tld size n-fields fields)
+    (let-attributes header-fetcher tld (field-blob-size)
+      (lambda (class)
+        (define (field-name+setter blob)
+          (let-attributes field-blob-fetcher blob
+                          (name writable bits struct-offset type)
+            (let ((field-name (get/validate-string tld name)))
+              (if (field-writable? blob)
+                  (values (scheme-ified-symbol field-name)
+                          ;; TODO: don't instantiate the setter method twice
+                          ((field-setter-method typelib tld type struct-offset) class))
+                  (values #f #f)))))
+        (let ((field-setters (filter-map
+                              (lambda (field-blob)
+                                (receive (name setter!) (field-name+setter field-blob)
+                                  (and name (cons name setter!))))
+                              (make-array-pointers fields n-fields field-blob-size))))
+          (trace-lambda ALIST-CONSTR (alist)
+            (let* ((mem (malloc size))
+                   (instance (make-ginstance class mem)))
+              (memset mem 0 size)
+              (for-each (lambda (entry)
+                          (let ((setter (assq-ref field-setters (car entry))))
+                            (unless setter
+                              (free mem)
+                              (error 'record-alist-constructor
+                                     "no writable field with this name" (car entry)))
+                            (setter instance (cdr entry))))
+                        alist)
+              instance))))))
 
   (define (make-union-loader typelib tld entry-ptr entry-name gtype)
     (lambda ()
