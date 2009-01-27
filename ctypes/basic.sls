@@ -573,7 +573,9 @@
                ((gvalue) ptr)
                (else
                 ((make-pointer-c-getter (type-tag-symbol->prim-type type)) ptr 0))))
-            ((or (array-type? type) (gobject-class? type))
+            ((gobject-record-class? type)
+             ptr)
+            ((or (gobject-class? type) (array-type? type))
              (pointer-ptr-ref ptr 0))
             (else
              (error 'deref-pointer "not implemented for that type" ptr type)))))

@@ -1,6 +1,6 @@
 ;;; everything.scm --- Tests for the "Everything" namespace bindings
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -47,7 +47,15 @@
   (test/equiv "get obj"
     (send a (get-some-obj))
     obj
-    (ginstance=?)))
+    (ginstance=?))
+  (test-define "A-cloned" a-cloned (send a (clone)))
+  (test-true "clone is an instance" (ginstance? a-cloned))
+  (test/equal "fields correct"
+    (list (send a-cloned (get-some-int))
+          (send a-cloned (get-some-int8))
+          (send a-cloned (get-some-double))
+          (send a-cloned (get-some-enum)))
+    (list 12345 42 0.3141 'value2)))
 
 (parameterize ((null-ok-always-on? #t))
   (testeez "objects"

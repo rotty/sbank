@@ -1,6 +1,6 @@
 ;;; call.sls --- Dealing with C types and callouts/callbacks
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -69,12 +69,19 @@
          (arg-types arg-types (cdr arg-types))
          (flags flags (cdr flags)))
         ((>= i (vector-length arg-vec)))
-      (let ((prim-type (type-info->prim-type (car arg-types) #f)))
-        (flags-case (car flags)
-          ((in-out)
-           (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
-          ((out)
-           (vector-set! arg-vec i (malloc (c-type-sizeof prim-type))))))))
+      (let* ((ti (car arg-types))
+             (type (type-info-type ti)))
+        (cond
+         ((gobject-record-class? type)
+          (when (memq 'out (car flags))
+            (vector-set! arg-vec i (ginstance-ptr (send type (alloc))))))
+         (else
+          (let ((prim-type (type-info->prim-type ti #f)))
+            (flags-case (car flags)
+              ((in-out)
+               (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
+              ((out)
+               (vector-set! arg-vec i (malloc (c-type-sizeof prim-type)))))))))))
 
   (define (args-post-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
@@ -306,15 +313,16 @@
           (collect (args-collect-procedure collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps))
           (ret-consume (ret-type-consumer rti ret-flags gtype-lookup)))
-      (cond ((and setup collect out-args?)
+      (cond ((or out-args? collect)
+             ;; The most general, complex case
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
                  (lambda args
-                   (let ((arg-vec (setup args)))
+                   (let ((arg-vec (if setup (setup args) (list->vector args))))
                      (args-pre-call! arg-vec arg-types flags)
                      (let ((ret-val (apply do-callout (vector->list arg-vec))))
                        (args-post-call! arg-vec arg-types flags)
-                       (let ((out-vals (collect arg-vec)))
+                       (let ((out-vals (if collect (collect arg-vec) '())))
                          (if cleanup (cleanup arg-vec))
                          (if (and (eqv? ret-consume #f))
                              (apply values out-vals)
