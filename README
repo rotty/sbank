@@ -1,0 +1,141 @@
+# -*- org -*-
+
+* About
+
+This is a Scheme binding for [[http://live.gnome.org/GObjectIntrospection/][gobject-introspection]] (see also this [[http://blogs.gnome.org/johan/2008/06/01/introduction-to-gobject-introspection/][blog
+post]]), called sbank, after pybank, a Python binding for
+gobject-introspection. However, the idea here is to go for a even more
+lightweight binding:
+
+- Don't wrap the whole of the girepository library; we only need a
+  tiny bit of it:
+
+  - lookup the typelib for a given namespace and name in the default
+    repository, and return a pointer to the in-memory-structure (data
+    member) of the typelib; lets call that the typelib-blob.
+
+  - The rest can be figured out from that blob; we just need a way of
+    destructuring the blob. Instead of letting the girepository
+    library do this for us (and having to hand-code bindings to it),
+    we extract the necessary information (basically struct offsets)
+    from the gtypelib.h header.
+
+- Do everything possible in Scheme. That should be basically
+  everything, given a decent FFI. I'll first try my hand doing this
+  for ikarus, but I'll try to keep the FFI-dependent part as small as
+  possible to ease future ports.
+
+
+* Status
+
+For missing/planned features see the TODO file included in the
+distribution. sbank is currently still in alpha mode, this also why no
+official releases exist, you have to grab the code via darcs. Alpha
+mode means that sbank is not ready for general public consumption or
+even production use. If, however, you are willing to deal with:
+
+- Not-yet-stable APIs: while in general, the APIs introduced by
+  sbank's =typelib-import= macro will not change much, and neither
+  will the API of =typelib-import= itself. There are however, a few
+  known glitches in the current API, for example in the way callbacks
+  are handled, that will result in backward-incompatible changes in
+  the near future. The impact on user code will be not enormous,
+  however: the callback issue mentioned before will require the code
+  using sbank to remove all =user-data= parameters for callbacks
+  (which received always a NULL pointer), for example (though note
+  that GObject signal handlers are *not* affected).
+
+- Bugs. These may manifest in crashes, not properly covered API,
+  memory leaks (there are surely a *lot* of those at the time of this
+  writing) or otherwise. sbank is only lightly tested, so you should
+  be prepared to run into bugs, and either fix them yourself, or
+  report them to me. I'm still investigating options wrt. to a
+  bug/issue tracking system. In the meantime, send me an email, or
+  even better, drop by on IRC, either gnome/#introspection, or
+  freenode/#scheme -- I'm hanging out there as ~rotty~.
+
+The following is a list of working code using sbank to access various
+libraries; this should give you an impression of what's already
+possible:
+
+- The hello-world.c and hello-world2.c examples from the GTK+ tutorial
+  have been ported (see examples/gtk/hello-world{,2}.sps).
+
+- A working port of a part of guile-gnome GTK+ demo suite is provided
+  in examples/gtk/demo.
+
+- There is a rather minimal example using gdk-pixbuf at
+  examples/gdk-pixbuf.sps.
+
+- The simple-httpd.c example from libsoup has been ported
+  (examples/soup/simple-httpd.sps).
+
+- I have a web server using libsoup via sbank, running on Ikarus
+  Scheme that provides IRC logs. An instance of the code is currently
+  available via http://rottyforge.yi.org/irclogs/, you can find a link
+  to the code at the footer of that page.
+
+
+* Installation
+
+Currently, I'll only give instructions for Ikarus, as that's the
+implementation I use the most and hence the best-supported one.
+
+** Ikarus
+
+You'll need Ikarus Scheme; the latest release (0.0.3) does not work,
+you need to get it via bzr:
+
+: bzr checkout --lightweight http://www.cs.indiana.edu/~aghuloum/ikarus.dev ikarus
+
+You should build Ikarus using the flags used in the following; see
+[[http://bugzilla.gnome.org/show_bug.cgi?id=563464#c3][this bug on gobject-introspection]] why using ~-lpthread~ is a good
+idea. Ikarus must also be configured with ~--enable-libffi~, or
+otherwise its FFI will not work, which is naturally a requirement for
+sbank.
+
+: cd ikarus
+: ./configure --enable-libffi LDFLAGS="-lpthread"
+: make
+: make install
+
+
+** gobject-introspection
+
+Grab the code from git, build and install it:
+
+: git clone git://git.gnome.org/gobject-introspection
+: cd gobject-introspection
+: ./autogen.sh && make && sudo make install
+
+** gir-repository
+
+While this is not a strict dependency, you probably want the typelib
+data it provides, so you can use e.g. GTK+. Procedure as above:
+
+: git clone git://git.gnome.org/gir-repository
+: cd gir-repository
+: ./autogen.sh && make && sudo make install
+
+** Scheme code
+
+~sbank~ uses a bunch of Scheme libraries. You can grab them all in one
+go by using the SPE helper package:
+
+: IMPL=ikarus
+: darcs get --lazy --set-scripts-executable http://download.gna.org/spells/darcs/r6rs/spe/
+: cd spe
+: ./scripts/fetch-systems $IMPL sbank
+
+You then have to make the the data needed by sbank accessible via the
+implementations' library path (yes, I'll automate this):
+
+: ln -fs ../../../systems/sbank/data targets/$IMPL/sbank
+
+* Testing
+
+When you've completed the above installation procedure, you should run
+the sbank testsuite, to make sure that everything worked out as
+expected:
+
+: ./scripts/launch $IMPL test sbank
