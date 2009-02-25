@@ -1,6 +1,6 @@
 ;;; stypes.sls --- 
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -92,7 +92,7 @@
     (let ((stypes #f))
       (lambda ()
         (unless stypes
-          (set! stypes (fold-left stypes-adjoin
-                                  primitive-stypes
-                                  (append extra-types (slurp-types)))))
+          (set! stypes (apply stypes-adjoin
+                              primitive-stypes
+                              (append extra-types (slurp-types)))))
         stypes))))
