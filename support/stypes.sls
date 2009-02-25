@@ -1,6 +1,6 @@
 ;;; stypes.sls --- SXML-compatible representation of C types.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -60,6 +60,7 @@
           (for (spells foreign) run expand (meta -1))
           (srfi :8 receive)
           (spells format)
+          (spells misc)
           (for (spells define-values) run expand (meta -1))
           (for (sbank support utils) run expand (meta -1))
           (sbank support sxpath-utils))
@@ -93,8 +94,28 @@
 
             (boolean int)))))
 
+  ;; Returns an adjecency list for the types in @1, disregarding any
+  ;; references to types not found in @1.
+  (define (stypes-graph stypes)
+    (let ((type-names (map cadr ((sxpath '((*OR* record union alias) name))
+                                 stypes))))
+      (map (lambda (stype)
+             (cons (stype-attribute stype 'name)
+                   (filter-map (lambda (type)
+                                 (let ((name (cadr type)))
+                                   (and (member name type-names)
+                                        name)))
+                               ((sxpath '(// type)) stype))))
+           (cdr stypes))))
+
+
+  (define (stypes-topo-sort stypes)
+    (map (lambda (name)
+           (stypes-ref stypes name #f))
+         (reverse (topological-sort (stypes-graph stypes) string=?))))
+
   (define (stypes-adjoin stypes . new-types)
-    (let loop ((result stypes) (types new-types))
+    (let loop ((result stypes) (types (stypes-topo-sort (cons 'types new-types))))
       (if (null? types)
           result
           (loop (cons (car result)
@@ -181,13 +202,18 @@
                                                   `((size ,size)
                                                     (alignment ,alignment)))
                                                 '()))))))
-  (define (stypes-ref stypes name)
-    (and-let* ((types ((select-component name) stypes))
-               ((pair? types))
-               (type (car types)))
-      (if (eq? (car type) 'alias)
-          (stypes-ref stypes (sxpath-attr type '(target)))
-          type)))
+
+  (define stypes-ref
+    (case-lambda
+      ((stypes name resolve-aliases?)
+       (and-let* ((types ((select-component name) stypes))
+                  ((pair? types))
+                  (type (car types)))
+         (if (and resolve-aliases? (eq? (car type) 'alias))
+             (stypes-ref stypes (sxpath-attr type '(target)) resolve-aliases?)
+             type)))
+      ((stypes name)
+       (stypes-ref stypes name #t))))
 
   (define (stype-fetcher stype path)
     (define (lose msg . irritants)
