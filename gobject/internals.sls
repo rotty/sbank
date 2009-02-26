@@ -101,9 +101,15 @@
             (immutable ptr ginstance-ptr)))
 
   (define (ginstance=? x y)
-    (unless (and (ginstance? x) (ginstance? y))
-      (error 'ginstance=? "invalid argument types" x y))
-    (pointer=? (ginstance-ptr x) (ginstance-ptr y)))
+    (cond ((and (ginstance? x) (ginstance? y))
+           (pointer=? (ginstance-ptr x) (ginstance-ptr y)))
+          ((and (eqv? x #f) (eqv? y #f))
+           #t)
+          ((or (and (eqv? x #f) (ginstance? y))
+               (and (ginstance? x) (eqv? y #f)))
+           #f)
+          (else
+           (error 'ginstance=? "invalid argument types" x y))))
 
   (define-record-type gobject-class
     ;;(opaque #t)
