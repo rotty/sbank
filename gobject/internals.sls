@@ -1,6 +1,6 @@
 ;;; internals.sls --- GObject mapping implementation.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -350,10 +350,14 @@
                             (param (pointer+ parameters (* i g-param-size)))
                             (gv (g-param-value param))
                             (gtype (type->gtype
-                                    (gobject-class-property-type class prop))))
+                                    (gobject-class-property-type class prop)))
+                            (val (cadr props/vals)))
                        (g-param-name-set! param prop-name)
                        (g-value-init! gv gtype)
-                       (g-value-set! gv (cadr props/vals)))
+                       (g-value-set! gv (cond ((ginstance? val)
+                                               (ginstance-ptr val))
+                                              (else
+                                               val))))
                      (loop (+ i 1) (cddr props/vals))))))))))
 
   (define (gobject-class-property-type class prop)

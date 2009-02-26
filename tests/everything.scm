@@ -70,7 +70,12 @@
     (test-eval "set property" (send obj (set 'bare #f)))
     (test/equal "check value via property"
       (send obj (get 'bare))
-      #f)))
+      #f)
+    (test-define "obj2" obj2 (send <test-obj> (new/props 'bare other)))
+    (test/equiv "check value"
+      (send obj2 (get-bare))
+      other
+      (ginstance=?))))
 
 (let ((signal-args #f))
   (testeez "signals"
