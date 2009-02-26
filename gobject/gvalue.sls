@@ -1,6 +1,6 @@
 ;;; gvalue.sls --- Low-level access to GValue
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -103,6 +103,12 @@
        (lambda (val failure-thunk)
          (table-ref registered-values val failure-thunk)))))
 
+  (define (to-ptr x)
+    (if (eqv? x #f) (null-pointer) x))
+
+  (define (from-ptr x)
+    (if (null-pointer? x) #f x))
+
   (define g-value-set!
     (let-callouts libgobject
         ((set-object% 'void "g_value_set_object" '(pointer pointer))
@@ -126,14 +132,14 @@
             ((int) (set-int% gvalue val))
             ((uint) (set-uint% gvalue val))
             ((boolean) (set-bool% gvalue (if val 1 0)))
-            ((object) (set-object% gvalue val))
+            ((object) (set-object% gvalue (to-ptr val)))
             ((string)
              (let ((utf8z (string->utf8z-ptr val)))
                (set-string% gvalue utf8z)
                (free utf8z)))
             ((enum)
              (set-enum% gvalue (enum->integer val)))
-            ((pointer) (set-pointer% gvalue val))
+            ((pointer) (set-pointer% gvalue (to-ptr val)))
             ((boxed)
              (let ((ptr (malloc 4)))
                (pointer-uint32-set! ptr 0 (register-value val))
@@ -174,9 +180,9 @@
                    ((boolean)
                     (not (= 0 (get-bool% gvalue))))
                    ((object)
-                    (get-object% gvalue))
+                    (from-ptr (get-object% gvalue)))
                    ((pointer)
-                    (get-pointer% gvalue))
+                    (from-ptr (get-pointer% gvalue)))
                    ((string)
                     (utf8z-ptr/null->string (get-string% gvalue)))
                    ((enum)

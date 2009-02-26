@@ -1,6 +1,6 @@
 ;;; properties.sls --- GObject property support.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -56,7 +56,8 @@
           (free name-ptr)
           (let ((result (g-value-ref gvalue)))
             (g-value-free gvalue)
-            (if (gobject-class? type)
+            (if (and (not (eqv? result #f))
+                     (gobject-class? type))
                 (make-ginstance type result)
                 result))))))
   
