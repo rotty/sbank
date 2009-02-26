@@ -1079,7 +1079,14 @@
             ((7 8) ;; object, interface
              (let-attributes interface-blob-fetcher (pointer+ tld offset)
                              (gtype-init)
-               (get/validate-gtype typelib tld gtype-init)))
+               (let ((init-name (get/validate-string tld gtype-init)))
+                 (cond ((and (string=? "intern" init-name)
+                             (string=? "GObject" (typelib-namespace typelib)))
+                        (case (string->symbol name)
+                          ((Object) (symbol->gtype 'object))
+                          (else     #f)))
+                       (else
+                        (get/validate-gtype typelib tld init-name))))))
             ((5) ;; enum
              (let-attributes enum-blob-fetcher (pointer+ tld offset)
                              (gtype-init)
@@ -1089,10 +1096,12 @@
 
   (define get/validate-gtype
     (let ((callout (make-c-callout gtype-ctype '())))
-      (lambda (typelib tld name-offset)
-        (let* ((name (get/validate-string tld name-offset))
-               (func-ptr (typelib-dlsym typelib name)))
-          (and func-ptr ((callout func-ptr)))))))
+      (lambda (typelib tld name)
+        (let ((name-str (if (string? name)
+                            name
+                            (get/validate-string tld name))))
+          (and-let* ((func-ptr (typelib-dlsym typelib name-str)))
+            ((callout func-ptr)))))))
 
   ;;
   ;; Helpers
