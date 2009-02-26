@@ -39,9 +39,9 @@
 
   (define (property-lookup who obj property)
     (or (gobject-class-get-property-info (ginstance-class obj) property)
-                         (error who
-                                "no such property in class of instance"
-                                obj property)))
+        (error who
+               "no such property in class of instance"
+               obj property)))
   
   (define g-object-get-property
     (let-callouts libgobject

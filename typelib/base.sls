@@ -1027,7 +1027,7 @@
                                 (receive (name setter!) (field-name+setter field-blob)
                                   (and name (cons name setter!))))
                               (make-array-pointers fields n-fields field-blob-size))))
-          (trace-lambda ALIST-CONSTR (alist)
+          (lambda (alist)
             (let* ((mem (malloc size))
                    (instance (make-ginstance class mem)))
               (memset mem 0 size)
