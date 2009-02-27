@@ -577,6 +577,9 @@ start on a 32bit boundary.">
       <field name="gtype_init" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
+      <field name="gtype_struct" writable="1">
+        <type name="uint16" c:type="guint16"/>
+      </field>
       <field name="n_prerequisites" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
@@ -656,7 +659,7 @@ interfaces.">
       <field name="parent" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="class_struct" writable="1">
+      <field name="gtype_struct" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="n_interfaces" writable="1">
@@ -887,7 +890,7 @@ than bytes.">
       <field name="unregistered" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="is_class_struct" writable="1" bits="1">
+      <field name="is_gtype_struct" writable="1" bits="1">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="alignment" writable="1" bits="6">

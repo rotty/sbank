@@ -327,7 +327,7 @@
        (enum . 24)
        (struct . 32)
        (object . 44)
-       (interface . 36)
+       (interface . 40)
        (union . 40))))
 
   (define (fill/validate-directory! typelib tld)
