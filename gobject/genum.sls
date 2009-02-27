@@ -1,6 +1,6 @@
 ;;; genum.sls --- support for enumerations and flags.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -34,7 +34,7 @@
    gflags->integer integer->gflags
    )
   (import (rnrs)
-          (only (srfi :43 vectors) vector-fold)
+          (only (srfi :43 vectors) vector-fold-right)
           (spells tracing)
           (sbank support utils))
 
@@ -88,11 +88,12 @@
   (define (integer->gflags flags n)
     (let ((val-vec (genumerated-values flags))
           (sym-vec (genumerated-symbols flags)))
-      (vector-fold (lambda (i val sym result)
-                     (if (= (bitwise-and n val) val)
-                         (cons sym result)
-                         result))
-                   (genumerated-values flags)
-                   (genumerated-symbols flags))))
+      (vector-fold-right (lambda (i result val sym)
+                           (if (= (bitwise-and n val) val)
+                               (cons sym result)
+                               result))
+                         '()
+                         (genumerated-values flags)
+                         (genumerated-symbols flags))))
 
   )

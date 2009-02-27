@@ -1,6 +1,6 @@
 ;;; gobject.scm --- Unit tests for (sbank gobject)
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -64,3 +64,24 @@
 
   (test-define "creating/setting (string)" string-gv (->g-value "FooBar" 'string))
   (test/equal "getting (string)" (g-value-ref string-gv) "FooBar"))
+
+(testeez "Enums & Flags"
+  (test-define "enum1" enum1 (make-genum #f '((foo . 1) (bar . 2) (baz . 3))))
+  (test/equal "lookup by name"
+    (map (lambda (name) (genumerated-lookup enum1 name)) '(bar foo baz))
+    '(2 1 3))
+  (test/equal "lookup by value"
+    (map (lambda (i) (genumerated-lookup enum1 i)) '(3 2 1))
+    '(baz bar foo))
+  (test-define "flags1" flags1 (make-gflags #f '((good . 1) (bad . 2) (ugly . 4))))
+  (test/equal "gflags->integer"
+    (map (lambda (flags) (gflags->integer flags1 flags))
+         '((good) (good ugly) (bad ugly) ()))
+    '(1 5 6 0))
+  (test/equal "integer->gflags"
+    (map (lambda (i) (integer->gflags flags1 i)) '(7 6 2 1 0))
+    '((good bad ugly)
+      (bad ugly)
+      (bad)
+      (good)
+      ())))

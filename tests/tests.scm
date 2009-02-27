@@ -40,6 +40,7 @@
   ("gobject.scm"
    (testeez)
    (sbank gobject gtype)
+   (sbank gobject genum)
    (sbank gobject gvalue)
    (sbank gobject internals)
    (spells foreign))
