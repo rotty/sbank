@@ -43,6 +43,7 @@
 
           make-ginstance ginstance? ginstance-ptr ginstance-class
           ginstance=?
+          ginstance-is-a?
 
           gsequence?
           make-gsequence-class
@@ -110,6 +111,14 @@
            #f)
           (else
            (error 'ginstance=? "invalid argument types" x y))))
+
+  (define (ginstance-is-a? inst class)
+    (let loop ((c (ginstance-class inst)))
+      (cond ((eq? c class) #t)
+            (else
+             (gobject-class-force! c)
+             (cond ((gobject-class-parent c) => loop)
+                   (else                        #f))))))
 
   (define-record-type gobject-class
     ;;(opaque #t)

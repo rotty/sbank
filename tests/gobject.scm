@@ -41,13 +41,32 @@
        (values
         <gtk-widget>
         '()
-        `((new . ,(lambda () (make-ginstance class 'new-widget))))
+        `((new . ,(lambda () (make-ginstance class 'new-window))))
         '()
         '()
         '()))))
+
+  (test-define "button" <gtk-button>
+    (make-gobject-class
+     "Gtk" "Button" #f
+     (lambda (class)
+       (values
+        <gtk-widget>
+        '()
+        `((new . ,(lambda () (make-ginstance class 'new-button))))
+        '()
+        '()
+        '()))))
+
   (test/equal "construct/show"
     (send (send <gtk-window> (new)) (show))
-    'show-result))
+    'show-result)
+
+  (test-define "button instance" button (send <gtk-button> (new)))
+  (test-true "is-a? base case" (ginstance-is-a? button <gtk-button>))
+  (test-define "window instance" window (send <gtk-window> (new)))
+  (test-true "window is a widget" (ginstance-is-a? window <gtk-widget>))
+  (test-false "button is no window" (ginstance-is-a? button <gtk-window>)))
 
 (g-type-init)
 (testeez "GValue"
