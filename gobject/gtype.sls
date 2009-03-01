@@ -1,6 +1,6 @@
 ;;; gtype.sls --- Low-level access to GType
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -98,14 +98,13 @@
         (set ptr i (if (integer? v) v (symbol->gtype v))))))
 
   (define g-boxed-value-type
-    (let-callouts libgobject ()
-      (let ((type #f))
-        (lambda ()
-          (unless type
-            (let ((name-ptr (string->utf8z-ptr "boxed-scm")))
-              (set! type (g-pointer-type-register-static% name-ptr))
-              (free name-ptr)))
-          type))))
+    (let ((type #f))
+      (lambda ()
+        (unless type
+          (let ((name-ptr (string->utf8z-ptr "boxed-scm")))
+            (set! type (g-pointer-type-register-static% name-ptr))
+            (free name-ptr)))
+        type)))
 
   (define-values (register-gtype-lookup! gtype-lookup)
     (let ((lookup-registry '()))
