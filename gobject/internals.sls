@@ -42,8 +42,11 @@
           make-gobject-union-class gobject-union-class?
 
           make-ginstance ginstance? ginstance-ptr ginstance-class
+          make-ginstance/guarded
           ginstance=?
           ginstance-is-a?
+
+          collect-gobjects
 
           gsequence?
           make-gsequence-class
@@ -82,6 +85,7 @@
           (srfi :8 receive)
           (spells tracing)
           (only (spells assert) cout)
+          (spells weak)
           (spells foreign)
           (sbank type-data)
           (sbank support utils)
@@ -100,6 +104,34 @@
   (define-record-type ginstance
     (fields (immutable class ginstance-class)
             (immutable ptr ginstance-ptr)))
+
+  (define gobject-guardian (make-guardian))
+
+  (define (collect-gobjects)
+    (do ((g-o (gobject-guardian) (gobject-guardian)))
+        ((eqv? g-o #f))
+      (g-object-unref (ginstance-ptr g-o))))
+
+  (define (make-ginstance/guarded class ptr ref-type)
+    (cond ((gobject-class-gtype class)
+           => (lambda (gtype)
+                (case (gtype->symbol gtype)
+                  ((object)
+                   (collect-gobjects)
+                   (let ((o (make-ginstance class ptr)))
+                     (case ref-type
+                       ((ref)  (g-object-ref ptr))
+                       ((sink) (when (g-object-is-floating? ptr)
+                                 (g-object-ref-sink ptr)))
+                       (else
+                        (error 'make-ginstance/guarded
+                               "invalid ref type" ref-type)))
+                     (gobject-guardian o)
+                     o))
+                  (else
+                   (make-ginstance class ptr)))))
+          (else
+           (make-ginstance class ptr))))
 
   (define (ginstance=? x y)
     (cond ((and (ginstance? x) (ginstance? y))
@@ -356,9 +388,10 @@
                  (if (= n 0) (null-pointer) (g-param-alloc (/ n 2)))))
             (let loop ((i 0) (props/vals props/vals))
               (cond ((null? props/vals)
-                     (make-ginstance
+                     (make-ginstance/guarded
                       class
-                      (g-object-newv (gobject-class-gtype class) i parameters)))
+                      (g-object-newv (gobject-class-gtype class) i parameters)
+                      'sink))
                     (else
                      (let* ((prop (car props/vals))
                             (prop-name (string->utf8z-ptr (symbol->string prop)))
@@ -410,5 +443,14 @@
     (domain gerror-domain)
     (code gerror-code))
 
+  (define (g-object-is-floating? ptr)
+    (not (= (g-object-is-floating ptr) 0)))
+
   (define-callouts libgobject
-    (g-object-newv 'pointer "g_object_newv" (list gtype-ctype 'uint 'pointer))))
+    (g-object-newv 'pointer "g_object_newv" (list gtype-ctype 'uint 'pointer))
+    (g-object-ref 'void "g_object_ref" '(pointer))
+    (g-object-unref 'void "g_object_unref" '(pointer))
+    (g-object-ref-sink 'void "g_object_ref_sink" '(pointer))
+    (g-object-is-floating 'int "g_object_is_floating" '(pointer)))
+
+  )

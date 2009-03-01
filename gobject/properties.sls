@@ -58,7 +58,7 @@
             (g-value-free gvalue)
             (if (and (not (eqv? result #f))
                      (gobject-class? type))
-                (make-ginstance type result)
+                (make-ginstance/guarded type result 'ref)
                 result))))))
   
   (define g-object-set-property

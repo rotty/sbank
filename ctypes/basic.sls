@@ -232,7 +232,7 @@
                                          (gtype-instance-class instance))))
                         (gtype-lookup gtype))
                       declared-class)))
-               (make-ginstance class instance))))))
+               (make-ginstance/guarded class instance 'ref))))))
 
 
   ;; This returns and expects a converter that returns a pointer

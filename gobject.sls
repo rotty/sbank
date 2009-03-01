@@ -37,7 +37,8 @@
           ghash? ghash->alist
           gerror?
           send send-message
-          gobject-setup!)
+          gobject-setup!
+          collect-gobjects)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
