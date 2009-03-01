@@ -1,6 +1,6 @@
 ;;; utils.sls --- Miscellaneous utilities for sbank.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -33,7 +33,6 @@
           scheme-ified-symbol
           scheme-ified-string
           c-ified-string
-          string-split
           name-symbol/prefix)
   (import (rnrs base)
           (rnrs unicode)
@@ -149,6 +148,5 @@
                    (loop result-chars (+ i 1) #t))
                   (else
                    (loop (cons c result-chars) (+ i 1) #f)))))))
-  
-  (define (string-split s c)
-    (string-tokenize s (char-set-complement (char-set c)))))
+
+  )

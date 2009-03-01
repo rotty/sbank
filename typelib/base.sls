@@ -43,6 +43,7 @@
           (spells table)
           (srfi :8 receive)
           (spells format)
+          (spells string-utils)
           (only (srfi :13 strings) string-index)
           (only (srfi :1 lists) filter-map iota)
           (spells define-values)

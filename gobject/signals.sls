@@ -1,6 +1,6 @@
 ;;; signals.sls --- GObject signal support.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -28,6 +28,7 @@
   (import (rnrs base)
           (rnrs control)
           (srfi :8 receive)
+          (spells string-utils)
           (spells foreign)
           (spells tracing)
           (only (spells assert) cerr)
