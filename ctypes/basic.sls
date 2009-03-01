@@ -1,6 +1,6 @@
 ;;; basic.sls --- C type utilities.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -452,9 +452,13 @@
                            (make-ginstance et (pointer-ptr-ref ptr i)))
                          (lambda (ptr i v)
                            (pointer-ptr-set!
-                            ptr i (if (ginstance? v)
-                                      (ginstance-ptr v)
-                                      (ginstance-ptr (send et (new v))))))))
+                            ptr i
+                            (cond ((and (ginstance? v) (ginstance-is-a? v et))
+                                   (ginstance-ptr v))
+                                  (else
+                                   (raise-sbank-callout-error
+                                    "invalid element for array of this type value"
+                                    v et)))))))
                 (else
                  (raise-sbank-callout-error
                   "non-simple array element types not yet supported")))))))
