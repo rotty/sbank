@@ -61,7 +61,9 @@
                  detailed-signal-ptr
                  (cond ((gobject-class-get-signal-callback
                          (ginstance-class instance)
-                         signal) => (lambda (wrap) (wrap callback)))
+                         signal) => (lambda (convert)
+                                      (receive (ptr reclaim) (convert callback)
+                                        ptr)))
                        (else
                         (lose "no such signal" detailed-signal)))
                  (null-pointer)

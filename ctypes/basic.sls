@@ -51,6 +51,9 @@
           type-tag->symbol
           symbol->type-tag
 
+          scope->symbol
+          symbol->scope
+
           raise-sbank-callout-error raise-sbank-callback-error
 
           raise-gerror/free
@@ -210,11 +213,11 @@
                                      null-ok?
                                      #f)
                 #f))
-       ((signature? type)
-        (values 'pointer
-                (out-converter/null (signature-callback type) null-ok? #f)
-                (back-converter/null (signature-callout type) null-ok? #f)
-                #f))
+       ;; ((signature? type)
+       ;;  (values 'pointer
+       ;;          (out-converter/null (signature-callback type) null-ok? #f)
+       ;;          (back-converter/null (signature-callout type) null-ok? #f)
+       ;;          #f))
        (else
         (raise-sbank-callout-error
          "argument/return type not yet implemented" type)))))
@@ -289,6 +292,9 @@
       ((gtype) gtype-ctype)
       (else sym)))
 
+  ;; Must be in sync with GIScopeType
+  (define-enum (scope->symbol symbol->scope)
+    (invalid call object async notified))
 
   (define (vector->c-array vec atype)
     (let ((len (vector-length vec)))

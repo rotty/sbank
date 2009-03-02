@@ -467,7 +467,7 @@
             (if constructor?
                 (make-type-info container #t (bool may-return-null))
                 (stblob-type-info typelib tld return-type
-                                  (bool may-return-null) #f #f)))
+                                  (bool may-return-null) #f #f #f)))
            ((arg-types setup collect cleanup arg-flags)
             (arg-blobs-callout-values typelib
                                       tld
@@ -487,13 +487,14 @@
 
   (define (arg-blobs-type-infos typelib tld arg-blobs n-args arg-blob-size)
     (map (lambda (blob)
-           (let-attributes arg-blob-fetcher blob (closure destroy)
+           (let-attributes arg-blob-fetcher blob (closure destroy scope)
              (stblob-type-info typelib
                                tld
                                (arg-type blob)
                                (bool (arg-null-ok blob))
                                (and (>= closure 0) closure)
-                               (and (>= destroy 0) destroy))))
+                               (and (>= destroy 0) destroy)
+                               (scope->symbol scope))))
          (reverse (make-array-pointers arg-blobs n-args arg-blob-size))))
 
   (define (type-infos-length-indices type-infos)
@@ -524,7 +525,10 @@
             (if has-self-ptr?
                 (receive (setup! collect cleanup)
                          (arg-callout-steps
-                          (make-type-info container #t #f) 0 '(in) gtype-lookup)
+                          (make-type-info container #t #f)
+                          0
+                          '(in)
+                          gtype-lookup)
                   (assert (not (or collect cleanup)))
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons setup! setup-steps)
@@ -645,7 +649,8 @@
                                           method?
                                           container)
         (make-callback
-         (stblob-type-info typelib tld return-type (bool may-return-null) #f #f)
+         (stblob-type-info typelib tld return-type
+                           (bool may-return-null) #f #f #f)
          arg-types
          prepare
          store
@@ -794,7 +799,7 @@
         (make-lazy/offset name
                           (lambda (class)
                             (make-property-info
-                             (stblob-type-info typelib tld type #f #f #f)
+                             (stblob-type-info typelib tld type #f #f #f #f)
                              (bool readable)
                              (bool writable)
                              (bool construct)
@@ -844,7 +849,7 @@
 
   (define (field-getter-method typelib tld stblob struct-offset)
     (lambda (class)
-      (let ((ti (stblob-type-info typelib tld stblob #f #f #f)))
+      (let ((ti (stblob-type-info typelib tld stblob #f #f #f #f)))
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
           (let ((getter (make-pointer-c-element-getter prim-type
@@ -859,7 +864,7 @@
 
   (define (field-setter-method typelib tld stblob struct-offset)
     (lambda (class)
-      (let ((ti (stblob-type-info typelib tld stblob #f #f #f)))
+      (let ((ti (stblob-type-info typelib tld stblob #f #f #f #f)))
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
           (let ((setter (make-pointer-c-element-setter prim-type
@@ -881,7 +886,7 @@
          (proc/validation-context
           (lambda ()
             (stblob-type-info typelib tld return-type
-                              (bool may-return-null) #f #f)))
+                              (bool may-return-null) #f #f #f)))
          (proc/validation-context
           (lambda ()
             (arg-blobs-type-infos typelib tld arguments n-arguments arg-blob-size)))
@@ -939,7 +944,7 @@
           (unless (= blob-type 9)
             (raise-validation-error
              "invalid blob type for constant entry" blob-type))
-          (let* ((ti (stblob-type-info typelib tld type #f #f #f))
+          (let* ((ti (stblob-type-info typelib tld type #f #f #f #f))
                  (type (type-info-type ti))
                  (pointer? (type-info-is-pointer? ti)))
             (unless (symbol? type)
@@ -1108,7 +1113,7 @@
   ;; Helpers
   ;;
   (define (stblob-type-info typelib tld st-blob null-ok?
-                            closure-index destroy-index)
+                            closure-index destroy-index scope)
     (let-attributes simple-type-blob-fetcher st-blob
                     (offset reserved reserved2 pointer tag)
       (cond ((and (= reserved 0) (= reserved2 0))
@@ -1125,10 +1130,10 @@
                    (make-type-info tag-symbol (bool pointer) null-ok?))))
             (else
              (make/validate-type-info typelib tld offset null-ok?
-                                      closure-index destroy-index)))))
+                                      closure-index destroy-index scope)))))
 
   (define (make/validate-type-info typelib tld offset null-ok?
-                                   closure-index destroy-index)
+                                   closure-index destroy-index scope)
     (let-attributes interface-type-blob-fetcher (validated-pointer+ tld offset 4)
                     (tag)
       (let ((tag-symbol (type-tag->symbol tag)))
@@ -1146,7 +1151,7 @@
              (when (and (= has-length 1) (= has-size 1))
                (raise-validation-error "array type has both length and size"))
              (make-type-info
-              (make-array-type (stblob-type-info typelib tld type #f #f #f)
+              (make-array-type (stblob-type-info typelib tld type #f #f #f #f)
                                (bool zero-terminated)
                                (and (= has-size 1) size)
                                (and (= has-length 1) length))
@@ -1161,7 +1166,7 @@
                (unless (signature? entry)
                  (assert-no-closure))
                (make-type-info entry pointer? null-ok?
-                               closure-index destroy-index))))
+                               closure-index destroy-index scope))))
           ((error)
            (assert-no-closure)
            (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
@@ -1176,7 +1181,8 @@
                              #t
                              null-ok?
                              (map (lambda (blob)
-                                    (stblob-type-info typelib tld blob #f #f #f))
+                                    (stblob-type-info typelib tld blob
+                                                      #f #f #f #f))
                                   (make-array-pointers type n-types 4)))))
           (else
            (raise-validation-error

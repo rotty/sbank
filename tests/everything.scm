@@ -77,11 +77,18 @@
       other
       (ginstance=?))))
 
+(testeez "callbacks"
+  (test/equal "simple"
+    (map test-callback (map (lambda (n)
+                              (lambda () n))
+                            '(43 666 1234)))
+    '(43 666 1234)))
+
 (let ((signal-args #f))
   (testeez "signals"
     (test-define "obj" obj (send <test-obj> (new/props)))
-    (test-eval "connect" (send obj (connect 'test(lambda args
-                                                   (set! signal-args args)))))
+    (test-eval "connect" (send obj (connect 'test (lambda args
+                                                    (set! signal-args args)))))
     (test-eval "emit" (send obj (emit 'test)))
     (test/equiv "check" signal-args (list obj)
                 ((lambda (l1 l2)

@@ -24,6 +24,7 @@
 
 (import (rnrs)
         (only (srfi :1 lists) append-map)
+        (only (srfi :27 random-bits) random-integer)
         (only (ikarus) collect)
         (spells string-utils)
         (spells alist)
@@ -54,10 +55,18 @@
   (let ((cb (lambda () 42)))
     (repeat N (test-callback cb))))
 
+(define (make-test-cb n)
+  (lambda () n))
+
+(define (callback-freshproc)
+  (repeat N
+    (test-callback (make-test-cb (random-integer N)))))
+
 (define *tests*
   `((method-call . ,method-call)
     (obj-alloc . ,obj-alloc)
-    (callback . ,callback)))
+    (callback . ,callback)
+    (callback-freshproc . ,callback-freshproc)))
 
 (define (println fmt . args)
   (string-substitute #t fmt args 'braces)

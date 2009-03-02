@@ -116,7 +116,7 @@
            "callback arguments must have direction 'in'" ti flags))
         (values (callback-arg-setup ti i)
                 #f
-                #f))
+                (callback-arg-cleanup ti i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
@@ -145,18 +145,18 @@
                                (if out-convert (out-convert val) val)))))))
 
   (define (cleanup-step i cleanup-proc)
-    (lambda (arg-vec)
+    (lambda (arg-vec info-vec)
       (cleanup-proc (vector-ref arg-vec i))))
 
   ;; This returns and expects a converter that returns a pointer
   (define (converter-setup/null i convert null-ok? null-val)
     (let ((convert/null (out-converter/null convert null-ok? null-val)))
-      (lambda (args arg-vec)
+      (lambda (args arg-vec info-vec)
         (vector-set! arg-vec i (convert (car args)))
         (cdr args))))
 
   (define (converter-setup i convert)
-    (lambda (args arg-vec)
+    (lambda (args arg-vec info-vec)
       (vector-set! arg-vec i (convert (car args)))
       (cdr args)))
 
@@ -169,10 +169,13 @@
       (lambda (arg-vec)
         (convert/null (vector-ref arg-vec i)))))
 
+
+;;; Arrray handling
+
   (define (array-arg-setup atype i null-ok?)
     (let ((convert (out-converter/null (lambda (val)
                                          (->c-array val atype)) null-ok? #f)))
-      (lambda (args arg-vec)
+      (lambda (args arg-vec info-vec)
         (cond ((pointer? (car args))
                (vector-set! arg-vec i (car args))
                (cdr args))
@@ -204,17 +207,20 @@
                        (get-array-length atype arg-vec))))
 
   (define (array-arg-cleanup atype i)
-    (lambda (arg-vec)
+    (lambda (arg-vec info-vec)
       (free-c-array (vector-ref arg-vec i) atype
                     (get-array-length atype arg-vec))))
 
+
+;;; GError handling
+
   (define (gerror-arg-setup etype i)
-    (lambda (args arg-vec)
+    (lambda (args arg-vec info-vec)
       (vector-set! arg-vec i (malloc/set! 'pointer (null-pointer)))
       args))
 
   (define (gerror-arg-cleanup etype i)
-    (lambda (arg-vec)
+    (lambda (arg-vec info-vec)
       (let* ((gerror-ptr (vector-ref arg-vec i))
              (gerror (pointer-ptr-ref gerror-ptr 0)))
         (free gerror-ptr)
@@ -222,20 +228,42 @@
           (raise (apply condition
                         (make-sbank-callout-error)
                         (gerror-conditions/free etype gerror)))))))
+
+;;; Callback handling
+
+  (define (out-converter/null* convert null-ok? null-val)
+    (if (or (null-ok-always-on?) null-ok?)
+        (lambda (val)
+          (if (equal? val null-val)
+              (values (null-pointer) #f)
+              (convert val)))
+        convert))
 
   (define (callback-arg-setup ti i)
-    (let ((convert (out-converter/null (signature-callback (type-info-type ti))
-                                       (type-info-null-ok? ti)
-                                       #f))
+    (let ((convert (out-converter/null* (signature-callback (type-info-type ti))
+                                        (type-info-null-ok? ti)
+                                        #f))
           (closure-i (type-info-closure-index ti))
           (destroy-i (type-info-destroy-index ti)))
-      (lambda (args arg-vec)
-        (vector-set! arg-vec i (convert (car args)))
-        (when closure-i
-          (vector-set! arg-vec closure-i (null-pointer)))
-        (when destroy-i
-          (vector-set! arg-vec destroy-i (null-pointer)))
-        (cdr args))))
+      (lambda (args arg-vec info-vec)
+        (receive (ptr reclaim) (convert (car args))
+          (vector-set! arg-vec i ptr)
+          (vector-set! info-vec i reclaim)
+          (when closure-i
+            (vector-set! arg-vec closure-i (null-pointer)))
+          (when destroy-i
+            (vector-set! arg-vec destroy-i (null-pointer)))
+          (cdr args)))))
+
+  (define (callback-arg-cleanup ti i)
+    (case (type-info-scope ti)
+      ((call)
+       (lambda (argv-vec info-vec)
+         ((vector-ref info-vec i))))
+      (else
+       #f)))
+
+;;; The three main steps: setup, collect and cleanup
 
   (define (args-setup-procedure n-args steps)
     (define (lose msg . irritants)
@@ -243,19 +271,21 @@
     (if (equal? steps (iota n-args))
         #f
         (lambda (in-args)
-          (let ((arg-vec (make-vector n-args)))
+          (let ((arg-vec (make-vector n-args))
+                (info-vec (make-vector n-args)))
             (let loop ((args in-args) (steps steps))
               (cond ((null? steps)
                      (unless (null? args)
                        (lose "unprocessed arguments" args))
-                     arg-vec)
+                     (values arg-vec info-vec))
                     ((integer? (car steps))
                      (vector-set! arg-vec (car steps) (car args))
                      (loop (cdr args) (cdr steps)))
                     ((eqv? (car steps) #f)
                      (loop args (cdr steps)))
                     (else
-                     (loop ((car steps) args arg-vec) (cdr steps)))))))))
+                     (loop ((car steps) args arg-vec info-vec)
+                           (cdr steps)))))))))
 
   (define (args-collect-procedure steps)
     (if (null? steps)
@@ -269,8 +299,10 @@
   (define (args-cleanup-procedure steps)
     (if (null? steps)
         #f
-        (lambda (arg-vec)
-          (for-each (lambda (step) (step arg-vec)) steps))))
+        (lambda (arg-vec info-vec)
+          (for-each (lambda (step) (step arg-vec info-vec)) steps))))
+
+
 
   (define-syntax flags-case
     (syntax-rules (else)
@@ -294,6 +326,7 @@
           ((bytevector-portion? x) (bytevector-portion-count x))
           (else (error 'vec-length "called with non-vector" x))))
 
+  ;;; The callout dispatcher
   (define (make-callout rti arg-types
                         setup-steps collect-steps cleanup-steps
                         ret-flags flags
@@ -318,12 +351,15 @@
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
                  (lambda args
-                   (let ((arg-vec (if setup (setup args) (list->vector args))))
+                   (receive (arg-vec info-vec)
+                            (if setup
+                                (setup args)
+                                (values (list->vector args) #f))
                      (args-pre-call! arg-vec arg-types flags)
                      (let ((ret-val (apply do-callout (vector->list arg-vec))))
                        (args-post-call! arg-vec arg-types flags)
                        (let ((out-vals (if collect (collect arg-vec) '())))
-                         (if cleanup (cleanup arg-vec))
+                         (if cleanup (cleanup arg-vec info-vec))
                          (if (and (eqv? ret-consume #f))
                              (apply values out-vals)
                              (apply values
@@ -336,14 +372,14 @@
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
                  (lambda args
-                   (let* ((arg-vec (setup args))
-                          (ret-val (apply do-callout (vector->list arg-vec))))
-                     (if cleanup (cleanup arg-vec))
-                     (if (eqv? ret-consume #f)
-                         (unspecific)
-                         (if (procedure? ret-consume)
-                             (ret-consume ret-val)
-                             ret-val)))))))
+                   (receive (arg-vec info-vec) (setup args)
+                     (let ((ret-val (apply do-callout (vector->list arg-vec))))
+                       (if cleanup (cleanup arg-vec info-vec))
+                       (if (eqv? ret-consume #f)
+                           (unspecific)
+                           (if (procedure? ret-consume)
+                               (ret-consume ret-val)
+                               ret-val))))))))
             ((procedure? ret-consume)
              (assert (not (or setup collect out-args? cleanup)))
              (lambda (ptr)
