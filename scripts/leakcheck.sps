@@ -1,6 +1,6 @@
 ;;; leakcheck.sps --- Do things that might trigger leaks.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,6 +23,10 @@
 ;;; Code:
 
 (import (rnrs)
+        (only (srfi :1 lists) append-map)
+        (only (ikarus) collect)
+        (spells string-utils)
+        (spells alist)
         (sbank support utils)
         (sbank gobject)
         (sbank typelib))
@@ -37,7 +41,7 @@
          ((>= i n))
        body ...))))
 
-(define N 1000)
+(define N 10000)
 
 (define (method-call)
   (repeat N (test-boolean #t))
@@ -46,9 +50,18 @@
 (define (obj-alloc)
   (repeat N (send <test-obj> (new/props))))
 
+(define (callback)
+  (let ((cb (lambda () 42)))
+    (repeat N (test-callback cb))))
+
 (define *tests*
   `((method-call . ,method-call)
-    (obj-alloc . ,obj-alloc)))
+    (obj-alloc . ,obj-alloc)
+    (callback . ,callback)))
+
+(define (println fmt . args)
+  (string-substitute #t fmt args 'braces)
+  (newline))
 
 (define (main argv)
   (let ((tests (append-map (lambda (arg)
@@ -58,8 +71,13 @@
                                  (else  (list sym)))))
                            (cdr argv))))
     (for-each (lambda (test)
+                (println "running: {0}" test)
                 (cond ((assq-ref *tests* test) => (lambda (proc) (proc)))
-                      (else (println "No code found for {0}, skipping" test))))
-              tests)))
+                      (else (println "No code found for {0}, skipping" test)))
+                (collect)
+                (collect-gobjects))
+              tests)
+    (println "done, press Ctrl+D to quit")
+    (read)))
 
 (main (command-line))
