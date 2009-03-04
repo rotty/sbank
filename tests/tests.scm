@@ -1,6 +1,6 @@
 ;;; tests.scm --- List of unit-test files for running with testeez.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -26,6 +26,10 @@
 ((systems sbank)
  (files
   ("utils.scm" (testeez) (sbank support utils))
+
+  ("ptr-table.scm"
+   (sbank support ptr-table)
+   (spells foreign))
 
   ("stypes.scm"
    (testeez)
