@@ -38,16 +38,12 @@
       (set-some-int 12345)
       (set-some-int8 42)
       (set-some-double 0.3141)
-      (set-some-enum 'value2)
-      (set-some-obj obj)))
+      (set-some-enum 'value2)))
   (test/equal "get int" (send a (get-some-int)) 12345)
   (test/equal "get int8" (send a (get-some-int8)) 42)
   (test/equal "get double" (send a (get-some-double)) 0.3141)
   (test/equal "get enum" (send a (get-some-enum)) 'value2)
-  (test/equiv "get obj"
-    (send a (get-some-obj))
-    obj
-    (ginstance=?))
+
   (test-define "A-cloned" a-cloned (send a (clone)))
   (test-true "clone is an instance" (ginstance? a-cloned))
   (test/equal "fields correct"
@@ -55,7 +51,18 @@
           (send a-cloned (get-some-int8))
           (send a-cloned (get-some-double))
           (send a-cloned (get-some-enum)))
-    (list 12345 42 0.3141 'value2)))
+    (list 12345 42 0.3141 'value2))
+
+  (test-define "C" c (send <test-struct-c> (alloc)))
+  (test-eval "setting fields"
+    (send c
+      (set-another-int 666)
+      (set-obj obj)))
+  (test/equal "get int" (send c (get-another-int)) 666)
+  (test/equiv "get obj"
+    (send c (get-obj))
+    obj
+    (ginstance=?)))
 
 (parameterize ((null-ok-always-on? #t))
   (testeez "objects"
