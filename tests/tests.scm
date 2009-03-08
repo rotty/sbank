@@ -58,6 +58,11 @@
    (srfi :1 lists)
    (sbank gobject))
 
+  ((code (glib-setup!))
+   "glib.scm"
+   (sbank typelib)
+   (sbank glib))
+
   ((code (gtk-setup!))
    "gtk.scm"
    (testeez)
