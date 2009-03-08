@@ -388,10 +388,21 @@
                  (if (= n 0) (null-pointer) (g-param-alloc (/ n 2)))))
             (let loop ((i 0) (props/vals props/vals))
               (cond ((null? props/vals)
-                     (make-ginstance/guarded
-                      class
-                      (g-object-newv (gobject-class-gtype class) i parameters)
-                      'sink))
+                     (let ((obj
+                            (make-ginstance/guarded
+                             class
+                             (g-object-newv (gobject-class-gtype class)
+                                            i
+                                            parameters)
+                             'sink)))
+                       (do ((j 0 (+ j 1)))
+                           ((>= j i))
+                         (let ((param (pointer+ parameters
+                                                (* j g-param-size))))
+                           (free (g-param-name param))
+                           (g-value-unset! (g-param-value param))))
+                       (free parameters)
+                       obj))
                     (else
                      (let* ((prop (car props/vals))
                             (prop-name (string->utf8z-ptr (symbol->string prop)))
