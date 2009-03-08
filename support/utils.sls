@@ -33,8 +33,10 @@
           scheme-ified-symbol
           scheme-ified-string
           c-ified-string
-          name-symbol/prefix)
+          name-symbol/prefix
+          define-setup-procedure)
   (import (rnrs base)
+          (rnrs control)
           (rnrs unicode)
           (rnrs records syntactic)
           (spells define-values)
@@ -149,4 +151,13 @@
                   (else
                    (loop (cons c result-chars) (+ i 1) #f)))))))
 
+  (define-syntax define-setup-procedure
+    (syntax-rules ()
+      ((_ (name arg ...) body ...)
+       (define name
+         (let ((ran? #f))
+           (lambda (arg ...)
+             (unless ran?
+               body ...
+               (set! ran? #t))))))))
   )
