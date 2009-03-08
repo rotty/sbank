@@ -45,7 +45,9 @@
           (only (spells assert) cout)
           (spells alist)
           (spells tracing)
+          (sbank support utils)
           (sbank typelib decorators)
+          (sbank glib)
           (sbank gobject gtype)
           (sbank gobject genum)
           (sbank gobject gvalue)
@@ -96,11 +98,8 @@
       (lambda (val)
         (make-ginstance class (->g-value val)))))
   
-  (define gobject-setup!
-    (let ((installed? #f))
-      (lambda ()
-        (unless installed?
-          (g-type-init)
-          (register-typelib-decorator "GObject" "Object" gobject-decorator)
-          (register-typelib-decorator "GObject" "Value" gvalue-decorator)
-          (set! installed? #t))))))
+  (define-setup-procedure (gobject-setup!)
+    (glib-setup!)
+    (g-type-init)
+    (register-typelib-decorator "GObject" "Object" gobject-decorator)
+    (register-typelib-decorator "GObject" "Value" gvalue-decorator)))

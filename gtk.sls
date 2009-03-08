@@ -8,6 +8,7 @@
           (only (spells assert) cout)
           (srfi :8 receive)
           (spells foreign)
+          (sbank support utils)
           (sbank ctypes basic)
           (sbank typelib)
           (sbank typelib base)
@@ -126,17 +127,13 @@
                  (send iter (free))
                  (values model #f)))))))
 
-  (define gtk-setup!
-    (let ((installed? #f))
-      (lambda ()
-        (unless installed?
-          (gdk-setup!)
-          (register-typelib-decorator "Gtk" "ListStore" list-store-decorator)
-          (register-typelib-decorator "Gtk" "TextBuffer" text-buffer-decorator)
-          (register-typelib-decorator "Gtk" "TreeModel" tree-model-decorator)
-          (register-typelib-decorator "Gtk" "TreeSelection"
-                                      tree-selection-decorator)
-          (set! installed? #t)))))
+  (define-setup-procedure (gtk-setup!)
+    (gdk-setup!)
+    (register-typelib-decorator "Gtk" "ListStore" list-store-decorator)
+    (register-typelib-decorator "Gtk" "TextBuffer" text-buffer-decorator)
+    (register-typelib-decorator "Gtk" "TreeModel" tree-model-decorator)
+    (register-typelib-decorator "Gtk" "TreeSelection"
+                                tree-selection-decorator))
 
   (define (gtk-stock-id nick)
     (string-append "gtk-" (symbol->string nick))))

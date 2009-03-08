@@ -12,6 +12,7 @@
           (rnrs io ports)
           (spells cells)
           (spells tracing)
+          (sbank support utils)
           (sbank ctypes basic)
           (sbank gobject)
           (sbank typelib))
@@ -67,7 +68,7 @@
   ;;@ Resolve @1 to an HTTP status code. If @1 is a symbol, it is
   ;; looked up among the Soup known status codes enumeration (that
   ;; lookup returns @code{#f} if it is not in the enumeration). If @1
-  ;; is not a symbol, it is returned with any action done.
+  ;; is not a symbol, it is simply returned.
   (define (soup-status code)
     (if (symbol? code)
         (genumerated-lookup <known-status-code> code)
@@ -78,9 +79,5 @@
   ;; namespace. Note that this does not call @code{g-thread-init},
   ;; which must be called before actually using any Soup
   ;; functionality.
-  (define soup-setup!
-    (let ((installed? #f))
-      (lambda ()
-        (unless installed?
-          (gobject-setup!)
-          (set! installed? #t))))))
+  (define-setup-procedure (soup-setup!)
+    (gobject-setup!)))
