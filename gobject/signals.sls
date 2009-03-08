@@ -38,7 +38,7 @@
           (sbank support shlibs)
           (sbank ctypes basic)
           (sbank typelib)
-          (sbank type-data)
+          (sbank support type-data)
           (sbank gobject gvalue)
           (sbank gobject gtype)
           (sbank gobject internals))

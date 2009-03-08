@@ -67,7 +67,7 @@
           (spells foreign)
           (spells tracing)
           (sbank support utils)
-          (sbank type-data)
+          (sbank support type-data)
           (sbank support conditions)
           (for (sbank support stypes) expand)
           (sbank support shlibs)

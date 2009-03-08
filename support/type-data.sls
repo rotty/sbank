@@ -23,7 +23,7 @@
 ;;; Code:
 #!r6rs
 
-(library (sbank type-data)
+(library (sbank support type-data)
   (export array-type?
           array-is-zero-terminated?
           array-size

@@ -50,7 +50,7 @@
           (only (spells misc) or-map)
           (only (spells assert) cerr cout)
           (sbank support utils)
-          (sbank type-data)
+          (sbank support type-data)
           (for (sbank support stypes) run expand)
           (sbank ctypes basic)
           (sbank ctypes call)

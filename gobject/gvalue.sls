@@ -45,7 +45,7 @@
           (spells tracing)
           (only (spells assert) cout)
           (sbank support shlibs)
-          (sbank type-data)
+          (sbank support type-data)
           (sbank gobject genum)
           (sbank gobject gtype)
           (for (sbank typelib stypes) expand)

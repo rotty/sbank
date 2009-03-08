@@ -45,7 +45,7 @@
           (only (spells misc) unspecific)
           (spells tracing)
           (sbank support utils)
-          (sbank type-data)
+          (sbank support type-data)
           (for (sbank support stypes) expand)
           (sbank support shlibs)
           (sbank ctypes basic)

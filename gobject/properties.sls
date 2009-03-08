@@ -32,7 +32,7 @@
           (spells tracing)
           (sbank support shlibs)
           (sbank ctypes basic)
-          (sbank type-data)
+          (sbank support type-data)
           (sbank gobject gvalue)
           (sbank gobject internals)
           (sbank typelib base))

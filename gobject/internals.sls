@@ -87,7 +87,7 @@
           (only (spells assert) cout)
           (spells weak)
           (spells foreign)
-          (sbank type-data)
+          (sbank support type-data)
           (sbank support utils)
           (sbank support shlibs)
           (sbank gobject gtype)
