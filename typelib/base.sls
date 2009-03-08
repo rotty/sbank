@@ -585,6 +585,7 @@
            (type-infos (arg-blobs-type-infos typelib tld
                                              arg-blobs n-args arg-blob-size))
            (length-indices (type-infos-length-indices type-infos))
+           (closure-indices (filter-map type-info-closure-index type-infos))
            (has-self-ptr? (and method? container))
            (gtype-lookup (typelib-gtype-lookup typelib)))
       (let loop ((arg-types '())
@@ -610,7 +611,8 @@
                    (transfer-ownership? (bool (arg-transfer-ownership arg-blob)))
                    (transfer-container-ownership?
                     (bool (arg-transfer-container-ownership arg-blob)))
-                   (length? (memv i length-indices)))
+                   (ignore? (or (memv i length-indices)
+                                (memv i closure-indices))))
               (define (arg-flags)
                 (calc-flags i in? out?
                             transfer-ownership?
@@ -619,7 +621,7 @@
                        (arg-callback-steps (car tis)
                                            (if has-self-ptr? (+ i 1) i)
                                            gtype-lookup)
-                (cond (length?
+                (cond (ignore?
                        (loop (cons (car tis) arg-types)
                              prepare-steps
                              store-steps
@@ -1121,13 +1123,18 @@
                (raise-validation-error "wrong tag in simple type" tag))
              (when (and (>= tag type-tag-utf8) (= pointer 0))
                (raise-validation-error "pointer type expected for tag" tag))
-             (when (or closure-index destroy-index)
-               (raise-validation-error
-                "no closure or destroy notification expected for tag" tag))
              (let ((tag-symbol (type-tag->symbol tag)))
-               (if (and (= pointer 1) (eq? tag-symbol 'void))
-                   (make-type-info 'pointer #f null-ok?)
-                   (make-type-info tag-symbol (bool pointer) null-ok?))))
+               (cond ((and (= pointer 1) (eq? tag-symbol 'void))
+                      (when destroy-index
+                        (raise-validation-error
+                         "no destroy notification expected for pointer"))
+                      (make-type-info 'pointer #f null-ok? closure-index #f #f))
+                     (else
+                      (when (or closure-index destroy-index)
+                        (raise-validation-error
+                         "no closure or destroy notification expected for type"
+                         tag-symbol))
+                      (make-type-info tag-symbol (bool pointer) null-ok?)))))
             (else
              (make/validate-type-info typelib tld offset null-ok?
                                       closure-index destroy-index scope)))))

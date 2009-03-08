@@ -89,7 +89,12 @@
     (map test-callback (map (lambda (n)
                               (lambda () n))
                             '(43 666 1234)))
-    '(43 666 1234)))
+    '(43 666 1234))
+  (test/equal "user-data"
+    (map test-callback-user-data (map (lambda (n)
+                                        (lambda () n))
+                                      (iota 10)))
+    (iota 10)))
 
 (let ((signal-args #f))
   (testeez "signals"
