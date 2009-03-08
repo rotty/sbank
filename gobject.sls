@@ -93,11 +93,6 @@
             (loop (cons (g-object-get-property instance (car props)) vals)
                   (cdr props))))))
 
-  (define (gvalue-new class)
-    (lambda (next-method)
-      (lambda (val)
-        (make-ginstance class (->g-value val)))))
-  
   (define-setup-procedure (gobject-setup!)
     (glib-setup!)
     (g-type-init)
