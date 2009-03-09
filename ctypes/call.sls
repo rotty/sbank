@@ -239,20 +239,53 @@
               (convert val)))
         convert))
 
+  (define destroy-notify-signature
+    (make-signature (make-type-info 'void #f #f)
+                    (list (make-type-info 'void #t #t))
+                    (lambda ()
+                      (make-c-callout 'void '(pointer)))
+                    (lambda ()
+                      (make-c-callback 'void '(pointer)))))
+
+  (define destroy-notify-callback
+    (signature-callback destroy-notify-signature))
+
+  (define (callback-destroy-notify reclaim-callback)
+    (let ((reclaim-destroy-notify #f))
+      (receive (destroy-notify reclaim)
+               (destroy-notify-callback
+                (lambda (user-data)
+                  (reclaim-callback)
+                  (reclaim-destroy-notify)))
+        (set! reclaim-destroy-notify reclaim)
+        destroy-notify)))
+
   (define (callback-arg-setup ti i)
-    (let ((convert (out-converter/null* (signature-callback (type-info-type ti))
-                                        (type-info-null-ok? ti)
-                                        #f))
-          (closure-i (type-info-closure-index ti))
-          (destroy-i (type-info-destroy-index ti)))
+    (let* ((convert (out-converter/null* (signature-callback (type-info-type ti))
+                                         (type-info-null-ok? ti)
+                                         #f))
+           (closure-i (type-info-closure-index ti))
+           (destroy-i (type-info-destroy-index ti))
+           (setup-destroy
+            (cond ((and destroy-i
+                        (eq? (type-info-scope ti) 'notified))
+                   (lambda (arg-vec reclaim)
+                     (vector-set! arg-vec
+                                  destroy-i
+                                  (callback-destroy-notify reclaim))))
+                  (destroy-i
+                   (lambda (arg-vec reclaim)
+                     (vector-set! arg-vec destroy-i (null-pointer))))
+                  (else
+                   (lambda (arg-vec reclaim)
+                     #f)))))
       (lambda (args arg-vec info-vec)
         (receive (ptr reclaim) (convert (car args))
           (vector-set! arg-vec i ptr)
           (vector-set! info-vec i reclaim)
           (when closure-i
             (vector-set! arg-vec closure-i (null-pointer)))
-          (when destroy-i
-            (vector-set! arg-vec destroy-i (null-pointer)))
+          (setup-destroy arg-vec reclaim)
           (cdr args)))))
 
   (define (callback-arg-cleanup ti i)

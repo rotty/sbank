@@ -23,13 +23,14 @@
 ;;; Code:
 
 (import (rnrs)
-        (only (srfi :1 lists) append-map)
+        (only (srfi :1 lists) append-map unfold reduce)
         (only (srfi :27 random-bits) random-integer)
         (only (ikarus) collect)
         (spells string-utils)
         (spells alist)
         (sbank support utils)
         (sbank gobject)
+        (sbank gobject gvalue)
         (sbank typelib))
 
 (gobject-setup!)
@@ -42,6 +43,12 @@
          ((>= i n))
        body ...))))
 
+(define (random-integers n k)
+  (unfold (lambda (i) (> i n))
+          (lambda (i) (random-integer k))
+          (lambda (i) (+ i 1))
+          0))
+
 (define N 10000)
 
 (define (method-call)
@@ -50,6 +57,10 @@
 
 (define (obj-alloc)
   (repeat N (send <test-obj> (new/props))))
+
+(define (obj-alloc-nested)
+  (repeat N (send <test-obj>
+              (new/props 'bare (send <test-obj> (new/props))))))
 
 (define (callback)
   (let ((cb (lambda () 42)))
@@ -62,11 +73,21 @@
   (repeat N
     (test-callback (make-test-cb (random-integer N)))))
 
+(define (callback-notified)
+  (repeat N
+    (let ((nums (random-integers 5 10)))
+      (assert (equal?
+               (map test-callback-destroy-notify (map make-test-cb nums))
+               nums))
+      (assert (= (test-callback-thaw-notifications) (reduce + 0 nums))))))
+
 (define *tests*
   `((method-call . ,method-call)
     (obj-alloc . ,obj-alloc)
+    (obj-alloc-nested . ,obj-alloc-nested)
     (callback . ,callback)
-    (callback-freshproc . ,callback-freshproc)))
+    (callback-freshproc . ,callback-freshproc)
+    (callback-notified . ,callback-notified)))
 
 (define (println fmt . args)
   (string-substitute #t fmt args 'braces)
