@@ -24,7 +24,9 @@
 #!r6rs
 
 (library (sbank gobject signals)
-  (export g-signal-connect g-signal-emit)
+  (export g-signal-connect
+          g-signal-disconnect
+          g-signal-emit)
   (import (rnrs base)
           (rnrs control)
           (srfi :8 receive)
@@ -37,50 +39,45 @@
           (sbank support utils)
           (sbank support shlibs)
           (sbank ctypes basic)
+          (sbank ctypes call)
           (sbank typelib)
           (sbank support type-data)
           (sbank gobject gvalue)
           (sbank gobject gtype)
           (sbank gobject internals))
 
-  (define signal-destroy-notify-ptr
-    ((make-c-callback 'void '(pointer pointer))
-     (lambda (data closure)
-       ;; TODO: we should somehow free the callback here, but the
-       ;; current ikarus FFI doesn't allow us doing that
-       #f)))
-
   (define (g-signal-connect instance signal callback)
     (define (lose msg . irritants)
       (apply error 'g-signal-connect msg irritants))
     (let*-values
         (((signal detail detailed-signal) (parse-signal-spec signal lose))
-         ((detailed-signal-ptr) (string->utf8z-ptr detailed-signal)))
-      (let ((id (connect-data%
-                 (ginstance-ptr instance)
-                 detailed-signal-ptr
-                 (cond ((gobject-class-get-signal-callback
-                         (ginstance-class instance)
-                         signal) => (lambda (convert)
-                                      (receive (ptr reclaim) (convert callback)
-                                        ptr)))
-                       (else
-                        (lose "no such signal" detailed-signal)))
-                 (null-pointer)
-                 signal-destroy-notify-ptr
-                 0)))
-        (free detailed-signal-ptr)
-        id)))
+         ((prepare) (gobject-class-get-signal-callback
+                     (ginstance-class instance)
+                     signal)))
+      (unless prepare
+        (lose "no such signal" detailed-signal))
+      (receive (cb-ptr reclaim) (prepare callback)
+        (let* ((detailed-signal-ptr (string->utf8z-ptr detailed-signal))
+               (id (connect-data%
+                    (ginstance-ptr instance)
+                    detailed-signal-ptr
+                    cb-ptr
+                    (null-pointer)
+                    (callback-destroy-notify reclaim)
+                   0)))
+          (free detailed-signal-ptr)
+          id))))
 
   (define gquark-ctype 'uint32)
 
-  (define g-signal-lookup
-    
-    (lambda (signal class)
-      (let* ((name-ptr (string->utf8z-ptr (symbol->string signal)))
-             (rv (lookup% name-ptr (gobject-class-gtype class))))
-        (free name-ptr)
-        rv)))
+  (define (g-signal-lookup signal class)
+    (let* ((name-ptr (string->utf8z-ptr (symbol->string signal)))
+           (rv (lookup% name-ptr (gobject-class-gtype class))))
+      (free name-ptr)
+      rv))
+
+  (define (g-signal-disconnect obj handler-id)
+    (disconnect% (ginstance-ptr obj) handler-id))
 
   (define (g-signal-emit instance signal . args)
     (define (lose msg . irritants)
@@ -125,7 +122,8 @@
   (define-callouts libgobject
     (connect-data% 'ulong "g_signal_connect_data"
                    '(pointer pointer fpointer pointer fpointer int))
+    (disconnect% 'void "g_signal_handler_disconnect" '(pointer ulong))
     (lookup% 'uint "g_signal_lookup" `(pointer ,gtype-ctype))
     (emitv% 'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
-  
+
   )

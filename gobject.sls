@@ -54,13 +54,14 @@
           (sbank gobject signals)
           (sbank gobject properties)
           (sbank gobject internals))
-  
+
 
   (define (gobject-decorator class)
     (gobject-class-decorate
      class
      values
      (gobject-method-overrider `((connect . ,g-object-connect)
+                                 (disconnect . ,g-object-disconnect)
                                  (emit . ,g-object-emit)
                                  (get . ,g-object-get)
                                  (set . ,g-object-set)))
@@ -68,15 +69,19 @@
 
   (define (gvalue-decorator class)
     'gvalue)
-  
+
   (define (g-object-connect next-method)
     (lambda (instance signal callback)
       (g-signal-connect instance signal callback)))
 
+  (define (g-object-disconnect next-method)
+    (lambda (instance signal)
+      (g-signal-disconnect instance signal)))
+
   (define (g-object-emit next-method)
     (lambda (instance signal)
       (g-signal-emit instance signal)))
-  
+
   (define (g-object-set next-method)
     (lambda (instance . args)
         (do ((args args (cddr args)))

@@ -81,13 +81,21 @@
                nums))
       (assert (= (test-callback-thaw-notifications) (reduce + 0 nums))))))
 
+(define (signal-callback)
+  (let ((obj (send <test-obj> (new/props))))
+    (repeat N
+      (let ((sig (send obj (connect 'test (lambda (obj) #f)))))
+        (send obj (emit 'test))
+        (send obj (disconnect sig))))))
+
 (define *tests*
   `((method-call . ,method-call)
     (obj-alloc . ,obj-alloc)
     (obj-alloc-nested . ,obj-alloc-nested)
     (callback . ,callback)
     (callback-freshproc . ,callback-freshproc)
-    (callback-notified . ,callback-notified)))
+    (callback-notified . ,callback-notified)
+    (signal-callback . ,signal-callback)))
 
 (define (println fmt . args)
   (string-substitute #t fmt args 'braces)
