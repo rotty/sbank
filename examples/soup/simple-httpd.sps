@@ -1,6 +1,6 @@
 ;;; simple-httpd.sps -- Example ported from libsoup test/simple-httpd.c
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -26,7 +26,7 @@
 (import (except (rnrs) file-exists? delete-file)
         (spells parameter)
         (only (srfi :13 strings) string-join)
-        (spells string-substitute)
+        (spells string-utils)
         (spells pathname)
         (spells filesys)
         (spells tracing)
@@ -57,13 +57,12 @@
       (println "Waiting for requests...")
       (g-main-loop-run (g-main-loop-new #f #t)))))
 
-;; Note that `user-data' will go away when I get around to implement hiding it
-(define (server-callback server msg path query client user-data)
+(define (server-callback server msg path query client)
   (let ((method (send msg (get 'method)))
         (file-path (string-append "." path)))
     (println "{0} {1} HTTP/1.{2}" method  path (send msg (get 'http-version)))
     (send (send msg (get-request-headers))
-      (foreach (lambda (name value user-data)
+      (foreach (lambda (name value)
                  (println "{0}: {1}" name value))))
     (let ((body (send msg (get-request-body))))
       (when (> (send body (get-length)) 0)
@@ -128,11 +127,11 @@
    "\n" 'suffix))
 
 (define (println fmt . args)
-  (string-substitute #t fmt args)
+  (string-substitute #t fmt args 'braces)
   (newline))
 
 (define (ssubst fmt . args)
-  (string-substitute #f fmt args))
+  (string-substitute #f fmt args 'braces))
 
 (define (bail-out msg . args)
   (string-substitute (current-error-port) msg args)
