@@ -32,20 +32,27 @@
         (spells tracing)
         (sbank soup)
         (sbank typelib)
-        (sbank ctypes basic))
+        (sbank glib-daemon)
+        (only (sbank ctypes basic) null-ok-always-on?))
 
 (typelib-import
  (prefix (only ("GLib" #f)
                thread-init
-               main-loop-new main-loop-run
+               main-loop-new main-loop-run main-loop-quit
                markup-escape-text)
          g-)
  (prefix (only ("Soup" #f) <server>)
          soup-)
  (setup soup-setup!))
 
-(let ((port  8001))
+
+(let ((port  8001)
+      (main-loop (g-main-loop-new #f #f)))
   (g-thread-init #f)
+  (g-install-signal-handler '(int)
+                            (lambda (sig)
+                              (g-main-loop-quit main-loop)
+                              #f))
   (parameterize ((null-ok-always-on? #t)) ;; Needed for field access, will go away
     (let ((server (send <soup-server> (new/props 'port port
                                                  'server-header "simple-httpd"))))
@@ -54,8 +61,8 @@
       (send server
         (add-handler #f server-callback)
         (run-async))
-      (println "Waiting for requests...")
-      (g-main-loop-run (g-main-loop-new #f #t)))))
+      (println "Waiting for requests (Ctrl+C to terminate)...")
+      (g-main-loop-run main-loop))))
 
 (define (server-callback server msg path query client)
   (let ((method (send msg (get 'method)))
