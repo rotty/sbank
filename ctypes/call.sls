@@ -241,16 +241,11 @@
               (convert val)))
         convert))
 
-  ;; We kindof cheat here, and don't specify any argument types, but
-  ;; this is not a problem because of the C calling convention
-  ;; (i.e. caller-pops-args).
+  ;; We kindof cheat here to be more general, and don't specify any
+  ;; argument types, but this is not a problem because of the C
+  ;; calling convention (i.e. caller-pops-args).
   (define destroy-notify-signature
-    (make-signature (make-type-info 'void #f #f)
-                    (list)
-                    (lambda ()
-                      (make-c-callout 'void '()))
-                    (lambda ()
-                      (make-c-callback 'void '()))))
+    (make-simple-signature 'void '()))
 
   (define destroy-notify-callback
     (signature-callback destroy-notify-signature))

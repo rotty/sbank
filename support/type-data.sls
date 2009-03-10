@@ -34,6 +34,7 @@
 
           signature?
           make-signature
+          make-simple-signature
           signature-rti
           signature-atis
           signature-callout
@@ -126,6 +127,19 @@
                      (make-lazy-entry callout)
                      (make-lazy-entry callback)
                      '())))))
+
+  (define (make-simple-signature rtype atypes)
+    (define (type->ti type)
+      (case type
+        ((pointer) (make-type-info 'void #t #t))
+        (else
+         (make-type-info type #f #f))))
+    (make-signature (type->ti rtype)
+                    (map type->ti atypes)
+                    (lambda ()
+                      (make-c-callout rtype atypes))
+                    (lambda ()
+                      (make-c-callback rtype atypes))))
 
   (define (lazy-forcer accessor setter)
     (lambda (obj)
