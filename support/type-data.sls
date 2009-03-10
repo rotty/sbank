@@ -39,6 +39,7 @@
           signature-atis
           signature-callout
           signature-callback
+          callback-destroy-notify
 
           make-type-info
           type-info?
@@ -64,6 +65,7 @@
           (rnrs lists)
           (rnrs records syntactic)
           (rnrs hashtables)
+          (srfi :8 receive)
           (spells foreign)
           (spells tracing)
           (sbank support utils))
@@ -194,5 +196,24 @@
                          pcb))))
               (values (pooled-cb-ptr pooled-cb)
                       (pooled-cb-reclaimer sig pooled-cb))))))))
+
+  ;; We kindof cheat here to be more general, and don't specify any
+  ;; argument types, but this is not a problem because of the C
+  ;; calling convention (i.e. caller-pops-args).
+  (define destroy-notify-signature
+    (make-simple-signature 'void '()))
+
+  (define destroy-notify-callback
+    (signature-callback destroy-notify-signature))
+
+  (define (callback-destroy-notify reclaim-callback)
+    (let ((reclaim-destroy-notify #f))
+      (receive (destroy-notify reclaim)
+               (destroy-notify-callback
+                (lambda ()
+                  (reclaim-callback)
+                  (reclaim-destroy-notify)))
+        (set! reclaim-destroy-notify reclaim)
+        destroy-notify)))
 
   )

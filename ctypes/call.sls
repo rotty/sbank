@@ -27,9 +27,7 @@
   (export make-callout
           make-callback
           arg-callout-steps
-          arg-callback-steps
-
-          callback-destroy-notify)
+          arg-callback-steps)
 
   (import (rnrs base)
           (rnrs control)
@@ -240,25 +238,6 @@
               (values (null-pointer) #f)
               (convert val)))
         convert))
-
-  ;; We kindof cheat here to be more general, and don't specify any
-  ;; argument types, but this is not a problem because of the C
-  ;; calling convention (i.e. caller-pops-args).
-  (define destroy-notify-signature
-    (make-simple-signature 'void '()))
-
-  (define destroy-notify-callback
-    (signature-callback destroy-notify-signature))
-
-  (define (callback-destroy-notify reclaim-callback)
-    (let ((reclaim-destroy-notify #f))
-      (receive (destroy-notify reclaim)
-               (destroy-notify-callback
-                (lambda ()
-                  (reclaim-callback)
-                  (reclaim-destroy-notify)))
-        (set! reclaim-destroy-notify reclaim)
-        destroy-notify)))
 
   (define (callback-arg-setup ti i)
     (let* ((convert (out-converter/null* (signature-callback (type-info-type ti))
