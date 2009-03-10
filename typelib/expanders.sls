@@ -1,6 +1,6 @@
 ;;; expanders.sls --- Syntax-case expanders
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -32,7 +32,9 @@
   (import (for (rnrs base) run expand (meta -1))
           (rnrs control)
           (rnrs syntax-case)
+          (only (srfi :1 lists) partition concatenate append-map)
           (srfi :8 receive)
+          (for (spells define-values) expand (meta -1))
           (spells tracing)
           (sbank support utils)
           (for (sbank typelib base) run expand (meta -1)))
@@ -42,18 +44,28 @@
     (lambda (stx)
       (syntax-case stx ()
         ((k <import-spec> ...)
-         (with-syntax (((typelib-name ...)
-                        (generate-temporaries #'(<import-spec> ...))))
-           (with-syntax
-               (((form ...)
-                 (apply
-                  append
-                  (map
-                   (lambda (import-spec name)
-                     (expand-import who #'k name (syntax->datum import-spec)))
-                   #'(<import-spec> ...)
-                   #'(typelib-name ...)))))
-             #'(begin form ...)))))))
+         (receive (setup-clauses import-specs)
+                  (partition (lambda (import-spec)
+                               (and (pair? import-spec)
+                                    (eq? 'setup (car import-spec))))
+                             (map syntax->datum #'(<import-spec> ...)))
+           (with-syntax (((typelib-name ...)
+                          (generate-temporaries import-specs)))
+             (with-syntax
+                 (((form ...)
+                   (cons
+                    #`(define-values ()
+                        #,@(append-map (lambda (setup-clause)
+                                         (map (lambda (item)
+                                                (datum->syntax #'k `(,item)))
+                                              (cdr setup-clause)))
+                                       setup-clauses))
+                    (concatenate
+                     (map (lambda (import-spec name)
+                            (expand-import who #'k name import-spec))
+                          import-specs
+                          #'(typelib-name ...))))))
+               #'(begin form ...))))))))
 
   (define (expand-import who k typelib import-spec)
     (receive (namespace version prefix bindings)

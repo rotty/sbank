@@ -49,8 +49,7 @@
    (sbank gobject internals)
    (spells foreign))
 
-  ((code (gobject-setup!))
-   "everything.scm"
+  ("everything.scm"
    (testeez)
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
@@ -58,13 +57,11 @@
    (srfi :1 lists)
    (sbank gobject))
 
-  ((code (glib-setup!))
-   "glib.scm"
+  ("glib.scm"
    (sbank typelib)
    (sbank glib))
 
-  ((code (gtk-setup!))
-   "gtk.scm"
+  ("gtk.scm"
    (testeez)
    (sbank gtk)
    (sbank typelib))))

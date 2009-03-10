@@ -1,5 +1,5 @@
 ;; Ported to sbank from guile-gnome
-;; Copyright (C) 2003,2004,2008 Free Software Foundation, Inc.
+;; Copyright (C) 2003,2004,2008,2009 Free Software Foundation, Inc.
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -20,7 +20,8 @@
 
 
 (typelib-import
- (prefix (only ("Gtk" #f) <list-store> <tree-view>) gtk-))
+ (prefix (only ("Gtk" #f) <list-store> <tree-view>) gtk-)
+ (setup gtk-setup!))
 
 (testeez "ListStore"
   (test-define "creating" store (send <gtk-list-store> (newv (list 'boxed 'utf8))))

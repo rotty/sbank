@@ -28,7 +28,8 @@
                          main-loop-new
                          main-loop-run
                          main-loop-quit)
-                        g-))
+                        g-)
+                (setup glib-setup!))
 
 (define-test-suite glib-tests
   "GLib bindings")

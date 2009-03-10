@@ -33,8 +33,8 @@
         (sbank gobject gvalue)
         (sbank typelib))
 
-(gobject-setup!)
-(typelib-import ("Everything" #f))
+(typelib-import ("Everything" #f)
+                (setup gobject-setup!))
 
 (define-syntax repeat
   (syntax-rules ()

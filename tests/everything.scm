@@ -23,7 +23,8 @@
 ;;; Code:
 
 
-(typelib-import ("Everything" #f))
+(typelib-import ("Everything" #f)
+                (setup gobject-setup!))
 
 (testeez "basic types"
   (test/equal "boolean"

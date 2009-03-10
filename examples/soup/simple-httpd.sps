@@ -34,7 +34,6 @@
         (sbank typelib)
         (sbank ctypes basic))
 
-(soup-setup!)
 (typelib-import
  (prefix (only ("GLib" #f)
                thread-init
@@ -42,7 +41,8 @@
                markup-escape-text)
          g-)
  (prefix (only ("Soup" #f) <server>)
-         soup-))
+         soup-)
+ (setup soup-setup!))
 
 (let ((port  8001))
   (g-thread-init #f)

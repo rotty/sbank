@@ -1,6 +1,6 @@
 ;;; hello-world2.sps --- Example translated from the GTK+ tutorial
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; This file is placed in the public domain.
 
@@ -9,10 +9,10 @@
         (sbank typelib)
         (sbank gtk))
 
-(gtk-setup!)
 (typelib-import (prefix (only ("Gtk" #f)
                               <window> <button> <h-box>
-                              init main main-quit) gtk-))
+                              init main main-quit) gtk-)
+                (setup gtk-setup!))
 
 (gtk-init (command-line))
 

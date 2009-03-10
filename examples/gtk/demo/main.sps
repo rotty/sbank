@@ -1,5 +1,5 @@
 ;; Ported to sbank from guile-gnome
-;; Copyright (C) 2003,2004,2008 Free Software Foundation, Inc.
+;; Copyright (C) 2003,2004,2008,2009 Free Software Foundation, Inc.
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -31,7 +31,6 @@
         (sbank typelib)
         (sbank typelib decorators))
 
-(gtk-setup!)
 (typelib-import
  (prefix (only ("Gtk" #f)
                <window> <scrolled-window>
@@ -42,7 +41,8 @@
                <text-view>
                <label> <h-box>
                init main main-quit)
-         gtk-))
+         gtk-)
+ (setup gtk-setup!))
 
 (define (port->string p)
   (string-unfold eof-object?
