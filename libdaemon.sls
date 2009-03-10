@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 
-;; While currently distributed with irclogs, this library is usable
+;; While currently distributed with sbank, this library is usable
 ;; (and useful) stand-alone, only depending on (spells foreign).
 
 ;;; Code:
@@ -53,6 +53,25 @@
       (segv . 11)
       (trap .  5)))
 
+  ;;@ Arrange for the signals specified by @1 to be handled by the
+  ;; library. Each element of @1 may be either a signal number, or one
+  ;; of the following symbols:
+  ;;
+  ;; @itemize
+  ;; @item @code{alrm}
+  ;; @item @code{hup}
+  ;; @item @code{int}
+  ;; @item @code{kill}
+  ;; @item @code{pipe}
+  ;; @item @code{term}
+  ;; @item @code{abrt}
+  ;; @item @code{fpe}
+  ;; @item @code{ill}
+  ;; @item @code{quit}
+  ;; @item @code{segv}
+  ;; @item @code{trap}
+  ;; @end itemize
+  ;;
   (define (daemon-signal-init . sigs)
     (for-each (lambda (sig)
                 (let ((sig-num (cond ((and (symbol? sig)
@@ -64,9 +83,13 @@
                       (error 'daemon-signal-init "unable to install signal" sig-num))))
               sigs))
 
+  ;;@ Return the UNIX file descriptor (an integer) which the library
+  ;; announces signal reception on.
   (define (daemon-signal-fd)
     (signal-fd%))
 
+  ;;@ Return the number of the next signal that has been received. If no
+  ;; more signals are outstanding,
   (define (daemon-signal-next)
     (signal-next%))
 
