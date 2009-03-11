@@ -343,7 +343,7 @@
                (memcpy (malloc size) bytes size)))
             ((bytevector? val)
              (unless (memq elt-type '(int8 uint8))
-               (lose "cannot convert bytevector to array of this type val atype"))
+               (lose "cannot convert bytevector to array of this type" val atype))
              (let ((size (bytevector-length val)))
                (memcpy (malloc size) val size)))
             ((bytevector-portion? val)
