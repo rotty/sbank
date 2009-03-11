@@ -46,6 +46,7 @@
           ginstance=?
           ginstance-is-a?
 
+          g-object-attach-destructor
           collect-gobjects
 
           gsequence?
@@ -90,7 +91,9 @@
           (sbank support type-data)
           (sbank support utils)
           (sbank support shlibs)
+          (sbank support ptr-table)
           (sbank gobject gtype)
+          (sbank gobject gquark)
           (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject gparam)
@@ -151,6 +154,57 @@
              (gobject-class-force! c)
              (cond ((gobject-class-parent c) => loop)
                    (else                        #f))))))
+
+  ;; An attachment contains a bunch of metadata associated with a
+  ;; GObject instance over its whole lifetime, starting from when the
+  ;; is first needed (an thus created). This is opposed to the
+  ;; `ginstance' wrapper, which is (re)created as needed.
+  (define-record-type gobject-attachment
+    (fields (mutable destroy-hook))
+    (protocol (lambda (p)
+                (lambda ()
+                  (p '())))))
+
+
+  (define gobject-attachment-quark
+    (let ((quark (g-quark-from-string "sbank:attachment")))
+      (lambda ()
+        quark)))
+
+  (define gobject-attachments (make-ptr-table))
+
+  (define (g-object-get-attachment obj-ptr)
+    (and-let* ((att-ptr (g-object-get-qdata obj-ptr (gobject-attachment-quark)))
+               ((not (null-pointer? att-ptr))))
+      (ptr-table-ref gobject-attachments att-ptr #f)))
+
+  (define (gobject-attachment-destructor att-ptr)
+    (callback-destroy-notify
+     (lambda ()
+       (let ((att (ptr-table-ref gobject-attachments att-ptr #f)))
+         (for-each (lambda (thunk)
+                     (thunk))
+                   (gobject-attachment-destroy-hook att))
+         (ptr-table-remove! gobject-attachments att-ptr)))))
+
+  (define (g-object-get/create-attachment obj-ptr)
+    (or (g-object-get-attachment obj-ptr)
+        (let* ((att (make-gobject-attachment))
+               (att-ptr (ptr-table-add! gobject-attachments att)))
+          (g-object-set-qdata-full obj-ptr
+                                   (gobject-attachment-quark)
+                                   att-ptr
+                                   (gobject-attachment-destructor att-ptr))
+          att)))
+
+  ;;@ Register @2 as destructor for @1. Note that @2 should not close
+  ;; over @1 (or some data structure containing a reference to @1),
+  ;; otherwise @1 will become uncollectable.
+  (define (g-object-attach-destructor obj-ptr proc)
+    (let ((att (g-object-get/create-attachment obj-ptr)))
+      (gobject-attachment-destroy-hook-set!
+       att
+       (cons proc (gobject-attachment-destroy-hook att)))))
 
   (define-record-type gobject-class
     ;;(opaque #t)
@@ -462,6 +516,9 @@
     (g-object-ref 'void "g_object_ref" '(pointer))
     (g-object-unref 'void "g_object_unref" '(pointer))
     (g-object-ref-sink 'void "g_object_ref_sink" '(pointer))
-    (g-object-is-floating 'int "g_object_is_floating" '(pointer)))
+    (g-object-is-floating 'int "g_object_is_floating" '(pointer))
+    (g-object-get-qdata 'pointer "g_object_get_qdata" `(pointer ,g-quark-ctype))
+    (g-object-set-qdata-full 'void "g_object_set_qdata_full"
+                             `(pointer ,g-quark-ctype pointer fpointer)))
 
   )

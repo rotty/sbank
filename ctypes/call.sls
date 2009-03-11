@@ -93,7 +93,7 @@
          (vector-set! arg-vec i
                       (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
 
-  (define (arg-callout-steps ti i flags gtype-lookup)
+  (define (arg-callout-steps has-self-ptr? ti i flags gtype-lookup)
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
@@ -116,7 +116,7 @@
            "callback arguments must have direction 'in'" ti flags))
         (values (callback-arg-setup ti i)
                 #f
-                (callback-arg-cleanup ti i)))
+                (callback-arg-cleanup has-self-ptr? ti i)))
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
@@ -267,11 +267,17 @@
           (setup-destroy arg-vec reclaim)
           (cdr args)))))
 
-  (define (callback-arg-cleanup ti i)
+  (define (callback-arg-cleanup has-self-ptr? ti i)
     (case (type-info-scope ti)
       ((call)
        (lambda (argv-vec info-vec)
          ((vector-ref info-vec i))))
+      ((object)
+       (if has-self-ptr?
+           (lambda (arg-vec info-vec)
+             (g-object-attach-destructor (vector-ref arg-vec 0)
+                                         (vector-ref info-vec i)))
+           #f))
       (else
        #f)))
 

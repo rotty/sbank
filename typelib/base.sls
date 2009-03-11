@@ -525,6 +525,7 @@
             (if has-self-ptr?
                 (receive (setup! collect cleanup)
                          (arg-callout-steps
+                          has-self-ptr?
                           (make-type-info container #t #f)
                           0
                           '(in)
@@ -547,7 +548,11 @@
                    (destroy? (memv final-i destroy-indices))
                    (arg-flags (calc-flags i in? out? tf-os? tf-c-os?)))
               (receive (setup! collect cleanup)
-                       (arg-callout-steps (car tis) final-i arg-flags gtype-lookup)
+                       (arg-callout-steps has-self-ptr?
+                                          (car tis)
+                                          final-i
+                                          arg-flags
+                                          gtype-lookup)
                 (cond ((or length? closure? destroy?)
                        (loop (cons (car tis) arg-types)
                              (cons #f setup-steps)
