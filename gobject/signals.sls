@@ -44,6 +44,7 @@
           (sbank support type-data)
           (sbank gobject gvalue)
           (sbank gobject gtype)
+          (sbank gobject gquark)
           (sbank gobject internals))
 
   (define (g-signal-connect instance signal callback)
@@ -67,8 +68,6 @@
                    0)))
           (free detailed-signal-ptr)
           id))))
-
-  (define gquark-ctype 'uint32)
 
   (define (g-signal-lookup signal class)
     (let* ((name-ptr (string->utf8z-ptr (symbol->string signal)))
@@ -124,6 +123,6 @@
                    '(pointer pointer fpointer pointer fpointer int))
     (disconnect% 'void "g_signal_handler_disconnect" '(pointer ulong))
     (lookup% 'uint "g_signal_lookup" `(pointer ,gtype-ctype))
-    (emitv% 'void "g_signal_emitv" `(pointer uint ,gquark-ctype pointer)))
+    (emitv% 'void "g_signal_emitv" `(pointer uint ,g-quark-ctype pointer)))
 
   )
