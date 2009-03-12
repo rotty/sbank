@@ -367,30 +367,32 @@
                  (signals-decorator signals)
                  properties)))))
 
-  (define (apply-override method override)
+  (define (apply-override typelib method override)
     (cons (car override)
           (if (lazy-entry? (cdr method))
               (make-lazy-entry
                (lambda (class)
                  (let ((next-method ((lazy-entry-proc (cdr method)) class)))
-                   ((cdr override) next-method))))
-              ((cdr override) (cdr method)))))
+                   ((cdr override) typelib next-method))))
+              ((cdr override) typelib (cdr method)))))
 
-  (define (gobject-method-overrider overrides)
+  (define (gobject-method-overrider typelib overrides)
     (lambda (methods)
       (let loop ((result methods) (overrides overrides))
         (if (null? overrides)
             result
             (cond ((assq (caar overrides) methods)
                    => (lambda (method)
-                        (loop (cons (apply-override method (car overrides))
+                        (loop (cons (apply-override typelib
+                                                    method
+                                                    (car overrides))
                                     (filter (lambda (m)
                                               (not (eq? m method)))
                                             result))
                               (cdr overrides))))
                   (else
                    (loop (cons (cons (caar overrides)
-                                     ((cdar overrides) #f))
+                                     ((cdar overrides) typelib #f))
                                result)
                          (cdr overrides))))))))
 

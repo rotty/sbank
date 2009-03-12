@@ -363,7 +363,7 @@
         (let ((content-ptr (validated-pointer+ tld offset 1)))
           (proc/validation-context
            (decorated-loader
-            (typelib-namespace typelib)
+            typelib
             entry-name
             (if (= local 0)
                 (lambda ()
@@ -1077,10 +1077,11 @@
                ((typelib-deprecation-handler) typelib name)
                (apply proc args))))))
 
-  (define (decorated-loader namespace name loader)
+  (define (decorated-loader typelib name loader)
     (lambda ()
-      (let ((decorator (lookup-typelib-decorator namespace name)))
-        (if decorator (decorator (loader)) (loader)))))
+      (let ((decorator (lookup-typelib-decorator (typelib-namespace typelib)
+                                                 name)))
+        (if decorator (decorator typelib (loader)) (loader)))))
 
 
   (define (get/validate-dir-entry-gtype typelib tld name entry-ptr)

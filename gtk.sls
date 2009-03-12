@@ -19,48 +19,52 @@
 
   (typelib-import (only ("Gtk" #f) <tree-iter> <text-iter> <tree-path>))
 
-  (define (text-buffer-decorator class)
+  (define (text-buffer-decorator typelib class)
     (gobject-class-decorate
      class
      values
      (gobject-method-overrider
+      typelib
       `((create-tag . ,text-buffer-create-tag)
         (get-bounds . ,text-buffer-get-bounds)
         (get-iter-at-offset . ,text-buffer-get-iter-at-offset)))
      values))
 
-  (define (tree-model-decorator class)
+  (define (tree-model-decorator typelib class)
     (gobject-class-decorate
      class
      values
-     (gobject-method-overrider `((get-iter . ,tree-model-get-iter)
+     (gobject-method-overrider typelib
+                               `((get-iter . ,tree-model-get-iter)
                                  (get-value . ,tree-model-get-value)))
      values))
 
-  (define (tree-selection-decorator class)
+  (define (tree-selection-decorator typelib class)
     (gobject-class-decorate class
                             values
                             (gobject-method-overrider
+                             typelib
                              `((get-selected . ,tree-selection-get-selected)))
                             values))
 
-  (define (list-store-decorator class)
+  (define (list-store-decorator typelib class)
     (gobject-class-decorate
      class
      values
-     (gobject-method-overrider `((append . ,list-store-append)
+     (gobject-method-overrider typelib
+                               `((append . ,list-store-append)
                                  (set-values . ,list-store-set-values)
                                  (set-value . ,list-store-set-values)))
      values))
 
-  (define (list-store-append next-method)
+  (define (list-store-append typelib next-method)
     (case-lambda
       ((store) (let ((iter (send <tree-iter> (alloc))))
                  (next-method store iter)
                  iter))
       ((store iter) (next-method store iter))))
 
-  (define (list-store-set-values next-method)
+  (define (list-store-set-values typelib next-method)
     (lambda (store iter . cols/vals)
       (let ((n (length cols/vals)))
         (when (odd? n)
@@ -79,7 +83,7 @@
                      (g-value-set! gv (cadr cols/vals))
                      (loop (cons col cols) (cddr cols/vals) (+ i 1))))))))))
 
-  (define (text-buffer-create-tag next-method)
+  (define (text-buffer-create-tag typelib next-method)
     (lambda (text-buffer tag-name . properties)
       (typelib-import (only ("Gtk" #f) <text-tag>))
       (let ((tag (send <text-tag> (new tag-name))))
@@ -87,20 +91,20 @@
         (send (send text-buffer (get 'tag-table)) (add tag))
         tag)))
 
-  (define (text-buffer-get-bounds next-method)
+  (define (text-buffer-get-bounds typelib next-method)
     (lambda (text-buffer)
       (let ((start (send <text-iter> (alloc)))
             (end (send <text-iter> (alloc))))
         (next-method text-buffer start end)
         (values start end))))
 
-  (define (text-buffer-get-iter-at-offset next-method)
+  (define (text-buffer-get-iter-at-offset typelib next-method)
     (lambda (text-buffer offset)
       (let ((iter (send <text-iter> (alloc))))
         (next-method text-buffer iter offset)
         iter)))
 
-  (define (tree-model-get-iter next-method)
+  (define (tree-model-get-iter typelib next-method)
     (lambda (tree-model path)
       (let ((iter (send <tree-iter> (alloc)))
             (path (cond ((string? path)
@@ -112,13 +116,13 @@
                (send iter (free))
                #f)))))
 
-  (define (tree-model-get-value next-method)
+  (define (tree-model-get-value typelib next-method)
     (lambda (tree-model iter column)
       (let ((gvalue (g-value-alloc 1)))
         (next-method tree-model iter column gvalue)
         (g-value-ref gvalue))))
 
-  (define (tree-selection-get-selected next-method)
+  (define (tree-selection-get-selected typelib next-method)
     (lambda (tree-selection)
       (let ((iter (send <tree-iter> (alloc))))
         (receive (selected? model) (next-method tree-selection iter)

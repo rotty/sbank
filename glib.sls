@@ -34,9 +34,9 @@
 
 
   (define default-prio 0)
-  
+
   (define (priority-func-decorator n-args prio-pos)
-    (lambda (proc) 
+    (lambda (typelib proc)
       (lambda args
         (let ((arg-count (length args)))
           (cond ((= arg-count n-args)
@@ -53,11 +53,11 @@
     (register-typelib-decorator "GLib"
                                 name
                                 (priority-func-decorator n-args prio-pos)))
-  
+
   (define-setup-procedure (glib-setup!)
     (register-priority-func "io_add_watch" 4 1)
     (register-priority-func "timeout_add" 3 0)
     (register-priority-func "timeout_add_seconds" 3 0)
     (register-priority-func "idle_add" 2 0))
-  
+
   )

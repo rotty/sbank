@@ -56,33 +56,34 @@
           (sbank gobject internals))
 
 
-  (define (gobject-decorator class)
+  (define (gobject-decorator typelib class)
     (gobject-class-decorate
      class
      values
-     (gobject-method-overrider `((connect . ,g-object-connect)
+     (gobject-method-overrider typelib
+                               `((connect . ,g-object-connect)
                                  (disconnect . ,g-object-disconnect)
                                  (emit . ,g-object-emit)
                                  (get . ,g-object-get)
                                  (set . ,g-object-set)))
      values))
 
-  (define (gvalue-decorator class)
+  (define (gvalue-decorator typelib class)
     'gvalue)
 
-  (define (g-object-connect next-method)
+  (define (g-object-connect typelib next-method)
     (lambda (instance signal callback)
       (g-signal-connect instance signal callback)))
 
-  (define (g-object-disconnect next-method)
+  (define (g-object-disconnect typelib next-method)
     (lambda (instance signal)
       (g-signal-disconnect instance signal)))
 
-  (define (g-object-emit next-method)
+  (define (g-object-emit typelib next-method)
     (lambda (instance signal)
       (g-signal-emit instance signal)))
 
-  (define (g-object-set next-method)
+  (define (g-object-set typelib next-method)
     (lambda (instance . args)
         (do ((args args (cddr args)))
             ((null? args))
@@ -90,7 +91,7 @@
             (error 'g-object-set "uneven number of arguments" args))
           (g-object-set-property instance (car args) (cadr args)))))
 
-  (define (g-object-get next-method)
+  (define (g-object-get typelib next-method)
     (lambda (instance . properties)
       (let loop ((vals '()) (props properties))
         (if (null? props)
