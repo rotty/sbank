@@ -998,15 +998,15 @@
                    (if (> size 0)
                        (values
                         (append
+                         constructors
                          `((alloc . ,(make-lazy-entry (record-allocator size)))
                            (new/alist . ,(make-lazy-entry
                                           (record-alist-constructor typelib
                                                                     tld
                                                                     size
                                                                     n-fields
-                                                                    fields))))
-                         constructors)
-                        (append `((free . ,record-free)) methods))
+                                                                    fields)))))
+                        (append methods `((free . ,record-free))))
                        (values constructors methods)))))))))))
 
   (define (record-allocator size)
@@ -1014,9 +1014,8 @@
       (lambda ()
         (make-ginstance class (malloc size)))))
 
-  (define (record-free next-method)
-    (lambda (instance)
-      (free (ginstance-ptr instance))))
+  (define (record-free instance)
+    (free (ginstance-ptr instance)))
 
   (define (field-writable? field-blob)
     (and (= (field-writable field-blob) 1)
