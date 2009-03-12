@@ -35,6 +35,7 @@
           gobject-class-get-signal-rti
           gobject-class-get-property-info
           gobject-class-decorate
+          gobject-simple-class-decorate
           gobject-method-overrider
           make-gobject-new/props
 
@@ -366,6 +367,23 @@
                  (methods-decorator methods)
                  (signals-decorator signals)
                  properties)))))
+
+  (define (gobject-simple-class-decorate class
+                                         constructors-decorator
+                                         methods-decorator)
+    ((cond ((gobject-record-class? class) make-gobject-record-class)
+           ((gobject-union-class? class)  make-gobject-union-class)
+           (else
+            (error 'gobject-simple-class-decorate
+                   "cannot decorate this type of class" class)))
+     (gobject-class-namespace class)
+     (gobject-class-name class)
+     (gobject-class-gtype class)
+     (lambda (new-class)
+       (receive (parent interfaces constructors methods signals properties)
+                ((gobject-class-load-members class) class)
+         (values (constructors-decorator constructors)
+                 (methods-decorator methods))))))
 
   (define (apply-override typelib method override)
     (cons (car override)
