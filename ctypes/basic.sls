@@ -34,6 +34,7 @@
 
           bytevector-portion bytevector-portion? bytevector-portion-count
           malloc/set!
+          g-malloc
 
           type-info->prim-type
           type-info/prim-type+procs
@@ -662,7 +663,8 @@
   (define-callouts libglib
     (g-filename-to-utf8 'pointer "g_filename_to_utf8"
                         '(ssize_t pointer pointer pointer))
-    (gerror-free 'void "g_error_free" '(pointer)))
+    (gerror-free 'void "g_error_free" '(pointer))
+    (g-malloc 'pointer "g_malloc" '(size_t)))
 
   (define-accessors "GError"
     (c-gerror-domain "domain")
