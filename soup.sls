@@ -10,14 +10,19 @@
           (rnrs lists)
           (rnrs bytevectors)
           (rnrs io ports)
+          (spells foreign)
           (spells cells)
           (spells tracing)
           (sbank support utils)
           (sbank ctypes basic)
+          (sbank gobject internals)
           (sbank gobject)
+          (sbank typelib base)
+          (sbank typelib decorators)
           (sbank typelib))
 
-  (typelib-import (only ("Soup" #f) <known-status-code>))
+  (typelib-import (only ("Soup" #f)
+                        <known-status-code>))
 
   ;;@ Returns two values: a binary output port, and a flusher
   ;; procedure, which is a thunk that appends all data written to the
@@ -49,7 +54,7 @@
               (let ((size (bytevector-length (car chunks))))
                 (bytevector-copy! (car chunks) 0 buffer i size)
                 (loop (+ i size) (cdr chunks)))))
-          (send message-body (append 'copy buffer))))
+          (send message-body (append buffer))))
       (cell-set! chunks '())))
 
   (define (soup-output-port-write! message-body chunks)
@@ -74,10 +79,74 @@
         (genumerated-lookup <known-status-code> code)
         code))
 
+  (define (message-decorator typelib class)
+    (gobject-class-decorate
+     class
+     values
+     (gobject-method-overrider typelib `((set-response . ,message-set-response)))
+     values))
+
+  (define (message-set-response typelib next-method)
+    (lambda (message content-type data)
+      (let ((resp-body (send message (get-response-body)))
+            (hdrs (send message (get-response-headers))))
+        (cond (content-type
+               (send hdrs (replace "Content-Type" content-type))
+               (send resp-body (append data)))
+              (else
+               (send hdrs (remove "Content-Type"))
+               (send resp-body (truncate)))))))
+
+  (define (buffer-decorator typelib class)
+    (gobject-simple-class-decorate
+     class
+     (gobject-method-overrider typelib `((new . ,buffer-new)))
+     values))
+
+  (define buffer-new-callout
+    (make-c-callout 'pointer '(int pointer size_t)))
+
+  (define (get-memory-take typelib)
+    (genumerated-lookup (typelib-get-entry typelib "MemoryUse") 'take))
+
+  (define (make-buffer-new% typelib)
+    (let ((buffer-new%
+           (buffer-new-callout
+            (typelib-dlsym typelib "soup_buffer_new")))
+          (memory-take% (get-memory-take typelib)))
+      (lambda (data)
+        (let* ((size (bytevector-length data))
+               (data-ptr (memcpy (g-malloc size) data size)))
+          (buffer-new% memory-take% data-ptr size)))))
+
+  (define (buffer-new typelib next-method)
+    (let ((buffer-new% (make-buffer-new% typelib))
+          (<buffer> (typelib-get-entry typelib "Buffer")))
+      (lambda (data)
+        (make-ginstance <buffer> (buffer-new% data)))))
+
+  (define (message-body-decorator typelib class)
+    (gobject-simple-class-decorate
+     class
+     values
+     (gobject-method-overrider typelib `((append . ,message-body-append)))))
+
+  (define (message-body-append typelib next-method)
+    (let ((<buffer> (typelib-get-entry typelib "Buffer")))
+      (lambda (body data)
+        (let ((buffer (send <buffer> (new data))))
+          (next-method body buffer)
+          (send buffer (free))))))
+
   ;;@ Do the setup necessary for using Soup. You should call this
   ;; before doing a @code{typelib-import} of the "Soup"
   ;; namespace. Note that this does not call @code{g-thread-init},
   ;; which must be called before actually using any Soup
   ;; functionality.
   (define-setup-procedure (soup-setup!)
-    (gobject-setup!)))
+    (gobject-setup!)
+    (register-typelib-decorator "Soup" "Buffer" buffer-decorator)
+    (register-typelib-decorator "Soup" "Message" message-decorator)
+    (register-typelib-decorator "Soup" "MessageBody" message-body-decorator))
+
+  )
