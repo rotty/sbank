@@ -97,12 +97,12 @@
                   (do-get server msg index-path)
                   (send msg
                     (set-response "text/html"
-                                  'copy (get-directory-listing pathname)))))))
+                                  (get-directory-listing pathname)))))))
        ((string=? "GET" (send msg (get-method)))
         (call-with-port (open-file-input-port (x->namestring pathname))
           (lambda (port)
             (send msg (set-response "application/octet-stream"
-                                    'copy (get-bytevector-all port))))))
+                                    (get-bytevector-all port))))))
        (else ;; "HEAD" method
         (send (send msg (get-response-headers))
           (append "Content-Length"
@@ -114,24 +114,25 @@
                      (if (file-exists? pathname) 'forbidden 'not-found))))))))
 
 (define (get-directory-listing path)
-  (string-join
-   (append
-    (list "<html>")
-    (let ((escaped (g-markup-escape-text (file-namestring path) -1)))
-      (list (ssubst "<head><title>Index of {0}</title></head>" escaped)
-            "<body>"
-            (ssubst "<h1>Index of {0}</h1>" escaped)
-            "<p>"))
-    (directory-fold
-     path
-     (lambda (entry rest)
-       (let ((escaped (g-markup-escape-text (file-namestring entry) -1)))
-         (cons (ssubst "<a href=\"{0}\">{1}</a><br>" escaped escaped)
-               rest)))
-     '())
-    (list "</body>"
-          "</html>"))
-   "\n" 'suffix))
+  (string->utf8
+   (string-join
+    (append
+     (list "<html>")
+     (let ((escaped (g-markup-escape-text (file-namestring path) -1)))
+       (list (ssubst "<head><title>Index of {0}</title></head>" escaped)
+             "<body>"
+             (ssubst "<h1>Index of {0}</h1>" escaped)
+             "<p>"))
+     (directory-fold
+      path
+      (lambda (entry rest)
+        (let ((escaped (g-markup-escape-text (file-namestring entry) -1)))
+          (cons (ssubst "<a href=\"{0}\">{1}</a><br>" escaped escaped)
+                rest)))
+      '())
+     (list "</body>"
+           "</html>"))
+    "\n" 'suffix)))
 
 (define (println fmt . args)
   (string-substitute #t fmt args 'braces)
