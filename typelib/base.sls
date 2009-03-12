@@ -32,7 +32,8 @@
           typelib-minor-version
           typelib-major-version
           typelib-get-entry-names
-          typelib-get-entry)
+          typelib-get-entry
+          typelib-dlsym)
   (import (rnrs)
           (srfi :2 and-let*)
           (srfi :14 char-sets)
