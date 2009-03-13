@@ -41,12 +41,12 @@
           (spells tracing)
           (spells alist)
           (spells parameter)
-          (spells table)
           (srfi :8 receive)
           (spells format)
           (spells string-utils)
           (only (srfi :13 strings) string-index)
           (only (srfi :1 lists) filter-map iota)
+          (only (srfi :43 vectors) vector-fold)
           (spells define-values)
           (only (spells misc) or-map)
           (only (spells assert) cerr cout)
@@ -196,16 +196,16 @@
 
   (define (typelib-gtype-lookup typelib)
     (lambda (gtype)
-      (and-let* ((index (table-ref (typelib-gtype-table typelib) gtype)))
+      (and-let* ((index (hashtable-ref (typelib-gtype-table typelib) gtype #f)))
         (typelib-get-entry/index typelib index))))
 
-  (define *registered-typelibs* (make-table 'equal))
+  (define *registered-typelibs* (make-hashtable string-hash string=?))
 
   (define (require-typelib namespace version flags)
-    (or (table-ref *registered-typelibs* namespace)
+    (or (hashtable-ref *registered-typelibs* namespace #f)
         (let ((typelib (require-typelib% 'require-typelib
                                          namespace version flags)))
-          (table-set! *registered-typelibs* namespace typelib)
+          (hashtable-set! *registered-typelibs* namespace typelib)
           typelib)))
 
   (define (require-typelib% who namespace version flags)
@@ -238,13 +238,13 @@
     ((header-fetcher 'major-version) (tl-data (typelib-tl typelib))))
 
   (define (typelib-get-entry-names typelib)
-    (table-fold (lambda (key value result)
-                  (cons key result))
+    (vector-fold (lambda (i state name)
+                  (cons name state))
                 '()
-                (typelib-name-table typelib)))
+                (hashtable-keys (typelib-name-table typelib))))
 
   (define (typelib-get-entry typelib name)
-    (and-let* ((index (table-ref (typelib-name-table typelib) name)))
+    (and-let* ((index (hashtable-ref (typelib-name-table typelib) name #f)))
       (typelib-get-entry/index typelib index)))
 
   (define (typelib-get-entry/index typelib index)
@@ -294,10 +294,10 @@
         (validate-blob-sizes tld)
         (let ((typelib (make-typelib tl
                                      namespace
-                                     (make-table 'equal)
-                                     (make-table 'eqv)
+                                     (make-hashtable string-hash string=?)
+                                     (make-eqv-hashtable)
                                      (make-vector n-entries)
-                                     (make-table 'eqv)
+                                     (make-eqv-hashtable)
                                      #f)))
           (fill/validate-directory! typelib tld)
           (register-gtype-lookup! (typelib-gtype-lookup typelib))
@@ -353,9 +353,9 @@
                          (make-lazy-entry
                           (make-entry-loader typelib tld name entry-ptr gtype)))
             (when gtype
-              (table-set! gtype-table gtype (+ i 1)))
+              (hashtable-set! gtype-table gtype (+ i 1)))
             (when (< i n-local-entries)
-              (table-set! name-table name (+ i 1))))))))
+              (hashtable-set! name-table name (+ i 1))))))))
 
   (define (make-entry-loader typelib tld entry-name entry-ptr gtype)
     (with-validation-context entry-name
@@ -402,10 +402,10 @@
         (make/validate-function typelib tld blob #f))))
 
   (define (get-signature typelib tld signature constructor? container)
-    (or (table-ref (typelib-signatures typelib) signature)
+    (or (hashtable-ref (typelib-signatures typelib) signature #f)
         (let ((result (make/validate-signature
                        typelib tld signature constructor? container)))
-          (table-set! (typelib-signatures typelib) signature result)
+          (hashtable-set! (typelib-signatures typelib) signature result)
           result)))
 
   (define (make/validate-function typelib tld blob container)
