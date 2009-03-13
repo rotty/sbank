@@ -740,16 +740,13 @@
                     n-vfuncs n-constants))))))))))
 
 
-  (define gtype-additional-constructors
-    (let ((gobject-acs
-           `((new/props
-              . ,(make-lazy-entry (make-gobject-new/props type->gtype))))))
-      (lambda (gtype)
-        (if gtype
-            (case (gtype->symbol gtype)
-              ((object) gobject-acs)
-              (else '()))
-            '()))))
+  (define (gtype-additional-constructors gtype)
+    (if gtype
+        (case (gtype->symbol gtype)
+          ((object) (list (cons 'new/props
+                                (make-lazy-entry (make-gobject-new/props type->gtype)))))
+          (else '()))
+        '()))
 
   (define (make/validate-gobject-class-attributes
            typelib tld class deprecated gtype parent
