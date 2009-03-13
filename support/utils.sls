@@ -123,7 +123,10 @@
   (define (camel-cased? s)
     (and (>= (string-length s) 2)
          (char-upper-case? (string-ref s 0))
-         (char-lower-case? (string-ref s 1))))
+         (or (char-lower-case? (string-ref s 1))
+             (and (>= (string-length s) 3)
+                  (char-upper-case? (string-ref s 1))
+                  (char-lower-case? (string-ref s 2))))))
   
   (define (un-camel-case s)
     (let loop ((result-chars '()) (i 0) (in-word? #f))

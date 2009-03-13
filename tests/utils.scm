@@ -1,6 +1,6 @@
 ;;; utils.scm --- Unit tests for (sbank support utils)
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -32,7 +32,10 @@
   (test/equal "camelcase - one word" (scheme-ified-symbol "Window") '<window>)
   (test/equal "camelcase - 3 words"
     (scheme-ified-symbol "FooDialogBar")
-    '<foo-dialog-bar>))
+    '<foo-dialog-bar>)
+  (test/equal "camelcase - singe chars"
+    (scheme-ified-symbol "VBox")
+    '<v-box>))
 
 (testeez "c-ified-string"
   (test/equal "plain" (c-ified-string 'foobar) "foobar")
