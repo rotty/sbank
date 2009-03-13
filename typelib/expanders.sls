@@ -71,21 +71,27 @@
     (receive (namespace version prefix bindings)
              (destructure-import-spec who import-spec)
       (let ((bindings (or bindings (get-bindings who namespace version))))
-        (cons
-         #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
-                                              #,(datum->syntax k version)
-                                              0))
-         (map
-          (lambda (name)
-            #`(define #,(datum->syntax
-                         k
-                         (if prefix (name-symbol/prefix name prefix) name))
-                (or (typelib-get-entry
-                     #,typelib
-                     #,(datum->syntax k (c-ified-string name)))
-                    (error '#,(datum->syntax #'k who) "unable to import binding"
-                           '#,(datum->syntax #'k name)))))
-          bindings)))))
+        (with-syntax (((get-entry) (generate-temporaries '(get-entry))))
+          (append
+           (list
+            #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
+                                                 #,(datum->syntax k version)
+                                                 0))
+            #`(define (get-entry name binding)
+                (or (typelib-get-entry #,typelib name)
+                    (error '#,(datum->syntax #'k who)
+                           "unable to import binding from namespace"
+                           '(#,(datum->syntax k namespace)
+                             #,(datum->syntax k version))
+                           binding))))
+           (map
+            (lambda (name)
+              #`(define #,(datum->syntax
+                           k
+                           (if prefix (name-symbol/prefix name prefix) name))
+                  (get-entry #,(datum->syntax k (c-ified-string name))
+                             ',#(datum->syntax k name))))
+            bindings))))))
 
   (define (destructure-import-spec who import-spec)
     (define (lose msg . irritants)
