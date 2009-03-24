@@ -7,21 +7,9 @@ and/or use gtk-doc annotations.  -->
             xmlns:c="http://www.gtk.org/introspection/c/1.0"
             xmlns:glib="http://www.gtk.org/introspection/glib/1.0">
   <package name="gobject-introspection-1.0"/>
-  <namespace name="gtypelib" shared-library="libgobject-2.0.so.0">
-    <record name="AnnotationBlob"
-            c:type="AnnotationBlob"
-            doc="Annotations are kept sorted by offset, so that the annotations
-of an entry can be found by a binary search.">
-      <field name="offset" writable="1">
-        <type name="uint32" c:type="guint32"/>
-      </field>
-      <field name="name" writable="1">
-        <type name="uint32" c:type="guint32"/>
-      </field>
-      <field name="value" writable="1">
-        <type name="uint32" c:type="guint32"/>
-      </field>
-    </record>
+  <namespace name="gtypelib"
+             shared-library="libgobject-2.0.so.0"
+             c:prefix="gtypelib">
     <record name="ArgBlob" c:type="ArgBlob">
       <field name="name" writable="1">
         <type name="uint32" c:type="guint32"/>
@@ -109,34 +97,38 @@ is always 1.">
         <type name="SimpleTypeBlob" c:type="SimpleTypeBlob"/>
       </field>
     </record>
+    <record name="AttributeBlob"
+            c:type="AttributeBlob"
+            doc="Attributes are kept sorted by offset, so that the attributes
+of an entry can be found by a binary search.">
+      <field name="offset" writable="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="name" writable="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="value" writable="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+    </record>
     <enumeration name="BlobType"
                  doc="The integral value of this enumeration appears in each &quot;Blob&quot;
 component of a typelib to identify its type."
                  c:type="GTypelibBlobType">
-      <member name="blobtypeinvalid"
-              value="0"
-              c:identifier="BLOB_TYPE_INVALID"/>
-      <member name="blobtypefunction"
-              value="1"
-              c:identifier="BLOB_TYPE_FUNCTION"/>
-      <member name="blobtypecallback"
-              value="2"
-              c:identifier="BLOB_TYPE_CALLBACK"/>
-      <member name="blobtypestruct" value="3" c:identifier="BLOB_TYPE_STRUCT"/>
-      <member name="blobtypeboxed" value="4" c:identifier="BLOB_TYPE_BOXED"/>
-      <member name="blobtypeenum" value="5" c:identifier="BLOB_TYPE_ENUM"/>
-      <member name="blobtypeflags" value="6" c:identifier="BLOB_TYPE_FLAGS"/>
-      <member name="blobtypeobject" value="7" c:identifier="BLOB_TYPE_OBJECT"/>
-      <member name="blobtypeinterface"
-              value="8"
-              c:identifier="BLOB_TYPE_INTERFACE"/>
-      <member name="blobtypeconstant"
-              value="9"
-              c:identifier="BLOB_TYPE_CONSTANT"/>
-      <member name="blobtypeerrordomain"
+      <member name="invalid" value="0" c:identifier="BLOB_TYPE_INVALID"/>
+      <member name="function" value="1" c:identifier="BLOB_TYPE_FUNCTION"/>
+      <member name="callback" value="2" c:identifier="BLOB_TYPE_CALLBACK"/>
+      <member name="struct" value="3" c:identifier="BLOB_TYPE_STRUCT"/>
+      <member name="boxed" value="4" c:identifier="BLOB_TYPE_BOXED"/>
+      <member name="enum" value="5" c:identifier="BLOB_TYPE_ENUM"/>
+      <member name="flags" value="6" c:identifier="BLOB_TYPE_FLAGS"/>
+      <member name="object" value="7" c:identifier="BLOB_TYPE_OBJECT"/>
+      <member name="interface" value="8" c:identifier="BLOB_TYPE_INTERFACE"/>
+      <member name="constant" value="9" c:identifier="BLOB_TYPE_CONSTANT"/>
+      <member name="error_domain"
               value="10"
               c:identifier="BLOB_TYPE_ERROR_DOMAIN"/>
-      <member name="blobtypeunion" value="11" c:identifier="BLOB_TYPE_UNION"/>
+      <member name="union" value="11" c:identifier="BLOB_TYPE_UNION"/>
     </enumeration>
     <record name="CallbackBlob" c:type="CallbackBlob" doc="return value type.">
       <field name="blob_type" writable="1">
@@ -158,7 +150,8 @@ component of a typelib to identify its type."
     <record name="CommonBlob"
             c:type="CommonBlob"
             doc="The #CommonBlob is shared between #FunctionBlob,
-#CallbackBlob, #SignalBlob.">
+#CallbackBlob, #SignalBlob."
+            deprecated="Whether the blob is deprecated.">
       <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
@@ -264,17 +257,17 @@ the first 8 bytes (the reserved flags may be used by some blob types)">
       </field>
     </record>
     <enumeration name="Error" c:type="GTypelibError">
-      <member name="invalid" value="0" c:identifier="G_TYPELIB_ERROR_INVALID"/>
-      <member name="invalidheader"
+      <member name="" value="0" c:identifier="G_TYPELIB_ERROR_INVALID"/>
+      <member name="_header"
               value="1"
               c:identifier="G_TYPELIB_ERROR_INVALID_HEADER"/>
-      <member name="invaliddirectory"
+      <member name="_directory"
               value="2"
               c:identifier="G_TYPELIB_ERROR_INVALID_DIRECTORY"/>
-      <member name="invalidentry"
+      <member name="_entry"
               value="3"
               c:identifier="G_TYPELIB_ERROR_INVALID_ENTRY"/>
-      <member name="invalidblob"
+      <member name="_blob"
               value="4"
               c:identifier="G_TYPELIB_ERROR_INVALID_BLOB"/>
     </enumeration>
@@ -367,7 +360,8 @@ in.
 in the array of properties of the containing interface, or index
 of the virtual function that this function wraps.
 return value type.
-function whose name is conceptually scoped to the object.">
+function whose name is conceptually scoped to the object."
+            deprecated="The function is deprecated.">
       <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
@@ -474,10 +468,10 @@ collection of meta-information, such as the number of entries and dependencies."
       <field name="directory" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="n_annotations" writable="1">
+      <field name="n_attributes" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
-      <field name="annotations" writable="1">
+      <field name="attributes" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="dependencies" writable="1">
@@ -493,6 +487,9 @@ collection of meta-information, such as the number of entries and dependencies."
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="shared_library" writable="1">
+        <type name="uint32" c:type="guint32"/>
+      </field>
+      <field name="c_prefix" writable="1">
         <type name="uint32" c:type="guint32"/>
       </field>
       <field name="entry_blob_size" writable="1">
@@ -522,7 +519,7 @@ collection of meta-information, such as the number of entries and dependencies."
       <field name="value_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="annotation_blob_size" writable="1">
+      <field name="attribute_blob_size" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="constant_blob_size" writable="1">
@@ -880,7 +877,8 @@ than bytes.">
     </union>
     <record name="StructBlob"
             c:type="StructBlob"
-            doc="should be considered as methods of the struct.">
+            doc="should be considered as methods of the struct."
+            deprecated="Whether this structure is deprecated">
       <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
@@ -924,7 +922,11 @@ than bytes.">
         <type name="uint32" c:type="guint32"/>
       </field>
     </record>
-    <record name="UnionBlob" c:type="UnionBlob">
+    <record name="UnionBlob"
+            c:type="UnionBlob"
+            doc="discriminator of a discriminated union is located.
+The value 0xFFFF indicates that the discriminator offset
+is unknown.">
       <field name="blob_type" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
@@ -978,8 +980,8 @@ than bytes.">
             c:type="VFuncBlob"
             doc="chain up to the implementation of the parent class.
 interface to which this virtual function belongs.
-The offset of the function pointer in the class struct. The value
 0xFFFF indicates that the struct offset is unknown.
+class structure of the method.  If no method is known, this value will be 0x3ff.
 Offset of the SignatureBlob describing the parameter types and the
 return value type.">
       <field name="name" writable="1">
@@ -1006,7 +1008,10 @@ return value type.">
       <field name="struct_offset" writable="1">
         <type name="uint16" c:type="guint16"/>
       </field>
-      <field name="reserved2" writable="1">
+      <field name="invoker" writable="1" bits="10">
+        <type name="uint16" c:type="guint16"/>
+      </field>
+      <field name="reserved2" writable="1" bits="6">
         <type name="uint16" c:type="guint16"/>
       </field>
       <field name="reserved3" writable="1">
@@ -1018,7 +1023,8 @@ return value type.">
     </record>
     <record name="ValueBlob"
             c:type="ValueBlob"
-            doc="Values commonly occur in enums and flags.">
+            doc="Values commonly occur in enums and flags."
+            deprecated="Whether this value is deprecated">
       <field name="deprecated" writable="1" bits="1">
         <type name="uint32" c:type="guint32"/>
       </field>

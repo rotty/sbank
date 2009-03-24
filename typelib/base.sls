@@ -324,7 +324,7 @@
        (value . 12)
        (constant . 24)
        (error-domain . 16)
-       (annotation . 12)
+       (attribute . 12)
        (signature . 8)
        (enum . 24)
        (struct . 32)
