@@ -81,16 +81,6 @@
                nums))
       (assert (= (test-callback-thaw-notifications) (reduce + 0 nums))))))
 
-(define (callback-object)
-  (repeat N
-    (let ((nums (random-integers 5 10))
-          (obj (send <test-obj> (new/props))))
-      (for-each (lambda (n)
-                  (send obj (add-handler (make-test-cb n))))
-                nums)
-      (assert (= (send obj (handle)) (reduce + 0 nums)))
-      (collect))))
-
 (define (signal-callback)
   (let ((obj (send <test-obj> (new/props))))
     (repeat N
@@ -105,7 +95,6 @@
     (callback . ,callback)
     (callback-freshproc . ,callback-freshproc)
     (callback-notified . ,callback-notified)
-    (callback-object . ,callback-object)
     (signal-callback . ,signal-callback)))
 
 (define (println fmt . args)

@@ -95,14 +95,7 @@
     (map test-callback-user-data (map (lambda (n)
                                         (lambda () n))
                                       (iota 10)))
-    (iota 10))
-  (test/equal "object scope"
-    (let ((obj (send <test-obj> (new/props))))
-      (for-each (lambda (n)
-                  (send obj (add-handler (lambda () n))))
-                (iota 10))
-      (send obj (handle)))
-    (reduce + 0 (iota 10))))
+    (iota 10)))
 
 (let ((signal-args #f))
   (testeez "signals"

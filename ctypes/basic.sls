@@ -295,7 +295,7 @@
 
   ;; Must be in sync with GIScopeType
   (define-enum (scope->symbol symbol->scope)
-    (invalid call object async notified))
+    (invalid call async notified))
 
   (define (vector->c-array vec atype)
     (let ((len (vector-length vec)))

@@ -272,12 +272,6 @@
       ((call)
        (lambda (argv-vec info-vec)
          ((vector-ref info-vec i))))
-      ((object)
-       (if has-self-ptr?
-           (lambda (arg-vec info-vec)
-             (g-object-attach-destructor (vector-ref arg-vec 0)
-                                         (vector-ref info-vec i)))
-           #f))
       (else
        #f)))
 
