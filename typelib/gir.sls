@@ -21,9 +21,8 @@
 ;;; Commentary:
 
 ;;; Code:
-
-
 #!r6rs
+
 (library (sbank typelib gir)
   (export gir-xml->stype-list)
 
