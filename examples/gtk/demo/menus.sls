@@ -1,4 +1,4 @@
-;; Copyright (C) 2008 Andreas Rottmann
+;; Copyright (C) 2008, 2009 Andreas Rottmann
 ;; Copyright (C) 2004 Patrick Bernaud
 ;;
 ;; This program is free software; you can redistribute it and/or
@@ -23,15 +23,6 @@
           (sbank gobject)
           (sbank gtk)
           (sbank typelib))
-
-  (typelib-import (prefix (only ("Gtk" #f)
-                                <accel-group>
-                                <button>
-                                <menu> <menu-bar> <menu-item>
-                                <radio-menu-item> <tearoff-menu-item>
-                                <window>
-                                <v-box>)
-                          gtk-))
 
   (define (main)
 

@@ -13,14 +13,6 @@
         (sbank glib)
         (sbank glib-daemon))
 
-(typelib-import (prefix (only ("GLib" #f)
-                              main-loop-new
-                              main-loop-quit
-                              main-loop-run
-                              timeout-add)
-                        g-)
-                (setup glib-setup!))
-
 (let ((main-loop (g-main-loop-new #f #f)))
   (g-install-signal-handler
    '(int)

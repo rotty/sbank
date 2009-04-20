@@ -30,25 +30,13 @@
         (spells pathname)
         (spells filesys)
         (spells tracing)
-        (sbank soup)
-        (sbank typelib)
+        (sbank glib)
         (sbank glib-daemon)
+        (sbank soup)
         (only (sbank ctypes basic) null-ok-always-on?))
-
-(typelib-import
- (prefix (only ("GLib" #f)
-               thread-init
-               main-loop-new main-loop-run main-loop-quit
-               markup-escape-text)
-         g-)
- (prefix (only ("Soup" #f) <server>)
-         soup-)
- (setup soup-setup!))
-
 
 (let ((port  8001)
       (main-loop (g-main-loop-new #f #f)))
-  (g-thread-init #f)
   (g-install-signal-handler '(int)
                             (lambda (sig)
                               (g-main-loop-quit main-loop)

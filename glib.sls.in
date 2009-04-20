@@ -1,0 +1,230 @@
+;;; glib.sls --- Glossing for the GLib namespace.
+
+;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+
+;; Author: Andreas Rottmann <a.rottmann@gmx.at>
+
+;; This file is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU Lesser General Public License as published by
+;; the Free Software Foundation; either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public
+;; License along with this program.  If not, see
+;; <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;;; Code:
+#!r6rs
+
+(library (sbank glib)
+  (export #!@(typelib-exports
+              (prefix ("GLib" #f) g-)
+              (name glib)
+              (exclude "_.*"
+
+                       ".*[A-Z].*" ;; catch-all for badly mangled names
+
+                       ".*_copy"
+                       ".*_newv"
+                       ".*_valist"
+                       ".*_setv"
+                       ".*_user_data"
+                       ".*_func"
+                       ;;".*win32.*"
+
+                       "array_.*"
+                       "ascii_.*"
+                       "async_queue_.*"
+                       "atomic_.*"
+
+                       "base64_.*_step"
+                       "bit_.*"
+                       "build_.*"
+                       "byte_array_.*"
+
+                       "cache_.*"
+                       "child_watch_add.*"
+                       "completion_.*"
+                       "convert.*"
+
+                       "datalist_.*"
+                       "dataset_.*"
+                       "date_.*"
+                       "dir_.*"
+
+                       "error_.*"
+
+                       "hash_table_.*"
+                       "hook_.*"
+
+                       "iconv.*"
+                       "int_.*"
+
+                       "key_file_.*"
+
+                       "list_.*"
+                       "log.*"
+
+                       "malloc.*"
+                       "mapped_file_.*"
+                       ;; "markup_.*" ; here for now
+
+                       "markup_collect_attributes"
+                       "mem_.*"
+                       "mkdir.*"
+
+                       "node_.*"
+
+                       "on_error_.*"
+                       "option_.*"
+
+                       "parse_debug_string"
+                       "pattern_.*"
+                       "printf.*"
+                       "ptr_array_.*"
+
+                       "queue_.*"
+
+                       "rand_.*"
+                       "random_.*"
+                       "relation_.*"
+
+                       "sequence_.*"
+                       "scanner_.*"
+                       "slice_.*"
+                       "slist_.*"
+                       "snprintf"
+                       "source_set_callback.*"
+                       "spawn_.*"
+                       "static_.*"
+                       "str.*"
+
+                       "test_.*"
+                       "thread_.*"
+                       "time_.*"
+                       "timer_.*"
+                       "trash_stack_.*"
+                       "tree_.*"
+                       "try_.*"
+                       "tuples_.*"
+
+                       "ucs4_.*"
+                       "unichar_.*"
+                       "utf(8|16)_.*"
+
+                       "access"
+                       "allocator_free"
+                       "assert_warning"
+                       "atexit"
+                       "base64_encode_close"
+                       "blow_chunks"
+                       "chdir"
+                       "chmod"
+                       "clear_error"
+                       "creat"
+                       "direct_equal"
+                       "direct_hash"
+                       "error"
+                       "file_set_contents"
+                       "fopen"
+                       "fprintf"
+                       "free"
+                       "freopen"
+                       "get_charset"
+                       "get_filename_charsets"
+                       "get_language_names"
+                       "get_system_data_dirs"
+                       "intern_static_string"
+                       "intern_string"
+                       "listenv"
+                       "lstat"
+                       "main_context_wait"
+                       "memdup"
+                       "once_impl"
+                       "open"
+                       "prefix_error"
+                       "printerr"
+                       "propagate_error"
+                       "propagate_prefixed_error"
+                       "qsort_with_data"
+                       "quark_from_static_string"
+                       "realloc"
+                       "remove"
+                       "rename"
+                       "return_if_fail_warning"
+                       "rmdir"
+                       "set_error(_literal)?"
+                       "set_print_handler"
+                       "set_printerr_handler"
+                       "shell_error_quark"
+                       "shell_parse_argv"
+                       "source_set_funcs"
+                       "spaced_primes_closest"
+                       "sprintf"
+                       "stat"
+                       "stpcpy"
+                       "unicode_canonical_decomposition"
+                       "unicode_canonical_ordering"
+                       "unlink"
+                       "uri_list_extract_uris"
+                       "usleep"
+                       "vasprintf"
+                       "vfprintf"
+                       "vprintf"
+                       "vsprintf"
+                       "vsnprintf"
+                       "glib_check_version"
+                       "glib_dummy_decl"
+
+                       "Error"
+                       "dummy_decl"
+                       ))
+          glib-setup!)
+  (import (rnrs base)
+          (only (srfi :1 lists) split-at)
+          (srfi :8 receive)
+          (spells tracing)
+          (sbank support utils)
+          (sbank typelib decorators)
+          (sbank typelib))
+
+
+  (define default-prio 0)
+
+  (define (priority-func-decorator n-args prio-pos)
+    (lambda (typelib proc)
+      (lambda args
+        (let ((arg-count (length args)))
+          (cond ((= arg-count n-args)
+                 (apply proc args))
+                ((= arg-count (- n-args 1))
+                 (receive (front back) (split-at args prio-pos)
+                   (apply proc (append front (list default-prio) back))))
+                (else
+                 (error "glib (function with priority)"
+                        "invalid number of arguments" args)))))))
+
+
+  (define (register-priority-func name n-args prio-pos)
+    (register-typelib-decorator "GLib"
+                                name
+                                (priority-func-decorator n-args prio-pos)))
+
+  (define-setup-procedure (glib-setup!)
+    (register-priority-func "io_add_watch" 4 1)
+    (register-priority-func "timeout_add" 3 0)
+    (register-priority-func "timeout_add_seconds" 3 0)
+    (register-priority-func "idle_add" 2 0))
+
+  (typelib-import (only (prefix ("GLib" #f) g-)
+                        #!@(typelib-exports glib))
+                  (setup glib-setup!))
+
+  )

@@ -24,7 +24,9 @@
 #!r6rs
 
 (library (sbank gtk)
-  (export send gtk-stock-id gtk-setup!)
+  (export send gtk-stock-id
+          #!@(typelib-exports (prefix ("Gtk" #f) gtk-)
+                              (name gtk)))
   (import (rnrs base)
           (rnrs control)
           (spells tracing)
@@ -39,8 +41,6 @@
           (sbank gobject gvalue)
           (sbank gobject)
           (sbank gdk))
-
-  (typelib-import (only ("Gtk" #f) <tree-iter> <text-iter> <tree-path>))
 
   (define (text-buffer-decorator typelib class)
     (gobject-class-decorate
@@ -82,7 +82,7 @@
 
   (define (list-store-append typelib next-method)
     (case-lambda
-      ((store) (let ((iter (send <tree-iter> (alloc))))
+      ((store) (let ((iter (send <gtk-tree-iter> (alloc))))
                  (next-method store iter)
                  iter))
       ((store iter) (next-method store iter))))
@@ -116,22 +116,22 @@
 
   (define (text-buffer-get-bounds typelib next-method)
     (lambda (text-buffer)
-      (let ((start (send <text-iter> (alloc)))
-            (end (send <text-iter> (alloc))))
+      (let ((start (send <gtk-text-iter> (alloc)))
+            (end (send <gtk-text-iter> (alloc))))
         (next-method text-buffer start end)
         (values start end))))
 
   (define (text-buffer-get-iter-at-offset typelib next-method)
     (lambda (text-buffer offset)
-      (let ((iter (send <text-iter> (alloc))))
+      (let ((iter (send <gtk-text-iter> (alloc))))
         (next-method text-buffer iter offset)
         iter)))
 
   (define (tree-model-get-iter typelib next-method)
     (lambda (tree-model path)
-      (let ((iter (send <tree-iter> (alloc)))
+      (let ((iter (send <gtk-tree-iter> (alloc)))
             (path (cond ((string? path)
-                         (send <tree-path> (new-from-string path)))
+                         (send <gtk-tree-path> (new-from-string path)))
                         (else
                          path))))
         (cond ((next-method tree-model iter path) iter)
@@ -147,7 +147,7 @@
 
   (define (tree-selection-get-selected typelib next-method)
     (lambda (tree-selection)
-      (let ((iter (send <tree-iter> (alloc))))
+      (let ((iter (send <gtk-tree-iter> (alloc))))
         (receive (selected? model) (next-method tree-selection iter)
           (cond (selected? (values model iter))
                 (else
@@ -161,6 +161,10 @@
     (register-typelib-decorator "Gtk" "TreeModel" tree-model-decorator)
     (register-typelib-decorator "Gtk" "TreeSelection"
                                 tree-selection-decorator))
+
+  (typelib-import (only (prefix ("Gtk" #f) gtk-)
+                        #!@(typelib-exports gtk))
+                  (setup gtk-setup!))
 
   (define (gtk-stock-id nick)
     (string-append "gtk-" (symbol->string nick))))

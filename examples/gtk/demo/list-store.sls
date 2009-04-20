@@ -23,16 +23,6 @@
           (sbank gtk)
           (sbank typelib))
 
-  (typelib-import (prefix (only ("Gtk" #f)
-                                <cell-renderer-toggle> <cell-renderer-text>
-                                <label>
-                                <list-store>
-                                <scrolled-window>
-                                <tree-view> <tree-view-column>
-                                <v-box>
-                                <window>)
-                          gtk-))
-  
 (define data
   '((#f 60482 "Normal"      "scrollable notebooks and hidden tabs")
     (#f 60620 "Critical"

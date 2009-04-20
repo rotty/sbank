@@ -28,7 +28,8 @@
 #!r6rs
 
 (library (sbank typelib expanders)
-  (export typelib-import-expander)
+  (export typelib-import-expander
+          typelib-exported-names)
   (import (for (rnrs base) run expand (meta -1))
           (rnrs control)
           (rnrs syntax-case)
@@ -37,6 +38,7 @@
                 partition concatenate append-map filter)
           (srfi :8 receive)
           (for (spells define-values) expand (meta -1))
+          (spells match)
           (spells tracing)
           (sbank support utils)
           (for (sbank typelib base) run expand (meta -1)))
@@ -70,67 +72,73 @@
                #'(begin form ...))))))))
 
   (define (expand-import who k typelib import-spec)
-    (receive (namespace version prefix bindings)
-             (destructure-import-spec who import-spec)
-      (let ((bindings (or bindings (get-bindings who namespace version))))
-        (with-syntax (((get-entry) (generate-temporaries '(get-entry))))
-          (append
-           (list
-            #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
-                                                 #,(datum->syntax k version)
-                                                 0))
-            #`(define (get-entry name binding)
-                (or (typelib-get-entry #,typelib name)
-                    (error '#,(datum->syntax #'k who)
-                           "unable to import binding from namespace"
-                           '(#,(datum->syntax k namespace)
-                             #,(datum->syntax k version))
-                           binding))))
-           (map
-            (lambda (name)
-              #`(define #,(datum->syntax
-                           k
-                           (if prefix (name-symbol/prefix name prefix) name))
-                  (get-entry #,(datum->syntax k (c-ified-string name))
-                             ',#(datum->syntax k name))))
-            bindings))))))
+    (receive (namespace version bindings)
+             (eval-import-spec who import-spec #f)
+      (with-syntax (((get-entry) (generate-temporaries '(get-entry))))
+        (append
+         (list
+          #`(define #,typelib (require-typelib #,(datum->syntax k namespace)
+                                               #,(datum->syntax k version)
+                                               0))
+          #`(define (get-entry binding name)
+              (or (typelib-get-entry #,typelib name)
+                  (error '#,(datum->syntax #'k who)
+                         "unable to import binding from namespace"
+                         '(#,(datum->syntax k namespace)
+                           #,(datum->syntax k version)
+                           name)
+                         binding))))
+         (map
+          (lambda (binding)
+            #`(define #,(datum->syntax k (car binding))
+                (get-entry '#,(datum->syntax k (car binding))
+                           #,(datum->syntax k (cdr binding)))))
+          bindings)))))
 
-  (define (destructure-import-spec who import-spec)
-    (define (lose msg . irritants)
-      (apply syntax-violation
-             who
-             (string-append "invalid import spec - " msg)
-             import-spec
-             irritants))
-    (cond ((not (pair? import-spec))
-           (lose "must be a pair"))
-          ((string? (car import-spec)) ; (<namespace> <version>)
-           (values (car import-spec) (cadr import-spec) #f #f))
-          (else
-           (case (car import-spec)
-             ((prefix)
-              (unless (and (pair? (cdr import-spec))
-                           (pair? (cddr import-spec))
-                           (null? (cdddr import-spec)))
-                (lose "prefix must have exactly two items"))
-              (receive (namespace version prefix bindings)
-                  (destructure-import-spec who (cadr import-spec))
-                (when prefix
-                  (lose "double 'prefix'"))
-                (values namespace version (caddr import-spec) bindings)))
-             ((only)
-              (unless (pair? (cdr import-spec))
-                (lose "only must be followed by an import-spec"))
-              (receive (namespace version prefix bindings)
-                  (destructure-import-spec who (cadr import-spec))
-                (when bindings
-                  (lose "double 'only'"))
-                (values namespace version prefix (cddr import-spec))))
-             (else
-              (lose "bad keyword" (car import-spec)))))))
+  (define typelib-exported-names
+    (case-lambda
+      ((import-spec pred)
+        (receive (namespace version bindings)
+                 (eval-import-spec 'typelib-exported-names import-spec pred)
+          (map car bindings)))
+      ((import-spec)
+       (typelib-exported-names import-spec #f))))
 
-  (define (get-bindings who namespace version)
+  (define (eval-import-spec who spec pred)
+    (match spec
+      ;; use a shortcut for the case where the bindings are statically
+      ;; specified
+      (('only ((? string? namespace) version) . names)
+       (values namespace
+               version
+               (map (lambda (x) (cons x (c-ified-string x))) names)))
+     (('only base . names)
+      (receive (namespace version base-bindings)
+               (eval-import-spec who base pred)
+        (values namespace
+                version
+                (filter (lambda (x)
+                          (memq (car x) names))
+                        base-bindings))))
+     (('prefix base prefix)
+      (receive (namespace version base-bindings)
+               (eval-import-spec who base pred)
+        (values namespace
+                version
+                (map (lambda (x)
+                       (cons (name-symbol/prefix (car x) prefix)
+                             (cdr x)))
+                     base-bindings))))
+     (((? string? namespace) version)
+      (values namespace
+              version
+              (get-bindings who namespace version pred)))
+     (_
+      (error who "bad import spec" spec))))
+
+  (define (get-bindings who namespace version pred)
     (let* ((tl (require-typelib namespace version 0))
            (names (typelib-get-entry-names tl)))
-      (map scheme-ified-symbol names))))
-
+      (map (lambda (name)
+             (cons (scheme-ified-symbol name) name))
+           (if pred (filter pred names) names)))))

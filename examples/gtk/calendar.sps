@@ -1,4 +1,4 @@
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; This program is free software. It comes without any warranty, to the
 ;; extent permitted by applicable law. You can redistribute it and/or
@@ -10,12 +10,7 @@
 
 (import (rnrs)
         (sbank typelib)
-        (sbank gobject))
-
-(install-gobject-decorators)
-(typelib-import (prefix (only ("Gtk" #f)
-                              <window> <calendar>
-                              init main main-quit) gtk-))
+        (sbank gtk))
 
 (gtk-init (command-line))
 

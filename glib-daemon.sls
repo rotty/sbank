@@ -31,12 +31,6 @@
           (sbank glib)
           (sbank libdaemon))
 
-  (typelib-import (prefix (only ("GLib" #f)
-                                io-add-watch
-                                io-channel-unix-new)
-                          g-)
-                  (setup glib-setup!))
-
   ;;@ Install @2 as signal handler for the signals specified by the
   ;; list @1. Note that you can only call @0 only once; to install
   ;; more than a single conceptual signal handler, you will have to

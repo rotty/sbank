@@ -22,12 +22,6 @@
           (sbank typelib)
           (sbank gtk))
 
-  (typelib-import (prefix (only ("Gtk" #f)
-                                <window> <frame> <button>
-                                <v-box> <h-box>
-                                <h-button-box> <v-button-box>)
-                          gtk-))
-
   (define (create-bbox horizontal title spacing layout)
     (let ((frame (send <gtk-frame> (new title)))
           (bbox  (send (if horizontal

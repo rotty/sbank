@@ -22,15 +22,6 @@
 
 ;;; Code:
 
-(typelib-import (prefix (only ("GLib" #f)
-                         idle-add
-                         timeout-add
-                         main-loop-new
-                         main-loop-run
-                         main-loop-quit)
-                        g-)
-                (setup glib-setup!))
-
 (define-test-suite glib-tests
   "GLib bindings")
 

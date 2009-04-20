@@ -11,13 +11,11 @@
 #!r6rs
 
 (import (rnrs)
-        (sbank typelib)
         (sbank gtk))
 
-(typelib-import (prefix (only ("Gtk" #f)
-                              <window> <button>
-                              init main main-quit) gtk-)
-                (setup gtk-setup!))
+(define (println . args)
+  (for-each display args)
+  (newline))
 
 (gtk-init (command-line))
 
@@ -41,8 +39,3 @@
         (show)))
 
 (gtk-main)
-
-(define (println . args)
-  (for-each display args)
-  (newline))
-

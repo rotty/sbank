@@ -58,10 +58,8 @@
    (sbank gobject))
 
   ("glib.scm"
-   (sbank typelib)
    (sbank glib))
 
   ("gtk.scm"
    (testeez)
-   (sbank gtk)
-   (sbank typelib))))
+   (sbank gtk))))

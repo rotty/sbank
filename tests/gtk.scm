@@ -19,10 +19,6 @@
 ;; Boston, MA  02111-1307,  USA       gnu@gnu.org
 
 
-(typelib-import
- (prefix (only ("Gtk" #f) <list-store> <tree-view>) gtk-)
- (setup gtk-setup!))
-
 (testeez "ListStore"
   (test-define "creating" store (send <gtk-list-store> (newv (list 'boxed 'utf8))))
   (test-eval "populating"

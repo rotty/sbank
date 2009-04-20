@@ -27,19 +27,6 @@
         (sbank typelib)
         (sbank typelib decorators))
 
-(typelib-import
- (prefix (only ("Gtk" #f)
-               <window> <scrolled-window>
-               <notebook>
-               <tree-view> <tree-view-column>
-               <list-store>
-               <cell-renderer-text>
-               <text-view>
-               <label> <h-box>
-               init main main-quit)
-         gtk-)
- (setup gtk-setup!))
-
 (define (port->string p)
   (string-unfold eof-object?
                  values

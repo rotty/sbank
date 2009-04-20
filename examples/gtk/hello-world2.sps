@@ -11,18 +11,16 @@
 #!r6rs
 
 (import (rnrs)
-        (sbank typelib)
         (sbank gtk))
 
-(typelib-import (prefix (only ("Gtk" #f)
-                              <window> <button> <h-box>
-                              init main main-quit) gtk-)
-                (setup gtk-setup!))
-
-(gtk-init (command-line))
+(define (println . args)
+  (for-each display args)
+  (newline))
 
 (define (signal-handler w message)
   (println "Hello again -- " message " was pressed"))
+
+(gtk-init (command-line))
 
 (let ((window (send <gtk-window> (new 'toplevel)))
       (box1 (send <gtk-h-box> (new #f 0)))
@@ -46,6 +44,3 @@
 
 (gtk-main)
 
-(define (println . args)
-  (for-each display args)
-  (newline))
