@@ -87,7 +87,7 @@
           (srfi :8 receive)
           (spells tracing)
           (only (spells assert) cout)
-          (spells weak)
+          (spells gc)
           (spells foreign)
           (sbank support type-data)
           (sbank support utils)

@@ -54,7 +54,7 @@
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
    (spells parameter)
-   (srfi :1 lists)
+   (except (srfi :1 lists) for-each map)
    (sbank gobject))
 
   ("glib.scm"
