@@ -214,11 +214,13 @@
                                      null-ok?
                                      #f)
                 #f))
-       ;; ((signature? type)
-       ;;  (values 'pointer
-       ;;          (out-converter/null (signature-callback type) null-ok? #f)
-       ;;          (back-converter/null (signature-callout type) null-ok? #f)
-       ;;          #f))
+       ((signature? type)
+        (values 'pointer
+                (lambda (val)
+                  (raise-sbank-callout-error
+                   "scheme callback -> C function pointer conversion not supported in this context"))
+                (back-converter/null (signature-callout type) null-ok? #f)
+                #f))
        (else
         (raise-sbank-callout-error
          "argument/return type not yet implemented" type)))))
