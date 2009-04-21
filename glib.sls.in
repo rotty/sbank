@@ -191,7 +191,9 @@
           (only (srfi :1 lists) split-at)
           (srfi :8 receive)
           (spells tracing)
+          (spells foreign)
           (sbank support utils)
+          (sbank support shlibs)
           (sbank typelib decorators)
           (sbank typelib))
 
@@ -217,7 +219,11 @@
                                 name
                                 (priority-func-decorator n-args prio-pos)))
 
+  (define-c-callouts libgthread
+    (g-thread-init 'void "g_thread_init" '(pointer)))
+
   (define-setup-procedure (glib-setup!)
+    (g-thread-init (null-pointer))
     (register-priority-func "io_add_watch" 4 1)
     (register-priority-func "timeout_add" 3 0)
     (register-priority-func "timeout_add_seconds" 3 0)
