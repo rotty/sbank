@@ -1,6 +1,6 @@
 ;;; glist.sls --- GList and GSList primitives.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -38,13 +38,14 @@
           g-slist-data
           g-slist-free)
   (import (rnrs base)
+          (spells foreign)
           (sbank support shlibs)
           (for (sbank typelib stypes) expand)
           (for (sbank support stypes) expand))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
 
-  (define-callouts libglib
+  (define-c-callouts libglib
     ;; GList
     (g-list-append 'pointer "g_list_append" '(pointer pointer))
     (g-list-prepend 'pointer "g_list_prepend" '(pointer pointer))

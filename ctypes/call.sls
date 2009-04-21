@@ -80,7 +80,7 @@
               ((in-out)
                (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
               ((out)
-               (vector-set! arg-vec i (malloc (c-type-sizeof prim-type)))))))))))
+               (vector-set! arg-vec i (g-malloc (c-type-sizeof prim-type)))))))))))
 
   (define (args-post-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
@@ -222,7 +222,7 @@
     (lambda (arg-vec info-vec)
       (let* ((gerror-ptr (vector-ref arg-vec i))
              (gerror (pointer-ptr-ref gerror-ptr 0)))
-        (free gerror-ptr)
+        (g-free gerror-ptr)
         (unless (null-pointer? gerror)
           (raise (apply condition
                         (make-sbank-callout-error)

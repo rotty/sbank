@@ -116,7 +116,7 @@
                    (lookup gtype))
                  lookup-registry)))))
 
-  (define-callouts libgobject
+  (define-c-callouts libgobject
     (g-type-init 'void "g_type_init" '())
     (g-pointer-type-register-static%
      gtype-ctype "g_pointer_type_register_static" '(pointer))

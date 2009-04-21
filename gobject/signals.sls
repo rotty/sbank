@@ -118,7 +118,7 @@
            (lose "invalid signal specification" signal))))
 
 
-  (define-callouts libgobject
+  (define-c-callouts libgobject
     (connect-data% 'ulong "g_signal_connect_data"
                    '(pointer pointer fpointer pointer fpointer int))
     (disconnect% 'void "g_signal_handler_disconnect" '(pointer ulong))

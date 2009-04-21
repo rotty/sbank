@@ -34,7 +34,6 @@
 
           bytevector-portion bytevector-portion? bytevector-portion-count
           malloc/set!
-          g-malloc
 
           type-info->prim-type
           type-info/prim-type+procs
@@ -136,6 +135,7 @@
              (values 'pointer #f #f #f))
             ((gvalue)
              (values 'pointer
+                     ;; FIXME: pointers ain't disjunctive
                      (lambda (v) (if (pointer? v) v (->g-value v #f)))
                      g-value-ref
                      #f))
@@ -303,8 +303,8 @@
     (let ((len (vector-length vec)))
       (receive (prim-type element-size element-ref element-set!)
                (array-type-values atype)
-        (let ((mem (malloc (* element-size
-                              (+ len (if (array-is-zero-terminated? atype) 1 0))))))
+        (let ((mem (g-malloc (* element-size
+                                (+ len (if (array-is-zero-terminated? atype) 1 0))))))
           (do ((i 0 (+ i 1)))
               ((>= i len))
             (element-set! mem (* i element-size) (vector-ref vec i)))
@@ -343,15 +343,15 @@
                (lose "cannot convert string to array of this type" val atype))
              (let* ((bytes (string->utf8 val))
                     (size (bytevector-length bytes)))
-               (memcpy (malloc size) bytes size)))
+               (memcpy (g-malloc size) bytes size)))
             ((bytevector? val)
              (unless (memq elt-type '(int8 uint8))
                (lose "cannot convert bytevector to array of this type" val atype))
              (let ((size (bytevector-length val)))
-               (memcpy (malloc size) val size)))
+               (memcpy (g-malloc size) val size)))
             ((bytevector-portion? val)
              (let ((count (bytevector-portion-count val)))
-               (memcpy (malloc count)
+               (memcpy (g-malloc count)
                        (bytevector-portion-bv val)
                        (bytevector-portion-start val)
                        count)))
@@ -369,9 +369,9 @@
   (define (array-terminator-predicate elt-prim-type)
     (let ((terminator (array-terminator elt-prim-type))
           (elt-ref (make-pointer-c-getter elt-prim-type)))
-      (if (pointer? terminator)
+      (if (pointer? terminator) ;; FIXME:
           (lambda (ptr offset)
-            (pointer=? (pointer-ptr-ref offset)
+            (pointer=? (pointer-ptr-ref ptr offset)
                        terminator))
           (lambda (ptr offset)
             (= (elt-ref ptr offset) terminator)))))
@@ -386,8 +386,9 @@
                     (proc (deref-pointer (pointer+ ptr (* i element-size))
                                          element-ti)))))
             ((array-is-zero-terminated? atype)
-             (let ((terminator? (array-terminator-predicate atype)))
-               (let loop ((offset 0) (elts '()))
+             (let ((terminator? (array-terminator-predicate
+                                 (type-info->prim-type element-ti #f))))
+               (let loop ((offset 0))
                  (unless (terminator? ptr offset)
                    (proc (deref-pointer (pointer+ ptr offset) element-ti))
                    (loop (+ offset element-size))))))
@@ -398,8 +399,8 @@
   (define (free-c-array ptr atype size)
     (let ((cleanup (type-cleanup (array-element-type atype))))
       (when cleanup
-        (c-array-for-each cleanup ptr atype size)
-        (free ptr))))
+        (c-array-for-each cleanup ptr atype size))
+      (g-free ptr)))
 
   (define (type-cleanup type)
     (define (lose)
@@ -410,7 +411,7 @@
                     int64 uint64 int uint long ulong ssize size
                     float double gtype)
               #f)
-             ((utf8) free)
+             ((utf8) g-free)
              ((gvalue) g-value-unset!)
              (else (lose))))
           ((genumerated? type) #f)
@@ -570,7 +571,7 @@
       (let ((result (g-filename-to-utf8 ptr -1 (null-pointer)
                                         bytes-written error)))
         (when (null-pointer? result)
-          (free bytes-written)
+          (g-free bytes-written)
           (raise-gerror/free error))
         (utf8z-ptr->string result))))
 
@@ -636,11 +637,11 @@
   (define (malloc/set! type val)
     (cond ((symbol? type)
            (let ((type (type-tag-symbol->prim-type type)))
-             (let ((mem (malloc (c-type-sizeof type))))
+             (let ((mem (g-malloc (c-type-sizeof type))))
                ((make-pointer-c-setter type) mem 0 val)
                mem)))
           ((array-type? type)
-           (let ((mem (malloc (c-type-sizeof 'pointer))))
+           (let ((mem (g-malloc (c-type-sizeof 'pointer))))
              (pointer-ptr-set! mem 0 val)
              mem))
           (else
@@ -662,11 +663,10 @@
                     (make-irritants-condition irritants)
                     conditions))))
 
-  (define-callouts libglib
+  (define-c-callouts libglib
     (g-filename-to-utf8 'pointer "g_filename_to_utf8"
                         '(ssize_t pointer pointer pointer))
-    (gerror-free 'void "g_error_free" '(pointer))
-    (g-malloc 'pointer "g_malloc" '(size_t)))
+    (gerror-free 'void "g_error_free" '(pointer)))
 
   (define-accessors "GError"
     (c-gerror-domain "domain")

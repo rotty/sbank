@@ -1,6 +1,6 @@
 ;;; ghash.sls --- GHashTable primitives.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -26,18 +26,24 @@
 (library (sbank gobject ghash)
   (export g-hash-table-foreach)
   (import (rnrs base)
+          (srfi :8 receive)
           (spells foreign)
+          (sbank support type-data)
           (sbank support shlibs)
           (sbank typelib stypes)
           (sbank support stypes))
 
+  (define foreach-func-signature
+    (make-simple-signature 'void '(pointer pointer pointer)))
 
-  (define g-hash-table-foreach
-    (let ((callback (make-c-callback 'void '(pointer pointer pointer))))
-      (lambda (hash-table proc user-data)
-        (g-hash-table-foreach% hash-table (callback proc) user-data))))
+  (define foreach-callback (signature-callback foreach-func-signature))
 
-  (define-callouts libglib
+  (define (g-hash-table-foreach hash-table proc user-data)
+    (receive (cb-ptr reclaim) (foreach-callback proc)
+      (g-hash-table-foreach% hash-table cb-ptr user-data)
+      (reclaim)))
+
+  (define-c-callouts libglib
     (g-hash-table-foreach% 'void "g_hash_table_foreach" '(pointer pointer pointer)))
 
   )

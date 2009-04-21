@@ -1,6 +1,6 @@
 ;;; gparam.sls --- GParamater low-level access
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -30,6 +30,7 @@
           g-param-size)
   (import (rnrs base)
           (spells foreign)
+          (sbank support shlibs)
           (for (sbank support stypes) expand)
           (for (sbank typelib stypes) expand))
 
@@ -38,7 +39,7 @@
 
   (define (g-param-alloc n)
     (let ((n-bytes (* n g-param-size)))
-      (memset (malloc n-bytes) 0 n-bytes)))
+      (memset (g-malloc n-bytes) 0 n-bytes)))
   
   (define-accessors "GParameter"
     (g-param-name g-param-name-set! "name")

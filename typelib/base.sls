@@ -221,7 +221,7 @@
                               gerror)))
           (cond ((null-pointer? result)
                  (let ((e (pointer-ptr-ref gerror 0)))
-                   (free gerror)
+                   (g-free gerror)
                    (raise-gerror/free 'require-typelib #f e namespace version)))
                 (else
                  (make/validate-typelib result namespace)))))))
@@ -1010,10 +1010,10 @@
   (define (record-allocator size)
     (lambda (class)
       (lambda ()
-        (make-ginstance class (malloc size)))))
+        (make-ginstance class (g-malloc size)))))
 
   (define (record-free instance)
-    (free (ginstance-ptr instance)))
+    (g-free (ginstance-ptr instance)))
 
   (define (field-writable? field-blob)
     (and (= (field-writable field-blob) 1)
@@ -1038,13 +1038,13 @@
                                   (and name (cons name setter!))))
                               (make-array-pointers fields n-fields field-blob-size))))
           (lambda (alist)
-            (let* ((mem (malloc size))
+            (let* ((mem (g-malloc size))
                    (instance (make-ginstance class mem)))
               (memset mem 0 size)
               (for-each (lambda (entry)
                           (let ((setter (assq-ref field-setters (car entry))))
                             (unless setter
-                              (free mem)
+                              (g-free mem)
                               (error 'record-alist-constructor
                                      "no writable field with this name" (car entry)))
                             (setter instance (cdr entry))))
@@ -1225,7 +1225,7 @@
     (apply format (current-error-port) msg args)
     (newline (current-error-port)))
 
-  (define-callouts libgir
+  (define-c-callouts libgir
     (g-ir-require% 'pointer "g_irepository_require"
                    '(pointer pointer pointer uint pointer)))
 

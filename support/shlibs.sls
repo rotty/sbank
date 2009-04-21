@@ -1,6 +1,6 @@
 ;;; shlibs.sls --- Shared libraries needed in sbank.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -24,32 +24,22 @@
 #!r6rs
 
 (library (sbank support shlibs)
-  (export libgir libgobject libglib
-          let-callouts
-          define-callouts)
+  (export libgir libgobject libglib libgthread
+          g-malloc g-free)
   (import (rnrs base)
           (spells foreign))
-
-  ;; TODO: callout "compression"
-  (define-syntax let-callouts
-    (syntax-rules ()
-      ((let-callouts shlib ((name ret-type c-name arg-types) ...) body ...)
-       (let ((name ((make-c-callout ret-type arg-types)
-                    (dlsym shlib c-name)))
-             ...)
-         body ...))))
-
-  (define-syntax define-callouts
-    (syntax-rules ()
-      ((define-callouts shlib (name ret-type c-name arg-types) ...)
-       (begin
-         (define name ((make-c-callout ret-type arg-types) (dlsym shlib c-name)))
-         ...))))
 
   (define (checked-dlopen name)
     (or (dlopen name)
         (error 'checked-dlopen "unable to open shared library" name (dlerror))))
-  
+
   (define libgir (checked-dlopen "libgirepository-1.0.so.0"))
   (define libgobject (checked-dlopen "libgobject-2.0.so.0"))
-  (define libglib (checked-dlopen "libglib-2.0.so.0")))
+  (define libglib (checked-dlopen "libglib-2.0.so.0"))
+  (define libgthread (checked-dlopen "libgthread-2.0.so.0"))
+
+  (define-c-callouts libglib
+    (g-malloc 'pointer "g_malloc" '(size_t))
+    (g-free 'void "g_free" '(pointer)))
+
+  )

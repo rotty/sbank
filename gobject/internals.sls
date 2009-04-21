@@ -475,7 +475,7 @@
                                                 (* j g-param-size))))
                            (free (g-param-name param))
                            (g-value-unset! (g-param-value param))))
-                       (free parameters)
+                       (g-free parameters)
                        obj))
                     (else
                      (let* ((prop (car props/vals))
@@ -531,7 +531,7 @@
   (define (g-object-is-floating? ptr)
     (not (= (g-object-is-floating ptr) 0)))
 
-  (define-callouts libgobject
+  (define-c-callouts libgobject
     (g-object-newv 'pointer "g_object_newv" (list gtype-ctype 'uint 'pointer))
     (g-object-ref 'void "g_object_ref" '(pointer))
     (g-object-unref 'void "g_object_unref" '(pointer))
