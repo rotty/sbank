@@ -204,7 +204,10 @@
            "cannot handle array without size information" type))
         (values 'pointer
                 (out-converter/null ->c-array null-ok? #f)
-                (back-converter/null c-array->vector null-ok? #f)
+                (back-converter/null (lambda (ptr)
+                                       (c-array->vector ptr type #f))
+                                     null-ok?
+                                     #f)
                 (lambda (ptr)
                   (free-c-array ptr type #f))))
        ((gobject-class? type)
@@ -324,9 +327,9 @@
                       ((>= i size) vec)
                     (vector-set! vec i (element-ref ptr (* i element-size))))))
             ((array-is-zero-terminated? atype)
-             (let ((terminator? (array-terminator-predicate atype)))
+             (let ((terminator? (array-terminator-predicate prim-type)))
                (let loop ((offset 0) (elts '()))
-                 (if (terminator? offset)
+                 (if (terminator? ptr offset)
                      (list->vector (reverse elts))
                      (loop (+ offset element-size)
                            (cons (element-ref ptr offset) elts))))))
@@ -361,7 +364,7 @@
   (define (array-terminator prim-type)
     (case prim-type
       ((char uchar short ushort int uint long ulong size_t) 0)
-      ((pointer) (null-pointer))
+      ((pointer utf8) (null-pointer))
       (else
        (raise-sbank-callout-error
         "zero-termination of arrays of this type not implemented" prim-type))))
