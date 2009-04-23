@@ -30,7 +30,6 @@
           g-param-size)
   (import (rnrs base)
           (spells foreign)
-          (sbank support shlibs)
           (for (sbank support stypes) expand)
           (for (sbank typelib stypes) expand))
 
@@ -39,7 +38,7 @@
 
   (define (g-param-alloc n)
     (let ((n-bytes (* n g-param-size)))
-      (memset (g-malloc n-bytes) 0 n-bytes)))
+      (memset (malloc n-bytes) 0 n-bytes)))
   
   (define-accessors "GParameter"
     (g-param-name g-param-name-set! "name")

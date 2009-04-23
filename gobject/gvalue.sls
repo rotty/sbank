@@ -63,7 +63,7 @@
 
   (define (g-value-alloc n)
     (let ((n-bytes (* n g-value-size)))
-      (memset (g-malloc n-bytes) 0 n-bytes)))
+      (memset (malloc n-bytes) 0 n-bytes)))
 
   (define-c-callouts libgobject
     (g-value-unset! 'void "g_value_unset" '(pointer))
@@ -80,7 +80,7 @@
 
   (define (g-value-free gvalue)
     (g-value-unset! gvalue)
-    (g-free gvalue))
+    (free gvalue))
 
   (define (->g-value val gtype)
     (let ((gvalue (g-value-new gtype)))
@@ -180,7 +180,7 @@
     (do ((i 0 (+ i 1)))
         ((>= i size))
       (g-value-unset! (pointer+ array (* i g-value-size))))
-    (g-free array))
+    (free array))
 
   (define (->g-value-array x value-gtype types)
     (define (lose msg . irritants)
