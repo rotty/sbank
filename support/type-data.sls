@@ -24,7 +24,12 @@
 #!r6rs
 
 (library (sbank support type-data)
-  (export array-type?
+  (export arg-flags
+          list->arg-flags
+          arg-flags-any?
+          arg-flags-case
+          
+          array-type?
           array-is-zero-terminated?
           array-size
           array-element-type-info
@@ -63,12 +68,42 @@
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
+          (rnrs enums)
           (rnrs records syntactic)
           (rnrs hashtables)
           (srfi :8 receive)
+          (only (spells misc) unspecific)
           (spells foreign)
           (spells tracing)
           (sbank support utils))
+
+  (define-enumeration arg-flag
+    (transfer-ownership
+     transfer-container-ownership
+     in
+     out
+     in-out)
+    arg-flags)
+
+  (define list->arg-flags (enum-set-constructor (arg-flags)))
+  
+  (define-syntax arg-flags-case
+    (syntax-rules (else)
+      ((arg-flags-case flags
+         ((test-flag ...) clause-expr ...)
+         ...
+         (else else-expr ...))
+       (let ((val flags))
+         (cond ((arg-flags-any? val (arg-flags test-flag ...))
+                clause-expr ...)
+               ...
+               (else else-expr ...))))
+      ((arg-flags-case flags clause ...)
+       (arg-flags-case flags clause ... (else (unspecific))))))
+
+  (define (arg-flags-any? flags test-flags)
+    (not (enum-set=? (enum-set-intersection flags test-flags)
+                     (arg-flags))))
 
   (define-record-type array-type
     (fields (immutable element-type-info array-element-type-info)

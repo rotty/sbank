@@ -529,14 +529,14 @@
                           has-self-ptr?
                           (make-type-info container #t #f)
                           0
-                          '(in)
+                          (arg-flags in)
                           gtype-lookup)
                   (assert (not (or collect cleanup)))
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons setup! setup-steps)
                           collect-steps
                           cleanup-steps
-                          (cons '(in) flags)))
+                          (cons (arg-flags in) flags)))
                 (values arg-types setup-steps collect-steps cleanup-steps flags))
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))
@@ -574,17 +574,16 @@
                              (- i 1))))))))))
 
   (define (calc-flags i in? out? transfer-ownership? transfer-container-ownership?)
-    (let ((direction
-           (cond ((and in? out?) '(in-out))
-                 (out? '(out))
-                 (in? '(in))
-                 ((eqv? i #f) '()) ;; return value
-                 (else
-                  (raise-validation-error "argument has no direction" i)))))
-      (append
-       direction
-       (if transfer-ownership? '(transfer-ownership) '())
-       (if transfer-container-ownership? '(transfer-container-ownership) '()))))
+    (list->arg-flags
+     (append
+      (cond ((and in? out?) '(in-out))
+            (out? '(out))
+            (in? '(in))
+            ((eqv? i #f) '()) ;; return value
+            (else
+             (raise-validation-error "argument has no direction" i)))
+      (if transfer-ownership? '(transfer-ownership) '())
+      (if transfer-container-ownership? '(transfer-container-ownership) '()))))
 
   (define (arg-blobs-callback-values typelib tld arg-blobs n-args method? container)
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
@@ -609,7 +608,7 @@
                   (values (cons (make-type-info 'pointer #f #f) arg-types)
                           (cons prepare prepare-steps)
                           store-steps
-                          (cons '(in) flags)))
+                          (cons (arg-flags in) flags)))
                 (values arg-types prepare-steps store-steps flags))
             (let* ((arg-blob (pointer+ arg-blobs (* i arg-blob-size)))
                    (in? (bool (arg-in arg-blob)))

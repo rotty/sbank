@@ -31,6 +31,7 @@
 
   (import (rnrs base)
           (rnrs control)
+          (rnrs enums)
           (rnrs conditions)
           (rnrs exceptions)
           (rnrs bytevectors)
@@ -62,7 +63,7 @@
   ;;(define-syntax debug (syntax-rules () (begin)))
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
-
+  
   (define (args-pre-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
          (arg-types arg-types (cdr arg-types))
@@ -72,11 +73,11 @@
              (type (type-info-type ti)))
         (cond
          ((gobject-record-class? type)
-          (when (memq 'out (car flags))
+          (when (enum-set-member? 'out (car flags))
             (vector-set! arg-vec i (ginstance-ptr (send type (alloc))))))
          (else
           (let ((prim-type (type-info->prim-type ti #f)))
-            (flags-case (car flags)
+            (arg-flags-case (car flags)
               ((in-out)
                (vector-set! arg-vec i (malloc/set! prim-type (vector-ref arg-vec i))))
               ((out)
@@ -87,7 +88,7 @@
          (arg-types arg-types (cdr arg-types))
          (flags flags (cdr flags)))
         ((>= i (vector-length arg-vec)))
-      (flags-case (car flags)
+      (arg-flags-case (car flags)
         ((in-out out)
          (vector-set! arg-vec i
                       (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
@@ -96,12 +97,12 @@
     (define-syntax step-values
       (syntax-rules ()
         ((_ setup collect cleanup)
-         (values (and (not (memq 'out flags)) setup)
-                 (and (not (memq 'in flags)) collect)
-                 (and (cond ((flags-set/or? flags '(out in-out))
-                             (memq 'transfer-ownership flags))
+         (values (and (not (enum-set-member? 'out flags)) setup)
+                 (and (not (enum-set-member? 'in flags)) collect)
+                 (and (cond ((arg-flags-any? flags (arg-flags out in-out))
+                             (enum-set-member? 'transfer-ownership flags))
                             (else
-                             (not (memq 'transfer-ownership flags))))
+                             (not (enum-set-member? 'transfer-ownership flags))))
                       cleanup)))))
     (let ((type (type-info-type ti)))
       (cond
@@ -110,14 +111,14 @@
                      (array-arg-collect type i)
                      (array-arg-cleanup type i)))
        ((gerror-type? type)
-        (unless (memq 'in flags)
+        (unless (enum-set-member? 'in flags)
           (raise-sbank-callout-error
            "GError arguments must have direction 'in'" ti flags))
         (values (gerror-arg-setup type i)
                 #f
                 (gerror-arg-cleanup type i)))
        ((signature? type)
-        (unless (memq 'in flags)
+        (unless (enum-set-member? 'in flags)
           (raise-sbank-callout-error
            "callback arguments must have direction 'in'" ti flags))
         (values (callback-arg-setup ti i)
@@ -314,22 +315,6 @@
 
 
 
-  (define-syntax flags-case
-    (syntax-rules (else)
-      ((flags-case flags
-         ((test-flag ...) clause-expr ...)
-         ...
-         (else else-expr ...))
-       (let ((val flags))
-         (cond ((flags-set/or? val '(test-flag ...)) clause-expr ...)
-               ...
-               (else else-expr ...))))
-      ((flags-case flags clause ...)
-       (flags-case flags clause ... (else (unspecific))))))
-
-  (define (flags-set/or? flags test-flags)
-    (>= (length (lset-intersection eq? flags test-flags)) 1))
-
   (define (vec-length x)
     (cond ((vector? x) (vector-length x))
           ((bytevector? x) (bytevector-length x))
@@ -343,14 +328,14 @@
                         gtype-lookup)
     (let ((prim-callout
            (make-c-callout (type-info->prim-type rti #f)
-                           (map (lambda (type arg-flags)
+                           (map (lambda (type aflags)
                                   (type-info->prim-type
                                    type
-                                   (flags-set/or? arg-flags '(out in-out))))
+                                   (arg-flags-any? aflags (arg-flags out in-out))))
                                 arg-types
                                 flags)))
-          (out-args? (any (lambda (arg-flags)
-                            (flags-set/or? arg-flags '(out in-out)))
+          (out-args? (any (lambda (aflags)
+                            (arg-flags-any? aflags (arg-flags out in-out)))
                           flags))
           (setup (args-setup-procedure (length arg-types) setup-steps))
           (collect (args-collect-procedure collect-steps))
@@ -407,8 +392,10 @@
       (let ((prim-callback
              (make-c-callback
               prim-ret
-              (map (lambda (type flag)
-                     (type-info->prim-type type (memq flag '(out in-out))))
+              (map (lambda (type aflags)
+                     (type-info->prim-type
+                      type
+                      (arg-flags-any? aflags (arg-flags out in-out))))
                    arg-types
                    flags))))
         (cond ((and (not ret-out-convert)
@@ -425,8 +412,8 @@
   (define (make-callback-wrapper proc prim-ret ret-out-convert arg-types
                                   prepare-steps store-steps flags)
     (let ((arg-len (length arg-types))
-          (out-args? (any (lambda (arg-flags)
-                            (flags-set/or? arg-flags '(out in-out)))
+          (out-args? (any (lambda (aflags)
+                            (arg-flags-any? aflags (arg-flags out in-out)))
                           flags)))
       (lambda args
         (assert (= arg-len (length args)))
@@ -473,9 +460,12 @@
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))
-                        (and cleanup (memq 'transfer-ownership flags) (cleanup val))
+                        (and cleanup
+                             (enum-set-member? 'transfer-ownership flags)
+                             (cleanup val))
                         result)))
                    (else
                     (assert (not cleanup))
                     #t))))))
+
 )
