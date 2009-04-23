@@ -27,9 +27,10 @@
 (import (rnrs)
         (only (srfi :1 lists) append-map unfold reduce)
         (only (srfi :27 random-bits) random-integer)
-        (only (ikarus) collect)
+        (spells define-values)
         (spells string-utils)
         (spells alist)
+        (only (spells gc) collect)
         (sbank support utils)
         (sbank gobject)
         (sbank gobject gvalue)
@@ -45,6 +46,16 @@
          ((>= i n))
        body ...))))
 
+(define *checks* '())
+
+(define-syntax define-check
+  (syntax-rules ()
+    ((_ name body ...)
+     (define-values (name)
+       (let ((check (lambda () body ...)))
+         (set! *checks* (append *checks* (list (cons 'name check))))
+         check)))))
+
 (define (random-integers n k)
   (unfold (lambda (i) (> i n))
           (lambda (i) (random-integer k))
@@ -53,29 +64,37 @@
 
 (define N 10000)
 
-(define (method-call)
+(define-check method-call
   (repeat N (test-boolean #t))
   (repeat N (test-boolean #f)))
 
-(define (obj-alloc)
+(define-check array-transfer
+  (let ((v (random-integers 5 10)))
+    (repeat N (test-array-int-in-take v))))
+
+(define-check array-no-transfer
+  (let ((v (random-integers 5 10)))
+    (repeat N (test-array-int-in v))))
+
+(define-check obj-alloc
   (repeat N (send <test-obj> (new/props))))
 
-(define (obj-alloc-nested)
+(define-check obj-alloc-nested
   (repeat N (send <test-obj>
               (new/props 'bare (send <test-obj> (new/props))))))
 
-(define (callback)
+(define-check callback
   (let ((cb (lambda () 42)))
     (repeat N (test-callback cb))))
 
 (define (make-test-cb n)
   (lambda () n))
 
-(define (callback-freshproc)
+(define-check callback-freshproc
   (repeat N
     (test-callback (make-test-cb (random-integer N)))))
 
-(define (callback-notified)
+(define-check callback-notified
   (repeat N
     (let ((nums (random-integers 5 10)))
       (assert (equal?
@@ -83,21 +102,12 @@
                nums))
       (assert (= (test-callback-thaw-notifications) (reduce + 0 nums))))))
 
-(define (signal-callback)
+(define-check signal-callback
   (let ((obj (send <test-obj> (new/props))))
     (repeat N
       (let ((sig (send obj (connect 'test (lambda (obj) #f)))))
         (send obj (emit 'test))
         (send obj (disconnect sig))))))
-
-(define *tests*
-  `((method-call . ,method-call)
-    (obj-alloc . ,obj-alloc)
-    (obj-alloc-nested . ,obj-alloc-nested)
-    (callback . ,callback)
-    (callback-freshproc . ,callback-freshproc)
-    (callback-notified . ,callback-notified)
-    (signal-callback . ,signal-callback)))
 
 (define (println fmt . args)
   (string-substitute #t fmt args 'braces)
@@ -107,12 +117,12 @@
   (let ((tests (append-map (lambda (arg)
                              (let ((sym (string->symbol arg)))
                                (case sym
-                                 ((all) (map car *tests*))
+                                 ((all) (map car *checks*))
                                  (else  (list sym)))))
                            (cdr argv))))
     (for-each (lambda (test)
                 (println "running: {0}" test)
-                (cond ((assq-ref *tests* test) => (lambda (proc) (proc)))
+                (cond ((assq-ref *checks* test) => (lambda (proc) (proc)))
                       (else (println "No code found for {0}, skipping" test)))
                 (collect)
                 (collect-gobjects))

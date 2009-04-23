@@ -93,15 +93,22 @@
                       (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
 
   (define (arg-callout-steps has-self-ptr? ti i flags gtype-lookup)
+    (define-syntax step-values
+      (syntax-rules ()
+        ((_ setup collect cleanup)
+         (values (and (not (memq 'out flags)) setup)
+                 (and (not (memq 'in flags)) collect)
+                 (and (cond ((flags-set/or? flags '(out in-out))
+                             (memq 'transfer-ownership flags))
+                            (else
+                             (not (memq 'transfer-ownership flags))))
+                      cleanup)))))
     (let ((type (type-info-type ti)))
       (cond
        ((array-type? type)
-        (values
-         (and (not (memq 'out flags))
-              (array-arg-setup type i (type-info-null-ok? ti)))
-         (and (not (memq 'in flags))
-              (array-arg-collect type i))
-         (array-arg-cleanup type i)))
+        (step-values (array-arg-setup type i (type-info-null-ok? ti))
+                     (array-arg-collect type i)
+                     (array-arg-cleanup type i)))
        ((gerror-type? type)
         (unless (memq 'in flags)
           (raise-sbank-callout-error
@@ -119,17 +126,9 @@
        (else
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
-          (values
-           (and (not (memq 'out flags))
-                (if out-convert (converter-setup i out-convert) i))
-           (and (not (memq 'in flags))
-                (if back-convert (converter-collect i back-convert) i))
-           (and cleanup
-                (cond ((flags-set/or? flags '(out in-out))
-                       (memq 'transfer-ownership flags))
-                      (else
-                       (not (memq 'transfer-ownership flags))))
-                (cleanup-step i cleanup))))))))
+          (step-values (if out-convert (converter-setup i out-convert) i)
+                       (if back-convert (converter-collect i back-convert) i)
+                       (and cleanup (cleanup-step i cleanup))))))))
 
   (define (arg-callback-steps ti i gtype-lookup)
     (let ((type (type-info-type ti)))

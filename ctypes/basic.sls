@@ -399,8 +399,8 @@
   (define (free-c-array ptr atype size)
     (let ((cleanup (type-cleanup (array-element-type atype))))
       (when cleanup
-        (c-array-for-each cleanup ptr atype size)
-        (free ptr))))
+        (c-array-for-each cleanup ptr atype size))
+      (free ptr)))
 
   (define (type-cleanup type)
     (define (lose)
