@@ -2,18 +2,23 @@
 
 * Core
 
-** TODO Implement field getters/setters
+** TODO Implement field setters
+
+Getters should already work (modulo bitfields).
+
 ** TODO Implement ownership transfer
 
-** TODO Provide a enum-lookup to g-value-{ref,set!} wherever possible
+Full and nothing transfer should work, container-only transfer needs
+still to be implemented.
 
-- To make this feasible, the find-typelib-enum-lookup must be moved
-  outside of (sbank typelib base), so the caller doesn't have to be
-  higher in the dependency tree than that. This way, (sbank gobject
-  gvalue) could even directly use the lookup finder, without the
-  caller having to provide it (which is kind of ugly anyway)
+** TODO Review codebase for uses of `pointer?'
 
-** TODO Implement support for flags
+Pointers are not necessarily a disjunct type; in Ypsilon, for instance
+they are just positive integers.
+
+* Test suite
+
+** TODO Extend test suite to cover all of "Everything"
 
 * Efficiency
 
