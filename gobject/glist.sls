@@ -31,12 +31,14 @@
           g-list-prev
           g-list-data
           g-list-free
-
+          g-list-copy
+          
           g-slist-prepend
           g-slist-reverse
           g-slist-next
           g-slist-data
-          g-slist-free)
+          g-slist-free
+          g-slist-copy)
   (import (rnrs base)
           (spells foreign)
           (sbank support shlibs)
@@ -51,10 +53,13 @@
     (g-list-prepend 'pointer "g_list_prepend" '(pointer pointer))
     (g-list-last 'pointer "g_list_last" '(pointer))
     (g-list-free 'void "g_list_free" '(pointer))
+    (g-list-copy 'pointer "g_list_copy" '(pointer))
+    
     ;; GSList
     (g-slist-prepend 'pointer "g_slist_prepend" '(pointer pointer))
     (g-slist-reverse 'pointer "g_slist_reverse" '(pointer))
-    (g-slist-free 'void "g_slist_free" '(pointer)))
+    (g-slist-free 'void "g_slist_free" '(pointer))
+    (g-slist-copy 'pointer "g_slist_copy" '(pointer)))
 
   (define-accessors "GList"
     (g-list-next "next")

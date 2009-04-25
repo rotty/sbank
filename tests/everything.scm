@@ -31,6 +31,24 @@
     (list (test-boolean #t) (test-boolean #f))
     (list #t #f)))
 
+(testeez "arrays"
+  (test/equal "int in"
+    (test-array-int-in '#(41 42 43))
+    (+ 41 42 43))
+  (test/equal "int in (take)"
+    (test-array-int-in-take '#(44 45 46))
+    (+ 44 45 46))
+  (test/equal "strv in"
+    (list (test-strv-in '#("1" "2" "3"))
+          (test-strv-in '#("0" "1" "2")))
+    (list #t #f))
+  (test/equal "strv out"
+    (test-strv-out)
+    '#("1" "2" "3"))
+  (test/equal "strv outarg"
+    (test-strv-outarg)
+    '#("1" "2" "3")))
+
 (testeez "structs"
   (test-define "A" a (send <test-struct-a> (alloc)))
   (test-define "obj" obj (send <test-obj> (new/props)))
@@ -64,6 +82,17 @@
     (send c (get-obj))
     obj
     (ginstance=?)))
+
+(testeez "GList"
+  (test/equal "return (no transfer)"
+    (test-glist-nothing-return)
+    '("1" "2" "3")))
+
+(testeez "GSList"
+  (test-eval "container in"
+    (test-gslist-container-in '("1" "2" "3")))
+  (test-eval "everything in"
+    (test-gslist-everything-in '("1" "2" "3"))))
 
 (parameterize ((null-ok-always-on? #t))
   (testeez "objects"
@@ -109,3 +138,7 @@
                         (every (lambda (x y)
                                  (ginstance=? x y))
                                l1 l2)))))))
+
+;; Local Variables:
+;; scheme-indent-styles: (testeez)
+;; End:

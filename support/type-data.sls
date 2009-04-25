@@ -28,6 +28,10 @@
           list->arg-flags
           arg-flags-any?
           arg-flags-case
+          arg-flags->free-spec
+          free-spec-shift
+          free-spec-set?
+          free-spec-any?
           
           array-type?
           array-is-zero-terminated?
@@ -69,6 +73,7 @@
           (rnrs control)
           (rnrs lists)
           (rnrs enums)
+          (rnrs arithmetic fixnums)
           (rnrs records syntactic)
           (rnrs hashtables)
           (srfi :8 receive)
@@ -104,6 +109,26 @@
   (define (arg-flags-any? flags test-flags)
     (not (enum-set=? (enum-set-intersection flags test-flags)
                      (arg-flags))))
+
+  (define (free-spec-set? free-spec)
+    (fxbit-set? free-spec 0))
+
+  (define (free-spec-any? free-spec)
+    (not (fxzero? free-spec)))
+  
+  (define (free-spec-shift free-spec)
+    (fxarithmetic-shift free-spec -1))
+  
+  (define (arg-flags->free-spec flags)
+    (arg-flags-case flags
+      ((in) (arg-flags-case flags
+              ((transfer-container-ownership) #b10)
+              ((transfer-ownership)           #b00)
+              (else                           #b11)))
+      (else (arg-flags-case flags
+              ((transfer-container-ownership) #b01)
+              ((transfer-ownership)           #b11)
+              (else                           #b00)))))
 
   (define-record-type array-type
     (fields (immutable element-type-info array-element-type-info)
@@ -252,3 +277,7 @@
         destroy-notify)))
 
   )
+
+;; Local Variables:
+;; scheme-indent-styles: ((arg-flags-case 1))
+;; End:

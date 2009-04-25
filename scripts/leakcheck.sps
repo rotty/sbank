@@ -76,6 +76,21 @@
   (let ((v (random-integers 5 10)))
     (repeat N (test-array-int-in v))))
 
+(define-check array-out
+  (repeat N (test-strv-out)))
+
+(define-check array-outarg
+  (repeat N (test-strv-outarg)))
+
+(define-check glist-nothing-return
+  (repeat N (test-glist-nothing-return)))
+
+(define-check glist-container-return
+  (repeat N (test-glist-container-return)))
+
+(define-check glist-everything-return
+  (repeat N (test-glist-everything-return)))
+
 (define-check obj-alloc
   (repeat N (send <test-obj> (new/props))))
 

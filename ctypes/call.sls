@@ -31,6 +31,7 @@
 
   (import (rnrs base)
           (rnrs control)
+          (rnrs arithmetic fixnums)
           (rnrs enums)
           (rnrs conditions)
           (rnrs exceptions)
@@ -53,6 +54,7 @@
           (sbank gobject internals)
           (sbank gobject gtype)
           (sbank gobject gvalue)
+          (sbank gobject glist)
           (sbank support conditions))
 
   (define-syntax debug
@@ -90,8 +92,12 @@
         ((>= i (vector-length arg-vec)))
       (arg-flags-case (car flags)
         ((in-out out)
-         (vector-set! arg-vec i
-                      (deref-pointer (vector-ref arg-vec i) (car arg-types)))))))
+         (let* ((ti (car arg-types))
+                (ptr (vector-ref arg-vec i))
+                (val (deref-pointer ptr ti)))
+           (unless (gobject-record-class? (type-info-type ti))
+             (free ptr))
+           (vector-set! arg-vec i val))))))
 
   (define (arg-callout-steps has-self-ptr? ti i flags gtype-lookup)
     (define-syntax step-values
@@ -99,17 +105,14 @@
         ((_ setup collect cleanup)
          (values (and (not (enum-set-member? 'out flags)) setup)
                  (and (not (enum-set-member? 'in flags)) collect)
-                 (and (cond ((arg-flags-any? flags (arg-flags out in-out))
-                             (enum-set-member? 'transfer-ownership flags))
-                            (else
-                             (not (enum-set-member? 'transfer-ownership flags))))
-                      cleanup)))))
+                 cleanup))))
     (let ((type (type-info-type ti)))
       (cond
+       ;; Arrays are special-cased for length-parameter handling
        ((array-type? type)
-        (step-values (array-arg-setup type i (type-info-null-ok? ti))
+        (step-values (array-arg-setup type flags i (type-info-null-ok? ti))
                      (array-arg-collect type i)
-                     (array-arg-cleanup type i)))
+                     (array-arg-cleanup type flags i)))
        ((gerror-type? type)
         (unless (enum-set-member? 'in flags)
           (raise-sbank-callout-error
@@ -124,9 +127,17 @@
         (values (callback-arg-setup ti i)
                 #f
                 (callback-arg-cleanup has-self-ptr? ti i)))
+       ((and (need-container-copy? flags)
+             (type-container-copy-proc type))
+        => (lambda (copy)
+             (receive (prim-type out-convert back-convert cleanup)
+                      (type-info/prim-type+procs ti (fxior (arg-flags->free-spec flags) 1))
+               (step-values (if out-convert (converter-setup/copy i out-convert copy) i)
+                            (if back-convert (converter-collect i back-convert) i)
+                            (and cleanup (cleanup-step/copy i cleanup))))))
        (else
         (receive (prim-type out-convert back-convert cleanup)
-                 (type-info/prim-type+procs ti)
+                 (type-info/prim-type+procs ti (arg-flags->free-spec flags))
           (step-values (if out-convert (converter-setup i out-convert) i)
                        (if back-convert (converter-collect i back-convert) i)
                        (and cleanup (cleanup-step i cleanup))))))))
@@ -147,6 +158,10 @@
     (lambda (arg-vec info-vec)
       (cleanup-proc (vector-ref arg-vec i))))
 
+  (define (cleanup-step/copy i cleanup-proc)
+    (lambda (arg-vec info-vec)
+      (cleanup-proc (vector-ref info-vec i))))
+  
   ;; This returns and expects a converter that returns a pointer
   (define (converter-setup/null i convert null-ok? null-val)
     (let ((convert/null (out-converter/null convert null-ok? null-val)))
@@ -159,6 +174,13 @@
       (vector-set! arg-vec i (convert (car args)))
       (cdr args)))
 
+  (define (converter-setup/copy i convert copy)
+    (lambda (args arg-vec info-vec)
+      (let ((val (convert (car args))))
+        (vector-set! arg-vec i val)
+        (vector-set! info-vec i (copy val))
+        (cdr args))))
+  
   (define (converter-collect i convert)
     (lambda (arg-vec)
       (convert (vector-ref arg-vec i))))
@@ -168,30 +190,54 @@
       (lambda (arg-vec)
         (convert/null (vector-ref arg-vec i)))))
 
+  (define (need-container-copy? arg-flags)
+    (and (enum-set-member? 'in arg-flags)
+         (enum-set-member? 'transfer-container-ownership arg-flags)))
+
+  (define (type-container-copy-proc type)
+    (case type
+      ((glist)  g-list-copy)
+      ((gslist) g-slist-copy)
+      (else
+       (raise-sbank-callout-error
+        "requested copy procedure for non-container"
+        type))))
+
 
 ;;; Arrray handling
 
-  (define (array-arg-setup atype i null-ok?)
+  (define (array-arg-setup atype flags i null-ok?)
     (let ((convert (out-converter/null (lambda (val)
-                                         (->c-array val atype)) null-ok? #f)))
+                                         (->c-array val atype)) null-ok? #f))
+          (copy-container? (need-container-copy? flags)))
       (lambda (args arg-vec info-vec)
         (cond ((pointer? (car args))
                (vector-set! arg-vec i (car args))
                (cdr args))
               (else
-               (let ((val (cond ((or (vector? (car args))
-                                     (bytevector? (car args))
-                                     (bytevector-portion? (car args)))
-                                 (car args))
-                                ((string? (car args))
-                                 (string->utf8 (car args)))
-                                (else
-                                 (->vector (car args))))))
-                 (vector-set! arg-vec i (convert val))
+               (let* ((val (cond ((or (vector? (car args))
+                                      (bytevector? (car args))
+                                      (bytevector-portion? (car args)))
+                                  (car args))
+                                 ((string? (car args))
+                                  (string->utf8 (car args)))
+                                 (else
+                                  (->vector (car args)))))
+                      (ptr (convert val)))
+                 (vector-set! arg-vec i ptr)
+                 (vector-set! info-vec i
+                              (if copy-container?
+                                  (memcpy
+                                   (malloc (array-sizeof atype (vec-length val)))
+                                   ptr)
+                                  ptr))
                  (cond ((array-length-index atype)
                         => (lambda (l-index)
                              (vector-set! arg-vec l-index (vec-length val)))))
                  (cdr args)))))))
+
+  (define (array-sizeof atype len)
+    (* len (c-type-sizeof (type-info->prim-type (array-element-type atype)))))
 
   (define (get-array-length atype arg-vec)
     (cond ((array-length-index atype)
@@ -205,10 +251,15 @@
       (c-array->vector (vector-ref arg-vec i) atype
                        (get-array-length atype arg-vec))))
 
-  (define (array-arg-cleanup atype i)
-    (lambda (arg-vec info-vec)
-      (free-c-array (vector-ref arg-vec i) atype
-                    (get-array-length atype arg-vec))))
+  (define (array-arg-cleanup atype flags i)
+    (let* ((copied-container? (need-container-copy? flags))
+           (free-spec (fxior (arg-flags->free-spec flags)
+                             (if copied-container? #b1 #b0))))
+      (lambda (arg-vec info-vec)
+        (free-c-array (vector-ref (if copied-container? info-vec arg-vec) i)
+                      atype
+                      (get-array-length atype arg-vec)
+                      free-spec))))
 
 
 ;;; GError handling
@@ -456,16 +507,18 @@
            #f)
           (else
            (receive (prim-type out-convert back-convert cleanup)
-                    (type-info/prim-type+procs rti)
+                    (type-info/prim-type+procs rti (arg-flags->free-spec flags))
              (cond (back-convert
                     (lambda (val)
                       (let ((result (back-convert val)))
-                        (and cleanup
-                             (enum-set-member? 'transfer-ownership flags)
-                             (cleanup val))
+                        (and cleanup (cleanup val))
                         result)))
                    (else
                     (assert (not cleanup))
                     #t))))))
 
 )
+
+;; Local Variables:
+;; scheme-indent-styles: ((arg-flags-case 1))
+;; End:
