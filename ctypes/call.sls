@@ -39,7 +39,7 @@
           (srfi :2 and-let*)
           (spells define-values)
           (srfi :8 receive)
-          (spells parameter)
+          (srfi :39 parameters)
           (spells foreign)
           (except (srfi :1 lists) for-each map)
           (only (spells assert) cerr cout)

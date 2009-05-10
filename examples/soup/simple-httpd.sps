@@ -24,7 +24,7 @@
 
 #!r6rs
 (import (except (rnrs) file-exists? delete-file)
-        (spells parameter)
+        (srfi :39 parameters)
         (only (srfi :1 lists) last)
         (only (srfi :13 strings) string-join)
         (spells alist)

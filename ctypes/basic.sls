@@ -63,7 +63,7 @@
   (import (rnrs)
           (srfi :2 and-let*)
           (srfi :8 receive)
-          (spells parameter)
+          (srfi :39 parameters)
           (spells foreign)
           (spells tracing)
           (sbank support utils)

@@ -53,7 +53,7 @@
    (testeez)
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
-   (spells parameter)
+   (srfi :39 parameters)
    (except (srfi :1 lists) for-each map)
    (sbank gobject))
 

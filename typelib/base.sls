@@ -40,7 +40,7 @@
           (spells foreign)
           (spells tracing)
           (spells alist)
-          (spells parameter)
+          (srfi :39 parameters)
           (srfi :8 receive)
           (spells format)
           (spells string-utils)

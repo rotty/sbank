@@ -1,6 +1,6 @@
 ;;; decorators.sls --- Decorator registry for typelib.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -28,7 +28,7 @@
           lookup-typelib-decorator)
   (import (rnrs base)
           (spells table)
-          (spells parameter))
+          (srfi :39 parameters))
 
   (define *typelib-decorators* (make-table 'equal))
   
