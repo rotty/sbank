@@ -742,8 +742,8 @@
   (define (gtype-additional-constructors gtype)
     (if gtype
         (case (gtype->symbol gtype)
-          ((object) (list (cons 'new/props
-                                (make-lazy-entry (make-gobject-new/props type->gtype)))))
+          ((object) (list (cons 'new*
+                                (make-lazy-entry (make-gobject-new* type->gtype)))))
           (else '()))
         '()))
 

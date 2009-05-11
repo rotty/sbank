@@ -45,7 +45,7 @@
                                 (g-main-loop-quit main-loop)
                                 #f))
     (parameterize ((null-ok-always-on? #t)) ;; Needed for field access, will go away
-      (let ((server (send <soup-server> (new/props 'port port
+      (let ((server (send <soup-server> (new* 'port port
                                                    'server-header "simple-httpd"))))
         (unless server
           (bail-out "Unable to bind to server port {0}\n" port))

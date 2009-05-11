@@ -51,7 +51,7 @@
 
 (testeez "structs"
   (test-define "A" a (send <test-struct-a> (alloc)))
-  (test-define "obj" obj (send <test-obj> (new/props)))
+  (test-define "obj" obj (send <test-obj> (new*)))
   (test-eval "setting fields"
     (send a
       (set-some-int 12345)
@@ -96,9 +96,9 @@
 
 (parameterize ((null-ok-always-on? #t))
   (testeez "objects"
-    (test-define "obj" obj (send <test-obj> (new/props)))
+    (test-define "obj" obj (send <test-obj> (new*)))
     (test/equal "get" (send obj (get-bare)) #f)
-    (test-define "other" other (send <test-obj> (new/props)))
+    (test-define "other" other (send <test-obj> (new*)))
     (test-eval "set" (send obj (set-bare other)))
     (test/equiv "check value"
       (send obj (get-bare))
@@ -108,7 +108,7 @@
     (test/equal "check value via property"
       (send obj (get 'bare))
       #f)
-    (test-define "obj2" obj2 (send <test-obj> (new/props 'bare other)))
+    (test-define "obj2" obj2 (send <test-obj> (new* 'bare other)))
     (test/equiv "check value"
       (send obj2 (get-bare))
       other
@@ -128,7 +128,7 @@
 
 (let ((signal-args #f))
   (testeez "signals"
-    (test-define "obj" obj (send <test-obj> (new/props)))
+    (test-define "obj" obj (send <test-obj> (new*)))
     (test-eval "connect" (send obj (connect 'test (lambda args
                                                     (set! signal-args args)))))
     (test-eval "emit" (send obj (emit 'test)))

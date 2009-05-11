@@ -92,11 +92,11 @@
   (repeat N (test-glist-everything-return)))
 
 (define-check obj-alloc
-  (repeat N (send <test-obj> (new/props))))
+  (repeat N (send <test-obj> (new*))))
 
 (define-check obj-alloc-nested
   (repeat N (send <test-obj>
-              (new/props 'bare (send <test-obj> (new/props))))))
+              (new* 'bare (send <test-obj> (new*))))))
 
 (define-check callback
   (let ((cb (lambda () 42)))
@@ -118,7 +118,7 @@
       (assert (= (test-callback-thaw-notifications) (reduce + 0 nums))))))
 
 (define-check signal-callback
-  (let ((obj (send <test-obj> (new/props))))
+  (let ((obj (send <test-obj> (new*))))
     (repeat N
       (let ((sig (send obj (connect 'test (lambda (obj) #f)))))
         (send obj (emit 'test))

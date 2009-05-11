@@ -37,7 +37,7 @@
           gobject-class-decorate
           gobject-simple-class-decorate
           gobject-method-overrider
-          make-gobject-new/props
+          make-gobject-new*
 
           make-gobject-record-class gobject-record-class?
           make-gobject-union-class gobject-union-class?
@@ -451,12 +451,12 @@
                   (gobject-class-properties-set! class properties)
                   (gobject-class-load-members-set! class #f))))))
 
-  (define (make-gobject-new/props type->gtype)
+  (define (make-gobject-new* type->gtype)
     (lambda (class)
       (lambda props/vals
         (let ((n (length props/vals)))
           (when (odd? n)
-            (error 'gobject-new/props
+            (error 'gobject-new*
                    "odd number of colum/value arguments" props/vals))
           (let ((parameters
                  (if (= n 0) (null-pointer) (g-param-alloc (/ n 2)))))
