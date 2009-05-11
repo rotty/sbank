@@ -26,10 +26,7 @@
 #!r6rs
 
 (library (sbank gobject)
-  (export gobject-class?
-          gobject-class-decorate
-          gobject-method-overrider
-          ginstance? ginstance=? ginstance-is-a?
+  (export ginstance? ginstance=? ginstance-is-a?
           genum? genumerated-lookup
           gflags? gflags->integer integer->gflags
           glist?
