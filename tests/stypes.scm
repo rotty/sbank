@@ -25,179 +25,146 @@
 
 (define (bool x) (if x #t #f))
 
-(testeez "basic stype operations"
-  (test/equal "attribute ref existing"
-    (stype-attribute '(primitive (name "foo")) 'name)
-    "foo"))
+(define-test-suite stypes-tests
+  "C types represented as sexps")
 
-(testeez "basic stype collection operations"
-  (test/equal "ref nonexisting" (stypes-ref '(types) "foo") #f)
-  (test/equal "ref existing"
-    (stypes-ref '(types (record (name "Foo") body)) "Foo")
-    '(record (name "Foo") body))
-  (test/equal "ref existing, # of stypes > 1"
+(define-test-case stypes-tests basic-ops ()
+  (test-equal "foo"
+    (stype-attribute '(primitive (name "foo")) 'name)))
+
+(define-test-case stypes-tests stypes-ref ()
+  (test-equal #f (stypes-ref '(types) "foo"))
+  (test-equal '(record (name "Foo") body)
+    (stypes-ref '(types (record (name "Foo") body)) "Foo"))
+  (test-equal '(union (name "Bar") bar-data)
     (stypes-ref '(types (primitive (name "qux") qux-data)
                         (record (name "Foo") foo-data)
                         (union (name "Bar") bar-data))
-                "Bar")
-    '(union (name "Bar") bar-data)))
+                "Bar")))
 
-(let* ((primlist '("char" "uchar" "int8" "uint8"
-                   "short" "ushort" "int16" "uint16"
-                   "int" "uint" "int32" "uint32" "long" "ulong"
-                   "llong" "ullong" "int64" "uint64"))
-       (sprims (map (lambda (name) (stypes-ref primitive-stypes name))
-                    primlist)))
-  (testeez "primitive types"
-    (test/equal "all types and their attributes present"
+(define-test-case stypes-tests primitives ()
+  (let* ((primlist '("char" "uchar" "int8" "uint8"
+                     "short" "ushort" "int16" "uint16"
+                     "int" "uint" "int32" "uint32" "long" "ulong"
+                     "llong" "ullong" "int64" "uint64"))
+         (sprims (map (lambda (name) (stypes-ref primitive-stypes name))
+                      primlist)))
+    (test-equal (make-list (length primlist) '(name #t size #t alignment #t))
       (map (lambda (x name)
              (and (pair? x)
                   (list 'name (equal? (stype-attribute x 'name) name)
                         'size (bool (stype-attribute x 'size))
                         'alignment (bool (stype-attribute x 'alignment)))))
            sprims
-           primlist)
-      (make-list (length primlist) '(name #t size #t alignment #t)))))
+           primlist))))
 
-(let* ((stypes (stypes-adjoin
-                primitive-stypes
-                '(record
-                  (name "Foo")
-                  (field (name "frobotz") (type "uint"))
-                  (field (name "val")
-                         (type (array (element-type (type "double"))
-                                      (element-count 3))))
-                  (field (name "data") (type (pointer (type "uint8"))))
-                  (field (name "tag") (type "uint8") (bits 5))
-                  (union
-                   (field (name "u1") (type "double"))
-                   (field (name "u2") (type "uint16")))
-                  (field (name "last") (type "boolean")))))
-       (data-offset (c-type-align 'uint
-                                  (+ (c-type-align 'double (c-type-sizeof 'uint))
-                                     (* 3 (c-type-sizeof 'double)))))
-       (tag-offset (c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
-       (u-offset (c-type-align 'double (+ tag-offset 1)))
-       (last-offset (c-type-align 'int (+ u-offset (c-type-sizeof 'double)))))
+(define-test-case stypes-tests size-calculation ()
+  (let* ((ref (lambda (name)
+                (stypes-ref test-stypes name)))
+         (data-offset (c-type-align 'uint
+                                    (+ (c-type-align 'double (c-type-sizeof 'uint))
+                                       (* 3 (c-type-sizeof 'double)))))
+         (tag-offset (c-type-align 'uint8 (+ data-offset (c-type-sizeof 'pointer))))
+         (u-offset (c-type-align 'double (+ tag-offset 1)))
+         (last-offset (c-type-align 'int (+ u-offset (c-type-sizeof 'double)))))
+    
+    (test-equal
+        `(record (name "Foo")
+                 (field (name "frobotz")
+                        (type ,(ref "uint"))
+                        (offset 0))
+                 (field (name "val")
+                        (type
+                         (array
+                          (element-type (type ,(ref "double")))
+                          (element-count 3)
+                          (size ,(* 3 (c-type-sizeof 'double)))
+                          (alignment ,(c-type-alignof 'double))))
+                        (offset ,(c-type-align 'double (c-type-sizeof 'uint))))
+                 (field (name "data")
+                        (type (pointer (type ,(ref "uint8"))
+                                       (size ,(c-type-sizeof 'pointer))
+                                       (alignment ,(c-type-alignof 'pointer))))
+                        (offset ,data-offset))
+                 (field (name "tag")
+                        (type ,(ref "uint8"))
+                        (bits 5)
+                        (offset ,(c-type-align
+                                  'uint8
+                                  (+ data-offset (c-type-sizeof 'pointer))))
+                        (bit-offset 0))
+                 (union (field (name "u1")
+                               (type ,(ref "double")) (offset 0))
+                        (field (name "u2")
+                               (type ,(ref "uint16")) (offset 0))
+                        (size ,(c-type-sizeof 'double))
+                        (alignment ,(c-type-alignof 'double))
+                        (offset ,u-offset))
+                 (field (name "last")
+                        (type ,(ref "boolean"))
+                        (offset ,last-offset))
+                 (size ,(c-type-align 'double (+ last-offset (c-type-sizeof 'int))))
+                 (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)
+                                  (c-type-alignof 'double))))
+      (ref "Foo")))
 
-  (testeez "adjoining"
-    (test/equal "resolution and annotations correctness"
-      (stypes-ref stypes "Foo")
-      `(record (name "Foo")
-               (field (name "frobotz")
-                      (type ,(stypes-ref stypes "uint"))
-                      (offset 0))
-               (field (name "val")
-                      (type
-                       (array
-                        (element-type (type ,(stypes-ref stypes "double")))
-                        (element-count 3)
-                        (size ,(* 3 (c-type-sizeof 'double)))
-                        (alignment ,(c-type-alignof 'double))))
-                      (offset ,(c-type-align 'double (c-type-sizeof 'uint))))
-               (field (name "data")
-                      (type (pointer (type ,(stypes-ref stypes "uint8"))
-                                     (size ,(c-type-sizeof 'pointer))
-                                     (alignment ,(c-type-alignof 'pointer))))
-                      (offset ,data-offset))
-               (field (name "tag")
-                      (type ,(stypes-ref stypes "uint8"))
-                      (bits 5)
-                      (offset ,(c-type-align
-                                'uint8
-                                (+ data-offset (c-type-sizeof 'pointer))))
-                      (bit-offset 0))
-               (union (field (name "u1")
-                             (type ,(stypes-ref stypes "double")) (offset 0))
-                      (field (name "u2")
-                             (type ,(stypes-ref stypes "uint16")) (offset 0))
-                      (size ,(c-type-sizeof 'double))
-                      (alignment ,(c-type-alignof 'double))
-                      (offset ,u-offset))
-               (field (name "last")
-                      (type ,(stypes-ref stypes "boolean"))
-                      (offset ,last-offset))
-               (size ,(c-type-align 'double (+ last-offset (c-type-sizeof 'int))))
-               (alignment ,(max (c-type-alignof 'uint) (c-type-alignof 'pointer)
-                                (c-type-alignof 'double)))))
-    (test-eval "u1" (procedure? (stype-fetcher (stypes-ref stypes "Foo") "u1")))
-    (test-eval "u2" (procedure? (stype-fetcher (stypes-ref stypes "Foo") "u2")))))
+  (test-compare >=  (+ (c-type-sizeof 'size_t)
+                       (* 2 (c-type-sizeof 'double)))
+    (stype-attribute (stypes-ref test-stypes "GValue") 'size)))
 
+
+(define-test-suite (stypes-tests.fetch/set stypes-tests)
+  "Value fetching")
 
-(let* ((stypes
-        (stypes-adjoin
-         primitive-stypes
-         '(alias (name "gtype") (target "size_t"))
-         '(record (name "GValue")
-                  (field (name "g_type") (type "gtype"))
-                  (field
-                   (name "data")
-                   (type (array
-                          (element-type
-                           (type
-                            (union (field (name "v_int") (type "int"))
-                                   (field (name "v_double") (type "double")))))
-                          (element-count 2)))))))
-       (gv-stype (stypes-ref stypes "GValue")))
-  (testeez "Size calculation"
-    (test-true "GValue size sane" (>= (stype-attribute gv-stype 'size)
-                                      (+ (c-type-sizeof 'size_t)
-                                         (* 2 (c-type-sizeof 'double)))))))
+(define-syntax define-accessors
+  (stype-accessor-definer test-stypes))
 
-(let ((stypes
-       (stypes-adjoin
-        primitive-stypes
-        '(union (name "SimpleTypeBlob")
-                (record
-                 (field (name "tag") (type "uint") (bits 5))
-                 (field (name "reserved3") (type "uint") (bits 2))
-                 (field (name "pointer") (type "uint") (bits 1)))
-                (field (name "offset") (type "uint32")))
-        '(record (name "RecordWithArrays")
-                 (field (name "type") (type "uint"))
-                 (field (name "data") (type (array (element-type (type "uint"))
-                                                   (element-count 16))))
-                 (field (name "ptr") (type (pointer (type "uchar")))))))
+(define-test-case stypes-tests.fetch/set basics ()
+  (let ((stblob-mem (let ((bv (make-bytevector 4)))
+                      (bytevector-u32-native-set! bv 0 #x1200cd85)
+                      (memcpy (malloc 4) bv 4))))
+    
+    (define-accessors "SimpleTypeBlob"
+      (tag-fetcher "tag")
+      (pointer-fetcher "pointer")
+      (offset-fetcher offset-setter "offset"))
+    
+    (test-equal 5 (tag-fetcher stblob-mem))
+    (test-equal 1 (pointer-fetcher stblob-mem))
+    (test-equal #x1200cd85 (offset-fetcher stblob-mem))
 
-      (stblob-mem (let ((bv (make-bytevector 4)))
-                    (bytevector-u32-native-set! bv 0 #x1200cd85)
-                    (memcpy (malloc 4) bv 4)))
+    (begin
+      (offset-setter stblob-mem 0)
+      (test-equal 0 (tag-fetcher stblob-mem)))))
 
-      (record-mem
-       (let* ((ptr-offset (c-type-align 'pointer (* 17 (c-type-sizeof 'uint))))
-              (byte-size (+ ptr-offset (c-type-sizeof 'pointer)))
-              (bv (make-bytevector byte-size)))
-         (do ((i 0 (+ i 1)))
-             ((>= i 17))
-           (bytevector-uint-set! bv
-                                 (* i (c-type-sizeof 'uint))
-                                 (bitwise-arithmetic-shift 1 i)
-                                 (native-endianness)
-                                 (c-type-sizeof 'uint)))
-         (bytevector-uint-set! bv ptr-offset 0 (native-endianness)
-                               (c-type-sizeof 'pointer))
-         (memcpy (malloc byte-size) bv byte-size))))
+(define-test-case stypes-tests.fetch/set array ()
+  (let ((record-mem
+         (let* ((ptr-offset (c-type-align 'pointer (* 17 (c-type-sizeof 'uint))))
+                (byte-size (+ ptr-offset (c-type-sizeof 'pointer)))
+                (bv (make-bytevector byte-size)))
+           (do ((i 0 (+ i 1)))
+               ((>= i 17))
+             (bytevector-uint-set! bv
+                                   (* i (c-type-sizeof 'uint))
+                                   (bitwise-arithmetic-shift 1 i)
+                                   (native-endianness)
+                                   (c-type-sizeof 'uint)))
+           (bytevector-uint-set! bv ptr-offset 0 (native-endianness)
+                                 (c-type-sizeof 'pointer))
+           (memcpy (malloc byte-size) bv byte-size))))
+    
+    (define-accessors "RecordWithArrays"
+      (data-fetcher "data")
+      (ptr-fetcher "ptr"))
 
-  (let* ((stblob (stypes-ref stypes "SimpleTypeBlob"))
-         (tag-fetcher (stype-fetcher stblob "tag"))
-         (pointer-fetcher (stype-fetcher stblob "pointer"))
-         (offset-fetcher (stype-fetcher stblob "offset"))
-         (offset-setter (stype-setter stblob "offset")))
-    (testeez "basic fetching"
-      (test/equal "tag" (tag-fetcher stblob-mem) 5)
-      (test/equal "pointer" (pointer-fetcher stblob-mem) 1)
-      (test/equal "offset" (offset-fetcher stblob-mem) #x1200cd85))
-    (testeez "setting/fetching"
-      (test-eval "setting offset" (offset-setter stblob-mem 0))
-      (test/equal "fetching tag" (tag-fetcher stblob-mem) 0)))
+    (test-compare pointer=? (pointer+ record-mem (c-type-sizeof 'uint))
+      (data-fetcher record-mem))
+    
+    ;; working when the 'array' is really a pointer?
+    (test-eqv #t (null-pointer? (ptr-fetcher record-mem)))))
 
-  (let* ((record (stypes-ref stypes "RecordWithArrays"))
-         (data-fetcher (stype-fetcher record "data"))
-         (ptr-fetcher (stype-fetcher record "ptr")))
-    (testeez "array member fetching"
-      (test/equiv "pointer correct"
-        (data-fetcher record-mem)
-        (pointer+ record-mem (c-type-sizeof 'uint))
-        (pointer=?))
-      (test-true "correctness when the 'array' is really a pointer"
-        (null-pointer? (ptr-fetcher record-mem))))))
+(run-test-suite stypes-tests)
+
+;; Local Variables:
+;; scheme-indent-styles: (trc-testing)
+;; End:

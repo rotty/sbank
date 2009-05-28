@@ -26,119 +26,117 @@
 (typelib-import ("Everything" #f)
                 (setup gobject-setup!))
 
-(testeez "basic types"
-  (test/equal "boolean"
-    (list (test-boolean #t) (test-boolean #f))
-    (list #t #f)))
+(define-test-suite everything-tests
+  "Everything test typelib")
 
-(testeez "arrays"
-  (test/equal "int in"
-    (test-array-int-in '#(41 42 43))
-    (+ 41 42 43))
-  (test/equal "int in (take)"
-    (test-array-int-in-take '#(44 45 46))
-    (+ 44 45 46))
-  (test/equal "strv in"
+(define-test-case everything-tests basic-types ()
+  (test-equal (list #t #f)
+    (list (test-boolean #t) (test-boolean #f))))
+
+(define-test-suite (everything-tests.arrays everything-tests)
+  "Arrays")
+
+(define-test-case everything-tests.arrays int ()
+  (test-equal
+    (+ 41 42 43)
+    (test-array-int-in '#(41 42 43)))
+  (test-equal
+    (+ 44 45 46)
+    (test-array-int-in-take '#(44 45 46))))
+
+(define-test-case everything-tests.arrays strv ()
+  (test-equal (list #t #f)
     (list (test-strv-in '#("1" "2" "3"))
-          (test-strv-in '#("0" "1" "2")))
-    (list #t #f))
-  (test/equal "strv out"
-    (test-strv-out)
-    '#("1" "2" "3"))
-  (test/equal "strv outarg"
-    (test-strv-outarg)
-    '#("1" "2" "3")))
+          (test-strv-in '#("0" "1" "2"))))
+  (test-equal '#("1" "2" "3")
+    (test-strv-out))
+  (test-equal '#("1" "2" "3")
+    (test-strv-outarg)))
 
-(testeez "structs"
-  (test-define "A" a (send <test-struct-a> (alloc)))
-  (test-define "obj" obj (send <test-obj> (new*)))
-  (test-eval "setting fields"
+(define-test-suite (everything-tests.structs everything-tests)
+  "Structs")
+
+(define-test-case everything-tests.structs get&set ()
+  (let ((a (send <test-struct-a> (alloc))))
     (send a
       (set-some-int 12345)
       (set-some-int8 42)
       (set-some-double 0.3141)
-      (set-some-enum 'value2)))
-  (test/equal "get int" (send a (get-some-int)) 12345)
-  (test/equal "get int8" (send a (get-some-int8)) 42)
-  (test/equal "get double" (send a (get-some-double)) 0.3141)
-  (test/equal "get enum" (send a (get-some-enum)) 'value2)
+      (set-some-enum 'value2))
+    
+    (test-equal 12345 (send a (get-some-int)))
+    (test-equal 42 (send a (get-some-int8)))
+    (test-equal 0.3141 (send a (get-some-double)))
+    (test-equal 'value2 (send a (get-some-enum)))
 
-  (test-define "A-cloned" a-cloned (send a (clone)))
-  (test-true "clone is an instance" (ginstance? a-cloned))
-  (test/equal "fields correct"
-    (list (send a-cloned (get-some-int))
-          (send a-cloned (get-some-int8))
-          (send a-cloned (get-some-double))
-          (send a-cloned (get-some-enum)))
-    (list 12345 42 0.3141 'value2))
+    (let ((a-cloned (send a (clone))))
+      (test-eqv #t (ginstance? a-cloned))
+      (test-equal (list 12345 42 0.3141 'value2)
+        (list (send a-cloned (get-some-int))
+              (send a-cloned (get-some-int8))
+              (send a-cloned (get-some-double))
+              (send a-cloned (get-some-enum)))))))
 
-  (test-define "C" c (send <test-struct-c> (alloc)))
-  (test-eval "setting fields"
+
+(define-test-case everything-tests.structs obj-member ()
+  (let ((obj (send <test-obj> (new*)))
+        (c (send <test-struct-c> (alloc))))
     (send c
       (set-another-int 666)
-      (set-obj obj)))
-  (test/equal "get int" (send c (get-another-int)) 666)
-  (test/equiv "get obj"
-    (send c (get-obj))
-    obj
-    (ginstance=?)))
+      (set-obj obj))
+    (test-equal 666 (send c (get-another-int)))
+    (test-compare ginstance=? obj
+      (send c (get-obj)))))
 
-(testeez "GList"
-  (test/equal "return (no transfer)"
-    (test-glist-nothing-return)
-    '("1" "2" "3")))
+(define-test-case everything-tests.structs glist ()
+  (test-equal '("1" "2" "3")
+    (test-glist-nothing-return)))
 
-(testeez "GSList"
-  (test-eval "container in"
-    (test-gslist-container-in '("1" "2" "3")))
-  (test-eval "everything in"
-    (test-gslist-everything-in '("1" "2" "3"))))
+(define-test-case everything-tests.structs gslist ()
+  (test-gslist-container-in '("1" "2" "3"))
+  (test-gslist-everything-in '("1" "2" "3")))
 
-(parameterize ((null-ok-always-on? #t))
-  (testeez "objects"
-    (test-define "obj" obj (send <test-obj> (new*)))
-    (test/equal "get" (send obj (get-bare)) #f)
-    (test-define "other" other (send <test-obj> (new*)))
-    (test-eval "set" (send obj (set-bare other)))
-    (test/equiv "check value"
-      (send obj (get-bare))
-      other
-      (ginstance=?))
-    (test-eval "set property" (send obj (set 'bare #f)))
-    (test/equal "check value via property"
-      (send obj (get 'bare))
-      #f)
-    (test-define "obj2" obj2 (send <test-obj> (new* 'bare other)))
-    (test/equiv "check value"
-      (send obj2 (get-bare))
-      other
-      (ginstance=?))))
+(define-test-case everything-tests objects ()
+  (parameterize ((null-ok-always-on? #t))
+    (let ((obj (send <test-obj> (new*)))
+          (other (send <test-obj> (new*))))
+      (test-equal #f (send obj (get-bare)))
+      (send obj (set-bare other))
+      (test-compare ginstance=? other
+        (send obj (get-bare)))
+      (send obj (set 'bare #f))
+      (test-equal #f
+        (send obj (get 'bare)))
+      (let ((obj2 (send <test-obj> (new* 'bare other))))
+        (test-compare ginstance=? other
+          (send obj2 (get-bare)))))))
 
-(testeez "callbacks"
-  (test/equal "simple"
+(define-test-case everything-tests callbacks ()
+  (test-equal '(43 666 1234)
     (map test-callback (map (lambda (n)
                               (lambda () n))
-                            '(43 666 1234)))
-    '(43 666 1234))
-  (test/equal "user-data"
+                            '(43 666 1234))))
+  (test-equal (iota 10)
     (map test-callback-user-data (map (lambda (n)
                                         (lambda () n))
-                                      (iota 10)))
-    (iota 10)))
+                                      (iota 10)))))
 
-(let ((signal-args #f))
-  (testeez "signals"
-    (test-define "obj" obj (send <test-obj> (new*)))
-    (test-eval "connect" (send obj (connect 'test (lambda args
-                                                    (set! signal-args args)))))
-    (test-eval "emit" (send obj (emit 'test)))
-    (test/equiv "check" signal-args (list obj)
-                ((lambda (l1 l2)
+(define-test-case everything-tests signals ()
+  (let ((signal-args #f)
+        (obj (send <test-obj> (new*))))
+    (send obj (connect 'test (lambda args
+                               (set! signal-args args))))
+    (send obj (emit 'test))
+    (test-compare (lambda (l1 l2)
                    (and (= (length l1) (length l2))
                         (every (lambda (x y)
                                  (ginstance=? x y))
-                               l1 l2)))))))
+                               l1 l2)))
+        (list obj)
+      signal-args)))
+
+(run-test-suite everything-tests)
 
 ;; Local Variables:
-;; scheme-indent-styles: (testeez)
+;; scheme-indent-styles: (trc-testing)
 ;; End:

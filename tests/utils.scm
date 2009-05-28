@@ -22,31 +22,35 @@
 
 ;;; Code:
 
+(define-test-suite utils-tests
+  "Utilities")
 
-(testeez "scheme-ified-symbol"
-  (test/equal "plain" (scheme-ified-symbol "foobar") 'foobar)
-  (test/equal "uscores" (scheme-ified-symbol "foo_bar_1") 'foo-bar-1)
-  (test/equal "all uppercase"
-    (scheme-ified-symbol "THIS_IS_A_CONSTANT")
-    '*this-is-a-constant*)
-  (test/equal "camelcase - one word" (scheme-ified-symbol "Window") '<window>)
-  (test/equal "camelcase - 3 words"
-    (scheme-ified-symbol "FooDialogBar")
-    '<foo-dialog-bar>)
-  (test/equal "camelcase - singe chars"
-    (scheme-ified-symbol "VBox")
-    '<v-box>))
+(define-test-case utils-tests scheme-ified-symbol ()
+  (test-equal 'foobar (scheme-ified-symbol "foobar"))
+  (test-equal 'foo-bar-1 (scheme-ified-symbol "foo_bar_1"))
+  (test-equal '*this-is-a-constant*
+    (scheme-ified-symbol "THIS_IS_A_CONSTANT"))
+  (test-equal '<window> (scheme-ified-symbol "Window"))
+  (test-equal '<foo-dialog-bar>
+    (scheme-ified-symbol "FooDialogBar"))
+  (test-equal '<v-box>
+    (scheme-ified-symbol "VBox")))
 
-(testeez "c-ified-string"
-  (test/equal "plain" (c-ified-string 'foobar) "foobar")
-  (test/equal "dashes" (c-ified-string 'foo-bar-1) "foo_bar_1")
-  (test/equal "stars" (c-ified-string '*this-is-a-constant*) "THIS_IS_A_CONSTANT")
-  (test/equal "angle brackets - one word" (c-ified-string '<window>) "Window")
-  (test/equal "angle brackets - 3 words"
-    (c-ified-string '<foo-dialog-bar>)
-    "FooDialogBar"))
+(define-test-case utils-tests c-ified-string ()
+  (test-equal "foobar" (c-ified-string 'foobar))
+  (test-equal "foo_bar_1" (c-ified-string 'foo-bar-1))
+  (test-equal "THIS_IS_A_CONSTANT" (c-ified-string '*this-is-a-constant*))
+  (test-equal "Window" (c-ified-string '<window>))
+  (test-equal "FooDialogBar"
+    (c-ified-string '<foo-dialog-bar>)))
 
-(testeez "name-symbol/prefix"
-  (test/equal "plain" (name-symbol/prefix 'main 'gtk-) 'gtk-main)
-  (test/equal "stars" (name-symbol/prefix '*a-constant* 'gtk-) '*gtk-a-constant*)
-  (test/equal "angle brackets" (name-symbol/prefix '<window> 'gtk-) '<gtk-window>))
+(define-test-case utils-tests name-symbol/prefix ()
+  (test-equal 'gtk-main (name-symbol/prefix 'main 'gtk-))
+  (test-equal '*gtk-a-constant* (name-symbol/prefix '*a-constant* 'gtk-))
+  (test-equal '<gtk-window> (name-symbol/prefix '<window> 'gtk-)))
+
+(run-test-suite utils-tests)
+
+;; Local Variables:
+;; scheme-indent-styles: (trc-testing)
+;; End:

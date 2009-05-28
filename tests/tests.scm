@@ -25,15 +25,15 @@
 
 ((systems sbank)
  (files
-  ("utils.scm" (testeez) (sbank support utils))
+  ("utils.scm" (sbank support utils))
 
   ("ptr-table.scm"
    (sbank support ptr-table)
    (spells foreign))
 
   ("stypes.scm"
-   (testeez)
    (sbank support stypes)
+   (for (sbank support test-stypes) expand)
    (spells foreign)
    (only (srfi :1 lists) make-list iota)
    (rnrs control)
@@ -42,7 +42,6 @@
    (rnrs lists))
 
   ("gobject.scm"
-   (testeez)
    (sbank gobject gtype)
    (sbank gobject genum)
    (sbank gobject gvalue)
@@ -50,7 +49,6 @@
    (spells foreign))
 
   ("everything.scm"
-   (testeez)
    (sbank typelib)
    (only (sbank ctypes basic) null-ok-always-on?)
    (srfi :39 parameters)
@@ -61,5 +59,4 @@
    (sbank glib))
 
   ("gtk.scm"
-   (testeez)
    (sbank gtk))))

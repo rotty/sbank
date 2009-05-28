@@ -19,22 +19,31 @@
 ;; Boston, MA  02111-1307,  USA       gnu@gnu.org
 
 
-(testeez "ListStore"
-  (test-define "creating" store (send <gtk-list-store> (newv (list 'boxed 'utf8))))
-  (test-eval "populating"
-             (for-each
-              (lambda (item)
-                (send store
-                  (set-values (send store (append))
-                              0 (cadr item)
-                              1 (car item))))
-              `(("Multiplication" ,*)
-                ("Addition" ,+))))
-  (test-define "creating view" tview (send <gtk-tree-view> (new)))
-  (test-eval "setting model" (send tview (set-model store)))
-  (test-define "getting iter (using upcast)" iter
-    (send (send tview (get-model)) (append)))
-  (test-eval "setting values (using upcast)"
-    (send (send tview (get-model)) (set-values iter 0 / 1 "Division")))
-  (test/eq "getting values (no upcast)"
-    (send store (get-value iter 0)) /))
+(define-test-suite gtk-tests
+  "GTK+")
+
+(define-test-case gtk-tests list-store ()
+  (let ((store (send <gtk-list-store> (newv (list 'boxed 'utf8))))
+        (tview (send <gtk-tree-view> (new))))
+    (for-each
+     (lambda (item)
+       (send store
+         (set-values (send store (append))
+                     0 (cadr item)
+                     1 (car item))))
+     `(("Multiplication" ,*)
+       ("Addition" ,+)))
+    (send tview (set-model store))
+    (let ((iter
+           (send (send tview (get-model))
+             (append))))
+      (send (send tview (get-model))
+        (set-values iter 0 / 1 "Division"))
+      (test-eq /
+        (send store (get-value iter 0))))))
+
+(run-test-suite gtk-tests)
+
+;; Local Variables:
+;; scheme-indent-styles: (trc-testing)
+;; End:
