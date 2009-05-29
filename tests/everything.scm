@@ -69,6 +69,9 @@
     (test-equal 0.3141 (send a (get-some-double)))
     (test-equal 'value2 (send a (get-some-enum)))
 
+    ;; Disabled until http://bugzilla.gnome.org/show_bug.cgi?id=573314
+    ;; is resolved
+    #;
     (let ((a-cloned (send a (clone))))
       (test-eqv #t (ginstance? a-cloned))
       (test-equal (list 12345 42 0.3141 'value2)
