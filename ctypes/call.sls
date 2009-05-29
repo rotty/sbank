@@ -55,6 +55,7 @@
           (sbank gobject gtype)
           (sbank gobject gvalue)
           (sbank gobject glist)
+          (sbank gobject ghash)
           (sbank support conditions))
 
   (define-syntax debug
@@ -198,6 +199,7 @@
     (case type
       ((glist)  g-list-copy)
       ((gslist) g-slist-copy)
+      ((ghash)  g-hash-table-ref)
       (else
        (raise-sbank-callout-error
         "requested copy procedure for non-container"

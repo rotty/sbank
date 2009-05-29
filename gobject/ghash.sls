@@ -24,7 +24,8 @@
 #!r6rs
 
 (library (sbank gobject ghash)
-  (export g-hash-table-foreach)
+  (export g-hash-table-ref
+          g-hash-table-foreach)
   (import (rnrs base)
           (srfi :8 receive)
           (spells foreign)
@@ -44,6 +45,7 @@
       (reclaim)))
 
   (define-c-callouts libglib
-    (g-hash-table-foreach% 'void "g_hash_table_foreach" '(pointer pointer pointer)))
+    (g-hash-table-foreach% 'void "g_hash_table_foreach" '(pointer pointer pointer))
+    (g-hash-table-ref 'void "g_hash_table_ref" '(pointer)))
 
   )
