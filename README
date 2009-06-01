@@ -37,22 +37,18 @@ even production use. If, however, you are willing to deal with:
 - Not-yet-stable APIs: while in general, the APIs introduced by
   sbank's =typelib-import= macro will not change much, and neither
   will the API of =typelib-import= itself. There are however, a few
-  known glitches in the current API, for example in the way callbacks
-  are handled, that will result in backward-incompatible changes in
-  the near future. The impact on user code will be not enormous,
-  however: the callback issue mentioned before will require the code
-  using sbank to remove all =user-data= parameters for callbacks
-  (which received always a NULL pointer), for example (though note
-  that GObject signal handlers are *not* affected).
+  known glitches in the current API, for example you may have to
+  change the =null-ok-always-on?= parameter when dealing with struct
+  fields of pointer type which may be NULL, as gobject-introspection
+  doesn't yet convey that information.
 
 - Bugs. These may manifest in crashes, not properly covered API,
-  memory leaks (there are surely a *lot* of those at the time of this
-  writing) or otherwise. sbank is only lightly tested, so you should
-  be prepared to run into bugs, and either fix them yourself, or
-  report them to me. I'm still investigating options wrt. to a
-  bug/issue tracking system. In the meantime, send me an email, or
-  even better, drop by on IRC, either gnome/#introspection, or
-  freenode/#scheme -- I'm hanging out there as ~rotty~.
+  memory leaks or otherwise. sbank is only lightly tested, so you
+  should be prepared to run into bugs, and either fix them yourself,
+  or report them to http://github.com/rotty/sbank/issues. You can also
+  send me an email, or even better, drop by on IRC, either
+  gnome/#introspection, or freenode/#scheme -- I'm hanging out there
+  as ~rotty~.
 
 The following is a list of working code using sbank to access various
 libraries; this should give you an impression of what's already
@@ -86,7 +82,14 @@ implementation I use the most and hence the best-supported one.
 You'll need Ikarus Scheme; the latest release (0.0.3) does not work,
 you need to get it via bzr:
 
-: bzr checkout --lightweight http://www.cs.indiana.edu/~aghuloum/ikarus.dev ikarus
+: bzr checkout --lightweight http://ikarus-scheme.org/ikarus.dev ikarus
+
+Unfortunatly, there a still a few tweaks to Ikarus that are needed by
+sbank and its dependencies which have not yet made it into Ikarus'
+mainline, so you need to patch the source:
+
+: cd ikarus
+: wget -O - http://rottyforge.yi.org/src/ikarus-tweaks.patch | patch -p1
 
 You should build Ikarus using the flags used in the following; see
 [[http://bugzilla.gnome.org/show_bug.cgi?id=563464#c3][this bug on gobject-introspection]] why using ~-lpthread~ is a good
@@ -94,7 +97,6 @@ idea. Ikarus must also be configured with ~--enable-libffi~, or
 otherwise its FFI will not work, which is naturally a requirement for
 sbank.
 
-: cd ikarus
 : ./configure --enable-libffi LDFLAGS="-lpthread"
 : make
 : make install
@@ -123,14 +125,9 @@ data it provides, so you can use e.g. GTK+. Procedure as above:
 go by using the SPE helper package:
 
 : IMPL=ikarus
-: darcs get --lazy --set-scripts-executable http://download.gna.org/spells/darcs/r6rs/spe/
+: git clone git://github.com/rotty/spe.git
 : cd spe
 : ./scripts/fetch-systems $IMPL sbank
-
-You then have to make the the data needed by sbank accessible via the
-implementations' library path (yes, I'll automate this):
-
-: ln -fs ../../../systems/sbank/data targets/$IMPL/sbank
 
 * Testing
 
@@ -139,3 +136,10 @@ the sbank testsuite, to make sure that everything worked out as
 expected:
 
 : ./scripts/launch $IMPL test sbank
+
+Note that if you haven't installed ~gir-repository~, you'll get
+testcase failures for ~gtk.scm~.
+
+* Further information
+
+If you want to hack ~sbank~, read the [[http://github.com/rotty/spe/tree/master][SPE README]].
