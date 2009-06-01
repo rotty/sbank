@@ -42,6 +42,7 @@
                        "array_.*"
                        "ascii_.*"
                        "async_queue_.*"
+                       "assertion_.*"
                        "atomic_.*"
 
                        "base64_.*_step"
