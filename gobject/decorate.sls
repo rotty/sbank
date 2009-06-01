@@ -25,6 +25,7 @@
 
 (library (sbank gobject decorate)
   (export gobject-class-decorate
+          gobject-simple-class-decorate
           gobject-method-overrider)
   (import (rnrs base)
           (srfi :8 receive)
