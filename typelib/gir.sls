@@ -57,11 +57,42 @@
                             (c . "http://www.gtk.org/introspection/c/1.0")))
      `((*TOP* *MACRO*
               . ,(lambda top
-                   ((sxpath '(// core:namespace (*OR* core:record core:union)))
+                   ((sxpath '(// core:namespace (*OR* core:record
+                                                      core:union
+                                                      core:callback
+                                                      core:alias
+                                                      core:bitfield)))
                     top)))
-       (core:record . ,(compound-maker 'record))
-       (core:union . ,(compound-maker 'union))
-       (core:field
+       (core:record ,field-rules . ,(compound-maker 'record))
+       (core:union ,field-rules . ,(compound-maker 'union))
+       (core:callback *PREORDER* . ,(lambda sxml
+                                      `(alias ,(sxpath-ref sxml '(^ name))
+                                              (target "pointer"))))
+       (core:bitfield *PREORDER* . ,(lambda sxml
+                                      `(alias ,(sxpath-ref sxml '(^ name))
+                                              (target "uint"))))
+       (core:alias *PREORDER* . ,(lambda sxml
+                                   `(alias ,(sxpath-ref sxml '(^ name ))
+                                           ,(sxpath-ref sxml '(^ target)))))
+       (^ *PREORDER* . ,list))))
+
+  (define (ignore . args)
+    #f)
+  
+  (define type-rules
+    `((core:array
+        . ,(lambda array
+             (let ((element-count (cond ((sxpath-attr array '(^ fixed-size))
+                                         => (lambda (size)
+                                              (string->number size)))
+                                        (else 0))))
+               `(type (array (element-type ,(sxpath-ref array '(type)))
+                             (element-count ,element-count))))))
+      (core:type . ,(lambda sxml (type-pointifier sxml)))))
+  
+  (define field-rules
+    `((core:field
+       ,type-rules
         . ,(lambda field
              (cons* 'field
                     (sxpath-ref field '(^ name))
@@ -70,27 +101,34 @@
                      (and-let* ((bits (sxpath-attr field '(^ bits))))
                        (list (list 'bits (string->number bits))))
                      '()))))
-       (core:array
-        . ,(lambda array
-             (let ((element-count (cond ((sxpath-attr array '(^ fixed-size))
-                                         => (lambda (size)
-                                              (string->number size)))
-                                        (else 0))))
-               `(type (array (element-type ,(sxpath-ref array '(type)))
-                             (element-count ,element-count))))))
-       (core:type *PREORDER* . ,type-pointifier)
-       (^ *PREORDER* . ,list))))
+      (core:constructor *PREORDER* . ,ignore)
+      (core:callback *PREORDER*
+                     . ,(lambda sxml
+                          `(field ,(sxpath-ref sxml '(^ name)) (type "pointer"))))))
 
-
-  (define (type-pointifier . type)
-    (let* ((name (sxpath-attr type '(^ name)))
-           (ctype (sxpath-attr type '(^ c:type)))
-           (pointer-depth (cond ((not ctype) 0)
-                                ((string-skip-right ctype #\*)
-                                 => (lambda (i)
-                                      (- (string-length ctype) (+ i 1))))
-                                (else 0))))
-      (if (> pointer-depth 0)
-          `(type (pointer (base-type (type ,name))
-                          (depth ,pointer-depth)))
-          `(type ,name)))))
+  (define (type-pointifier type)
+    (define (construct-type base-type depth)
+      (case depth
+        ((0)
+         `(type ,base-type))
+        ((1)
+         `(type (pointer (base-type (type ,base-type)))))
+        (else
+         `(type (pointer (base-type (type ,base-type))
+                         (depth ,depth))))))
+    
+    (let ((name (sxpath-attr type '(^ name)))
+          (ctype (sxpath-attr type '(^ c:type))))
+      (cond ((string=? name "any")
+             (construct-type "void" 1))
+            ((string=? name "utf8")
+             (construct-type "char" 1))
+            ((string=? name "GType")
+             (construct-type "gtype" 0))
+            ((not ctype)
+             `(type ,name))
+            ((string-skip-right ctype #\*)
+             => (lambda (i)
+                  (construct-type name (- (string-length ctype) (+ i 1)))))
+            (else
+             `(type ,name))))))

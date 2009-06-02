@@ -89,7 +89,8 @@
             (int64 8)   (uint64 8)
             (llong #f)  (ullong #f)
             (float #f)  (double #f)
-
+            
+            (pointer #f)
             (size_t #f)
 
             (boolean int)))))
@@ -424,7 +425,9 @@
                          (cdr components))))))))
 
   (define (align n alignment)
-    (+ n (mod (- alignment (mod n alignment)) alignment)))
+    (if (= n 0)
+        0
+        (+ n (mod (- alignment (mod n alignment)) alignment))))
 
   (define (bitfields-fit-inside? bwlist size)
     (>= (* size 8)

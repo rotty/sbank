@@ -45,6 +45,10 @@
                (library-search-paths)))
       (call-with-input-file (x->namestring filename) read)))
 
+  ;; TODO: Hardcoding this stuff here is suboptimal, it should be
+  ;; slurped from the C headers as well, but g-ir-scanner doesn't
+  ;; handle with GValue.data properly yet.
+  
   (define gvalue-data-union
     '(union (field (name "v_int")     (type "int"))
             (field (name "v_uint")    (type "uint"))
@@ -58,35 +62,13 @@
 
   (define extra-types
     `((alias (name "gtype") (target ,(symbol->string gtype-ctype)))
-      (record (name "GError")
-              (field (name "domain") (type "uint32"))
-              (field (name "code") (type "int"))
-              (field (name "message")
-                     (type (pointer (type "char")))))
-      (record (name "GList")
-              (field (name "data") (type (pointer (base-type (type "void")))))
-              (field (name "next") (type (pointer (base-type (type "GList")))))
-              (field (name "prev") (type (pointer (base-type (type "void"))))))
-      (record (name "GSList")
-              (field (name "data")
-                     (type (pointer (base-type (type "void")))))
-              (field (name "next")
-                     (type (pointer (base-type (type "GSList"))))))
       (record (name "GValue")
               (field (name "g_type") (type "gtype"))
               (field
                (name "data")
                (type (array
                       (element-type (type ,gvalue-data-union))
-                      (element-count 2)))))
-      (record (name "GParameter")
-              (field (name "name") (type (pointer (base-type (type "void")))))
-              (field (name "value") (type "GValue")))
-      (record (name "GTypeInstance")
-              (field (name "g_class") (type (pointer (type "void")))))
-      (record (name "GTypeClass")
-              (field (name "g_type") (type "gtype")))))
-  
+                      (element-count 2)))))))
 
   (define typelib-stypes
     (let ((stypes #f))

@@ -18,8 +18,26 @@
 # License along with this library. If not, see
 # <http://www.gnu.org/licenses/>.
 
+GLIB_INCLUDEDIR=`pkg-config --variable=includedir glib-2.0`/glib-2.0
+GLIB_LIBDIR=`pkg-config --variable=libdir glib-2.0`
 GI_HOME="$HOME/src/g-i"
 
-g-ir-scanner -n gtypelib --library gobject-2.0 --pkg gobject-introspection-1.0 \
-    -o data/typelib.gir "$GI_HOME/girepository/gtypelib.h"
+scan_files=""
+for h in \
+    glib/gerror.h glib/glist.h glib/gslist.h glib/gquark.h \
+    gobject/gvalue.h gobject/gparam.h gobject/gtype.h; do
+    scan_files="$scan_files $GLIB_INCLUDEDIR/$h"
+done
+scan_files="$scan_files $GI_HOME/girepository/gtypelib.h"
+
+g-ir-scanner -n gtypelib \
+    --output data/typelib.gir \
+    --library gobject-2.0 \
+    --pkg gobject-introspection-1.0 \
+    -I"$GLIB_INCLUDEDIR" \
+    -I"$GLIB_LIBDIR"/glib-2.0/include \
+    -DGOBJECT_COMPILATION \
+    --c-include="glib.h" \
+    --c-include="glib-object.h" \
+    $scan_files
 ikarus --r6rs-script scripts/dump-typelib.sps < data/typelib.gir > data/typelib.scm
