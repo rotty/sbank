@@ -27,12 +27,17 @@
   (export typelib-fetcher)
   (import (rnrs base)
           (rnrs sorting)
+          (rnrs exceptions)
           (except (srfi :1 lists) for-each map)
           (spells match)
           (spells misc)
+          (spells logging)
           (xitomatl irregex)
           (fmt)
-          (sbank typelib expanders))
+          (conjure utils)
+          (only (sbank gobject internals) gerror?)
+          (sbank typelib expanders)
+          (sbank typelib base))
 
 (define (typelib-fetcher)
   (lambda (project)
@@ -40,6 +45,11 @@
       (match datum
         (('typelib-exports spec . opts)
          (append-map fetch-exports missing))
+        (('typelib-availability-filter . names)
+         (let ((result (filter typelib-available? names)))
+           (log/sbank 'info (cat "available typelibs: "
+                                 (fmt-join dsp names " ")))
+           (list (cons datum (fmt #f (wrt result))))))
         (_
          #f)))))
 
@@ -64,23 +74,27 @@
                         exclude-irxs))))))
 
 (define (fetch-exports item)
-  (match item
-    (('typelib-exports (? list? spec) . opts)
-     (let* ((pred (includes+excludes->pred (opts-ref* opts 'include #f)
-                                           (opts-ref* opts 'exclude '())))
-            (name (opts-ref opts 'name #f))
-            (names-string
-             (fmt #f (fmt-join dsp
-                               (sort-list (typelib-exported-names spec pred)
-                                          (lambda (n1 n2)
-                                            (string<? (symbol->string n1)
-                                                      (symbol->string n2))))
-                               " "))))
-       (cons* (cons item names-string)
-              (if name
-                  (list (cons `(typelib-exports ,name) names-string))
-                  '()))))
-    (_
-     '())))
+  (guard (c ((gerror? c)
+             '()))
+    (match item
+           (('typelib-exports (? list? spec) . opts)
+            (let* ((pred (includes+excludes->pred (opts-ref* opts 'include #f)
+                                                  (opts-ref* opts 'exclude '())))
+                   (name (opts-ref opts 'name #f))
+                   (names-string
+                    (fmt #f (fmt-join dsp
+                                      (sort-list (typelib-exported-names spec pred)
+                                                 (lambda (n1 n2)
+                                                   (string<? (symbol->string n1)
+                                                             (symbol->string n2))))
+                                      " "))))
+              (cons* (cons item names-string)
+                     (if name
+                         (list (cons `(typelib-exports ,name) names-string))
+                         '()))))
+           (_
+            '()))))
+
+(define log/sbank (make-fmt-log '(conjure sbank)))
 
 )
