@@ -28,6 +28,7 @@
 
 (library (sbank typelib base)
   (export require-typelib
+          typelib-available?
           typelib-magic
           typelib-minor-version
           typelib-major-version
@@ -226,6 +227,16 @@
                 (else
                  (make/validate-typelib result namespace)))))))
 
+  (define typelib-available?
+    (case-lambda
+      ((namespace version flags)
+       (guard (c ((gerror? c) #f))
+         (require-typelib namespace version flags)
+         #t))
+      ((namespace version)
+       (typelib-available? namespace version 0))
+      ((namespace)
+       (typelib-available? namespace #f 0))))
 
   (define (typelib-magic typelib)
     (memcpy (make-bytevector 16)
