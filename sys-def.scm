@@ -10,11 +10,20 @@
            (spells pathname)
            (conjure dsl))
 
+   (define (typelib-fender namespace)
+     (lambda ()
+       (let ((available? (procedure-from-environment/lazy typelib-available?
+                                                          (sbank typelib base))))
+         (available? namespace))))
+
    (task (configure
           (depends 'data-symlink)
-          (produce '((("sbank") "glib.sls") <= "glib.sls.in")
-                   '((("sbank") "gtk.sls") <= "gtk.sls.in")
-                   '((("sbank") "soup.sls") <= "soup.sls.in"))
+          (produce '((("sbank") "config.sls") <= "config.sls.in")
+                   '((("sbank") "glib.sls") <= "glib.sls.in")
+                   `((("sbank") "gtk.sls") <= "gtk.sls.in"
+                     (? ,(typelib-fender "Gtk")))
+                   `((("sbank") "soup.sls") <= "soup.sls.in"
+                     (? ,(typelib-fender "Soup"))))
           (fetchers (procedure-from-environment/lazy
                      (typelib-fetcher)
                      (sbank support conjure)))))
