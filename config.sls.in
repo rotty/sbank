@@ -1,0 +1,46 @@
+;;; config.sls.in --- sbank configuration template
+
+;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+
+;; Author: Andreas Rottmann <a.rottmann@gmx.at>
+
+;; This library is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU Lesser General Public
+;; License as published by the Free Software Foundation; either
+;; version 3 of the License, or (at your option) any later version.
+
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public
+;; License along with this library. If not, see
+;; <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; This library is intended to provide run-time information about the
+;; sbank build configuration. Currently, it just provides a list of
+;; libraries that were built.
+
+;;; Code:
+#!r6rs
+
+(library (sbank config)
+  (export sbank-available-libraries)
+  (import (rnrs base)
+          (spells alist))
+
+  (define (sbank-available-libraries)
+    (let ((typelib-library-map '(("Soup" . soup)
+                                 ("Gtk" . gtk))))
+      `(glib ,@(map (lambda (name)
+                      (assoc-ref typelib-library-map name))
+                    '(#!@(typelib-availability-filter "Soup" "Gtk"))))))
+  
+  )
+
+;; Local Variables:
+;; mode: scheme
+;; End:
