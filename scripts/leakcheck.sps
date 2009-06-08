@@ -68,6 +68,17 @@
   (repeat N (test-boolean #t))
   (repeat N (test-boolean #f)))
 
+
+;; Disabled until http://bugzilla.gnome.org/show_bug.cgi?id=573314
+;; is resolved
+#;
+(define-check struct-clone
+  (repeat N
+    (let* ((a (send <test-struct-a> (alloc)))
+           (clone (send a (clone))))
+      (send clone (free))
+      (send a (free)))))
+
 (define-check array-transfer
   (let ((v (random-integers 5 10)))
     (repeat N (test-array-int-in-take v))))
@@ -97,6 +108,12 @@
 (define-check obj-alloc-nested
   (repeat N (send <test-obj>
               (new* 'bare (send <test-obj> (new*))))))
+
+(define-check prop-get/boxed
+  (let* ((b (send <test-boxed> (new)))
+         (o (send <test-obj> (new* 'boxed b))))
+    (repeat N
+      (send o (get 'boxed)))))
 
 (define-check callback
   (let ((cb (lambda () 42)))
@@ -140,9 +157,13 @@
                 (cond ((assq-ref *checks* test) => (lambda (proc) (proc)))
                       (else (println "No code found for {0}, skipping" test)))
                 (collect)
-                (collect-gobjects))
+                (gobject-collect))
               tests)
     (println "done, press Ctrl+D to quit")
     (read)))
 
 (main (command-line))
+
+;; Local Variables:
+;; scheme-indent-styles: (sbank (repeat 1))
+;; End:

@@ -35,7 +35,7 @@
           gerror?
           send send-message
           gobject-setup!
-          collect-gobjects)
+          gobject-collect)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)

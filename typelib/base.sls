@@ -111,6 +111,7 @@
   (define-fetcher dir-entry-fetcher "DirEntry")
   (define-fetcher signature-blob-fetcher "SignatureBlob")
   (define-fetcher interface-type-blob-fetcher "InterfaceTypeBlob")
+  (define-fetcher registered-type-blob-fetcher "RegisteredTypeBlob")
   (define-fetcher simple-type-blob-fetcher "SimpleTypeBlob")
   (define-fetcher error-type-blob-fetcher "ErrorTypeBlob")
   (define-fetcher object-blob-fetcher "ObjectBlob")
@@ -1108,9 +1109,9 @@
                           (else     #f)))
                        (else
                         (get/validate-gtype typelib tld init-name))))))
-            ((5) ;; enum
-             (let-attributes enum-blob-fetcher (pointer+ tld offset)
-                             (gtype-init)
+            ((3 5 11) ;; struct, enum, union
+             (let-attributes registered-type-blob-fetcher (pointer+ tld offset)
+                             (unregistered gtype-init)
                (get/validate-gtype typelib tld gtype-init)))
             (else
              #f)))))

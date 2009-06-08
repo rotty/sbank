@@ -48,7 +48,7 @@
           ginstance-is-a?
 
           g-object-attach-destructor
-          collect-gobjects
+          gobject-collect
 
           gsequence?
           make-gsequence-class
@@ -110,11 +110,28 @@
             (immutable ptr ginstance-ptr)))
 
   (define gobject-guardian (make-guardian))
+  (define boxed-guardian (make-guardian))
 
-  (define (collect-gobjects)
-    (do ((g-o (gobject-guardian) (gobject-guardian)))
-        ((eqv? g-o #f))
-      (g-object-unref (ginstance-ptr g-o))))
+  (define (make-collector guardian collect)
+    (lambda ()
+      (do ((o (guardian) (guardian)))
+          ((eqv? o #f))
+        (collect o))))
+
+  (define (gobject-collect)
+    (collect-gobjects)
+    (collect-boxed))
+  
+  (define collect-gobjects
+    (make-collector gobject-guardian
+                    (lambda (gi) (g-object-unref (ginstance-ptr gi)))))
+  
+  (define collect-boxed
+    (make-collector boxed-guardian
+                    (lambda (gi)
+                      (g-boxed-free (gobject-class-gtype
+                                     (ginstance-class gi))
+                                    (ginstance-ptr gi)))))
 
   (define (make-ginstance/guarded class ptr ref-type)
     (cond ((gobject-class-gtype class)
@@ -131,6 +148,11 @@
                         (error 'make-ginstance/guarded
                                "invalid ref type" ref-type)))
                      (gobject-guardian o)
+                     o))
+                  ((boxed)
+                   (collect-boxed)
+                   (let ((o (make-ginstance class ptr)))
+                     (boxed-guardian o)
                      o))
                   (else
                    (make-ginstance class ptr)))))

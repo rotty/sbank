@@ -105,23 +105,26 @@
                (or (and-let* ((enum-lookup (find-enum-lookup gtype)))
                      (enum-lookup val))
                    (lose "enum lookup failed" val gtype)))))
-      (case (gtype->symbol (g-value-gtype% gvalue))
-        ((int) (set-int% gvalue val))
-        ((uint) (set-uint% gvalue val))
-        ((boolean) (set-bool% gvalue (if val 1 0)))
-        ((object) (set-object% gvalue (to-ptr val)))
-        ((string)
-         (let ((utf8z (string->utf8z-ptr val)))
-           (set-string% gvalue utf8z)
-           (free utf8z)))
-        ((enum)
-         (set-enum% gvalue (enum->integer val)))
-        ((pointer) (set-pointer% gvalue (to-ptr val)))
-        ((boxed)
-         (set-pointer% gvalue (ptr-table-add! registered-values val)))
-        (else
-         (lose "type not implemented"
-               (gtype->symbol (g-value-gtype% gvalue)))))))
+      (if (= gtype (g-boxed-value-type))
+          (set-pointer% gvalue (ptr-table-add! registered-values val))
+          (case (gtype->symbol (g-value-gtype% gvalue))
+            ((int) (set-int% gvalue val))
+            ((uint) (set-uint% gvalue val))
+            ((boolean) (set-bool% gvalue (if val 1 0)))
+            ((object) (set-object% gvalue (to-ptr val)))
+            ((string)
+             (if val
+                 (let ((utf8z (string->utf8z-ptr val)))
+                   (set-string% gvalue utf8z)
+                   (free utf8z))
+                 (set-string% gvalue (null-pointer))))
+            ((enum)
+             (set-enum% gvalue (enum->integer val)))
+            ((pointer) (set-pointer% gvalue (to-ptr val)))
+            ((boxed) (set-boxed% gvalue (to-ptr val)))
+            (else
+             (lose "type not implemented"
+                   (gtype->symbol (g-value-gtype% gvalue))))))))
 
   (define (find-enum-lookup gtype)
     (and-let* ((type (gtype-lookup gtype)))
@@ -164,6 +167,8 @@
                                   (or (lookup val) val)))
                             (else
                              val))))
+                   ((boxed)
+                    (from-ptr (dup-boxed% gvalue)))
                    (else
                     (lose "not implemented for this type of value"
                           (gtype->symbol gtype))))))))))
@@ -219,8 +224,10 @@
     (set-int% 'void "g_value_set_int" '(pointer int))
     (set-string% 'void "g_value_set_string" '(pointer pointer))
     (set-pointer% 'void "g_value_set_pointer" '(pointer pointer))
+    (set-boxed% 'void "g_value_set_boxed" '(pointer pointer))
     (get-object% 'pointer "g_value_get_object" '(pointer))
     (get-pointer% 'pointer "g_value_get_pointer" '(pointer))
+    (dup-boxed% 'pointer "g_value_dup_boxed" '(pointer))
     (get-bool% 'int "g_value_get_boolean" '(pointer))
     (get-string% 'pointer "g_value_get_string" '(pointer))
     (get-int% 'int "g_value_get_int" '(pointer))

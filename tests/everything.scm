@@ -115,6 +115,19 @@
       (test-compare ginstance=? other
         (send obj2 (get-bare))))))
 
+(define-test-case everything-tests.gobject boxed-member ()
+  (let ((b (send <test-boxed> (new))))
+    #; ; This should be made to work
+    (send b
+      (set-some-int8 123)
+      (set-nested-a '((some-int . 123456)
+                      (some-int8 . 123)
+                      (some-double . 4.5)
+                      (some-enum . value1))))
+    (let ((o (send <test-obj> (new* 'boxed b))))
+      (test-eqv #t
+        (send b (equals (send o (get 'boxed))))))))
+
 (define-test-case everything-tests callbacks ()
   (test-equal '(43 666 1234)
     (map test-callback (map (lambda (n)
@@ -142,5 +155,5 @@
 (run-test-suite everything-tests)
 
 ;; Local Variables:
-;; scheme-indent-styles: (trc-testing)
+;; scheme-indent-styles: (trc-testing sbank)
 ;; End:

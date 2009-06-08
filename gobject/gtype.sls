@@ -30,6 +30,9 @@
           g-type-init
           g-boxed-value-type
 
+          g-boxed-free
+          g-boxed-copy
+          
           register-gtype-lookup! gtype-lookup)
   (import (rnrs base)
           (rnrs control)
@@ -120,6 +123,8 @@
     (g-type-init 'void "g_type_init" '())
     (g-pointer-type-register-static%
      gtype-ctype "g_pointer_type_register_static" '(pointer))
-    (fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype)))
+    (fundamental% gtype-ctype "g_type_fundamental" (list gtype-ctype))
+    (g-boxed-copy 'pointer "g_boxed_copy" (list gtype-ctype 'pointer))
+    (g-boxed-free 'void "g_boxed_free" (list gtype-ctype 'pointer)))
 
   )
