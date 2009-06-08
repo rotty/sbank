@@ -80,7 +80,6 @@
               (send a-cloned (get-some-double))
               (send a-cloned (get-some-enum)))))))
 
-
 (define-test-case everything-tests.structs obj-member ()
   (let ((obj (send <test-obj> (new*)))
         (c (send <test-struct-c> (alloc))))
@@ -91,11 +90,11 @@
     (test-compare ginstance=? obj
       (send c (get-obj)))))
 
-(define-test-case everything-tests.structs glist ()
+(define-test-case everything-tests glist ()
   (test-equal '("1" "2" "3")
     (test-glist-nothing-return)))
 
-(define-test-case everything-tests.structs gslist ()
+(define-test-case everything-tests gslist ()
   (test-gslist-container-in '("1" "2" "3"))
   (test-gslist-everything-in '("1" "2" "3")))
 

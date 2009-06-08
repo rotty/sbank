@@ -81,11 +81,11 @@
   (let ((bool-gv (->g-value #f 'boolean)))
     (test-equal #f (g-value-ref bool-gv))))
 
-(define-test-case gobject-tests.gvalue boxed ((setup (g-type-init)))
+(define-test-case gobject-tests.gvalue boxed-value ((setup (g-type-init)))
   (let ((boxed-gv (->g-value (list 'foo 42) 'boxed)))
     (test-equal (list 'foo 42) (g-value-ref boxed-gv))))
 
-(define-test-case gobject-tests.gvalue boxed ((setup (g-type-init)))
+(define-test-case gobject-tests.gvalue string ((setup (g-type-init)))
   (let ((string-gv (->g-value "FooBar" 'string)))
     (test-equal "FooBar" (g-value-ref string-gv))))
 
