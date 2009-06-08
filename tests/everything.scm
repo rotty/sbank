@@ -99,20 +99,22 @@
   (test-gslist-container-in '("1" "2" "3"))
   (test-gslist-everything-in '("1" "2" "3")))
 
-(define-test-case everything-tests objects ()
-  (parameterize ((null-ok-always-on? #t))
-    (let ((obj (send <test-obj> (new*)))
-          (other (send <test-obj> (new*))))
-      (test-equal #f (send obj (get-bare)))
-      (send obj (set-bare other))
+(define-test-suite (everything-tests.gobject everything-tests)
+  "GObject features")
+
+(define-test-case everything-tests.gobject bare-member ()
+  (let ((obj (send <test-obj> (new*)))
+        (other (send <test-obj> (new*))))
+    (test-equal #f (send obj (get-bare)))
+    (send obj (set-bare other))
+    (test-compare ginstance=? other
+      (send obj (get-bare)))
+    (send obj (set 'bare #f))
+    (test-equal #f
+      (send obj (get 'bare)))
+    (let ((obj2 (send <test-obj> (new* 'bare other))))
       (test-compare ginstance=? other
-        (send obj (get-bare)))
-      (send obj (set 'bare #f))
-      (test-equal #f
-        (send obj (get 'bare)))
-      (let ((obj2 (send <test-obj> (new* 'bare other))))
-        (test-compare ginstance=? other
-          (send obj2 (get-bare)))))))
+        (send obj2 (get-bare))))))
 
 (define-test-case everything-tests callbacks ()
   (test-equal '(43 666 1234)

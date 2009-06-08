@@ -864,7 +864,7 @@
 
   (define (field-getter-method typelib tld stblob struct-offset)
     (lambda (class)
-      (let ((ti (stblob-type-info typelib tld stblob #f #f #f #f)))
+      (let ((ti (stblob-type-info typelib tld stblob #t #f #f #f)))
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
           (let ((getter (make-pointer-c-element-getter prim-type
@@ -879,7 +879,7 @@
 
   (define (field-setter-method typelib tld stblob struct-offset)
     (lambda (class)
-      (let ((ti (stblob-type-info typelib tld stblob #f #f #f #f)))
+      (let ((ti (stblob-type-info typelib tld stblob #t #f #f #f)))
         (receive (prim-type out-convert back-convert cleanup)
                  (type-info/prim-type+procs ti)
           (let ((setter (make-pointer-c-element-setter prim-type
