@@ -48,7 +48,7 @@
   (test-equal (list #t #f)
     (list (test-strv-in '#("1" "2" "3"))
           (test-strv-in '#("0" "1" "2"))))
-  (test-equal '#("1" "2" "3")
+  (test-equal '#("thanks" "for" "all" "the" "fish")
     (test-strv-out))
   (test-equal '#("1" "2" "3")
     (test-strv-outarg)))
