@@ -303,6 +303,8 @@
   (define (type-tag-symbol->prim-type sym)
     (case sym
       ((boolean) 'uint)
+      ((size) 'size_t)
+      ((ssize) 'ssize_t)
       ((utf8) 'pointer)
       ((gtype) gtype-ctype)
       (else sym)))
