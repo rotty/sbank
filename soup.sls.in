@@ -28,6 +28,7 @@
           soup-setup!
           soup-status
           make-soup-output-port+flusher
+          make-soup-input-port
           #!@(typelib-exports (prefix ("Soup" #f) soup-)
                               (name soup)
                               (exclude "ByteArray")))
@@ -63,7 +64,8 @@
                                        (soup-output-port-write! message-body chunks)
                                        #f ; get-position
                                        #f ; set-position!
-                                       (soup-output-port-close message-body chunks))
+                                       #f ; close
+                                       )
        (lambda () (sync-chunks! chunks message-body)))))
 
   (define (sync-chunks! chunks message-body)
@@ -90,10 +92,40 @@
                                 (cell-ref chunks))))
       count))
 
-  (define (soup-output-port-close message-body chunks)
+  (define (make-soup-input-port message-body)
+    (make-custom-binary-input-port "soup"
+                                   (soup-input-port-read! message-body)
+                                   #f ; get-position
+                                   #f ; set-position!
+                                   (soup-input-port-close message-body)
+                                   ))
+
+  (define (soup-input-port-read! message-body)
+    (let ((offset 0)
+          (current-chunk #f)
+          (chunk-offset 0))
+      (lambda (bytevector start count)
+        (unless current-chunk
+          (set! current-chunk (send message-body (get-chunk offset))))
+        (if (not current-chunk)
+            0
+            (let ((len (send current-chunk (get-length)))
+                  (data (send current-chunk (get-data))))
+              (if (= len 0)
+                  0
+                  (let ((n (min count (- len chunk-offset))))
+                    (memcpy bytevector start data chunk-offset n)
+                    (set! chunk-offset (+ chunk-offset n))
+                    (when (>= chunk-offset len)
+                      (set! current-chunk #f)
+                      (set! offset (+ offset len))
+                      (set! chunk-offset 0))
+                    n)))))))
+  
+  (define (soup-input-port-close message-body)
     (lambda ()
       (send message-body (complete))))
-
+  
   ;;@ Resolve @1 to an HTTP status code. If @1 is a symbol, it is
   ;; looked up among the Soup known status codes enumeration (that
   ;; lookup returns @code{#f} if it is not in the enumeration). If @1
