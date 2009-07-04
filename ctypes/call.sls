@@ -44,6 +44,7 @@
           (except (srfi :1 lists) for-each map)
           (only (spells assert) cerr cout)
           (only (spells misc) unspecific)
+          (spells foof-loop)
           (spells tracing)
           (sbank support utils)
           (sbank support type-data)
@@ -351,14 +352,26 @@
                      (loop ((car steps) args arg-vec info-vec)
                            (cdr steps)))))))))
 
-  (define (args-collect-procedure steps)
-    (if (null? steps)
-        #f
-        (lambda (arg-vec)
-          (let loop ((out-vals '()) (steps steps))
-            (if (null? steps)
-                out-vals
-                (loop (cons ((car steps) arg-vec) out-vals) (cdr steps)))))))
+  (define (args-collect-procedure rti ret-flags gtype-lookup steps)
+    (let ((ret-consume (ret-type-consumer rti ret-flags gtype-lookup)))
+      (cond ((and (not ret-consume) (null? steps))
+             #f)
+            (else
+             (lambda (ret-val arg-vec)
+               (loop continue ((for step (in-list steps))
+                               (with out-vals
+                                     (cond ((not ret-consume) '())
+                                           ((procedure? ret-consume)
+                                            (list (ret-consume ret-val arg-vec)))
+                                           (else (list ret-val)))))
+                 => out-vals
+                 (continue
+                  (=> out-vals
+                      (cons (cond ((fixnum? step)
+                                   (vector-ref arg-vec step))
+                                  (else
+                                   (step arg-vec)))
+                            out-vals)))))))))
 
   (define (args-cleanup-procedure steps)
     (if (null? steps)
@@ -391,10 +404,11 @@
                             (arg-flags-any? aflags (arg-flags out in-out)))
                           flags))
           (setup (args-setup-procedure (length arg-types) setup-steps))
-          (collect (args-collect-procedure collect-steps))
-          (cleanup (args-cleanup-procedure cleanup-steps))
-          (ret-consume (ret-type-consumer rti ret-flags gtype-lookup)))
-      (cond ((or out-args? collect)
+          (collect (args-collect-procedure
+                    rti ret-flags gtype-lookup
+                    collect-steps))
+          (cleanup (args-cleanup-procedure cleanup-steps)))
+      (cond (out-args?
              ;; The most general, complex case
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
@@ -406,37 +420,26 @@
                      (args-pre-call! arg-vec arg-types flags)
                      (let ((ret-val (apply do-callout (vector->list arg-vec))))
                        (args-post-call! arg-vec arg-types flags)
-                       (let ((out-vals (if collect (collect arg-vec) '())))
-                         (if cleanup (cleanup arg-vec info-vec))
-                         (if (and (eqv? ret-consume #f))
-                             (apply values out-vals)
-                             (apply values
-                                    (if (procedure? ret-consume)
-                                        (ret-consume ret-val)
-                                        ret-val)
-                                    out-vals)))))))))
+                       (let ((results (if collect (collect ret-val arg-vec) '())))
+                         (when cleanup (cleanup arg-vec info-vec))
+                         (apply values results))))))))
             (setup
-             (assert (not (or collect out-args?)))
              (lambda (ptr)
                (let ((do-callout (prim-callout ptr)))
                  (lambda args
                    (receive (arg-vec info-vec) (setup args)
                      (let ((ret-val (apply do-callout (vector->list arg-vec))))
-                       (if cleanup (cleanup arg-vec info-vec))
-                       (if (eqv? ret-consume #f)
-                           (unspecific)
-                           (if (procedure? ret-consume)
-                               (ret-consume ret-val)
-                               ret-val))))))))
-            ((procedure? ret-consume)
-             (assert (not (or setup collect out-args? cleanup)))
+                       (when cleanup (cleanup arg-vec info-vec))
+                       (if collect
+                           (apply values (collect ret-val #f))
+                           ret-val)))))))
+            (collect
+             (assert (not cleanup))
              (lambda (ptr)
                (lambda args
                  (let ((do-callout (prim-callout ptr)))
-                   (ret-consume (apply do-callout args))))))
+                   (apply values (collect (apply do-callout args) #f))))))
             (else
-             (assert (and (not (or setup collect out-args?))
-                          (boolean? ret-consume)))
              prim-callout))))
 
   (define (make-callback rti arg-types prepare-steps store-steps flags gtype-lookup)
@@ -505,22 +508,30 @@
                      (loop ((car steps) (car vals) arg-vec))))))))))
 
   (define (ret-type-consumer rti flags gtype-lookup)
-    (cond ((eq? (type-info-type rti) 'void)
-           #f)
-          (else
-           (receive (prim-type out-convert back-convert cleanup)
-                    (type-info/prim-type+procs rti (arg-flags->free-spec flags))
-             (cond (back-convert
-                    (lambda (val)
-                      (let ((result (back-convert val)))
-                        (and cleanup (cleanup val))
-                        result)))
-                   (else
-                    (assert (not cleanup))
-                    #t))))))
+    (let ((type (type-info-type rti)))
+      (cond ((eq? type 'void)
+             #f)
+            ((array-type? type)
+             (let ((free-spec (arg-flags->free-spec flags)))
+               (lambda (rv arg-vec)
+                 (let ((len (get-array-length type arg-vec)))
+                   (let ((result (c-array->vector rv type len)))
+                     (free-c-array rv type len free-spec)
+                     result)))))
+            (else
+             (receive (prim-type out-convert back-convert cleanup)
+                      (type-info/prim-type+procs rti (arg-flags->free-spec flags))
+               (cond (back-convert
+                      (lambda (val arg-vec)
+                        (let ((result (back-convert val)))
+                          (and cleanup (cleanup val))
+                          result)))
+                     (else
+                      (assert (not cleanup))
+                      #t)))))))
 
 )
 
 ;; Local Variables:
-;; scheme-indent-styles: ((arg-flags-case 1))
+;; scheme-indent-styles: ((arg-flags-case 1) foof-loop)
 ;; End:

@@ -475,7 +475,7 @@
          caller-owns-return-container
          n-arguments
          arguments)
-      (let-values
+      (let*-values
           (((rti)
             (if constructor?
                 (make-type-info container #t (bool may-return-null))
@@ -484,6 +484,7 @@
            ((arg-types setup collect cleanup arg-flags)
             (arg-blobs-callout-values typelib
                                       tld
+                                      rti
                                       arguments
                                       n-arguments
                                       constructor?
@@ -517,12 +518,12 @@
                          (array-length-index type))))
                 type-infos))
 
-  (define (arg-blobs-callout-values typelib tld arg-blobs n-args
+  (define (arg-blobs-callout-values typelib tld rti arg-blobs n-args
                                     constructor? container)
     (let* ((arg-blob-size ((header-fetcher 'arg-blob-size) tld))
            (type-infos (arg-blobs-type-infos typelib tld
                                              arg-blobs n-args arg-blob-size))
-           (length-indices (type-infos-length-indices type-infos))
+           (length-indices (type-infos-length-indices (cons rti type-infos)))
            (closure-indices (filter-map type-info-closure-index type-infos))
            (destroy-indices (filter-map type-info-destroy-index type-infos))
            (has-self-ptr? (and container (not constructor?)))

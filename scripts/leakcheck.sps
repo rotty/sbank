@@ -93,6 +93,12 @@
 (define-check array-outarg
   (repeat N (test-strv-outarg)))
 
+(define-check array-return-full
+  (repeat N (test-array-int-full-out)))
+
+(define-check array-return-none
+  (repeat N (test-array-int-none-out)))
+
 (define-check glist-nothing-return
   (repeat N (test-glist-nothing-return)))
 

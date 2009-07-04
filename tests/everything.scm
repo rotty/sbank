@@ -37,12 +37,14 @@
   "Arrays")
 
 (define-test-case everything-tests.arrays int ()
-  (test-equal
-    (+ 41 42 43)
+  (test-equal (+ 41 42 43)
     (test-array-int-in '#(41 42 43)))
-  (test-equal
-    (+ 44 45 46)
-    (test-array-int-in-take '#(44 45 46))))
+  (test-equal (+ 44 45 46)
+    (test-array-int-in-take '#(44 45 46)))
+  (test-equal '#(0 1 2 3 4)
+    (test-array-int-full-out))
+  (test-equal '#(1 2 3 4 5)
+    (test-array-int-none-out)))
 
 (define-test-case everything-tests.arrays strv ()
   (test-equal (list #t #f)
