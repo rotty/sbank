@@ -1131,14 +1131,18 @@
   (define (stblob-type-info typelib tld st-blob null-ok?
                             closure-index destroy-index scope)
     (let-attributes simple-type-blob-fetcher st-blob
-                    (offset reserved reserved2 pointer tag)
-      (cond ((and (= reserved 0) (= reserved2 0))
-             (when (>= tag type-tag-array)
-               (raise-validation-error "wrong tag in simple type" tag))
-             (when (and (>= tag type-tag-utf8) (= pointer 0))
-               (raise-validation-error "pointer type expected for tag" tag))
-             (let ((tag-symbol (type-tag->symbol tag)))
-               (cond ((and (= pointer 1) (eq? tag-symbol 'void))
+                    (offset
+                     flags.reserved
+                     flags.reserved2
+                     flags.pointer
+                     flags.tag)
+      (cond ((and (= flags.reserved 0) (= flags.reserved2 0))
+             (when (>= flags.tag type-tag-array)
+               (raise-validation-error "wrong tag in simple type" flags.tag))
+             (when (and (>= flags.tag type-tag-utf8) (= flags.pointer 0))
+               (raise-validation-error "pointer type expected for tag" flags.tag))
+             (let ((tag-symbol (type-tag->symbol flags.tag)))
+               (cond ((and (= flags.pointer 1) (eq? tag-symbol 'void))
                       (when destroy-index
                         (raise-validation-error
                          "no destroy notification expected for pointer"))
@@ -1148,7 +1152,7 @@
                         (raise-validation-error
                          "no closure or destroy notification expected for type"
                          tag-symbol))
-                      (make-type-info tag-symbol (bool pointer) null-ok?)))))
+                      (make-type-info tag-symbol (bool flags.pointer) null-ok?)))))
             (else
              (make/validate-type-info typelib tld offset null-ok?
                                       closure-index destroy-index scope)))))
@@ -1168,14 +1172,16 @@
            (let-attributes array-type-blob-fetcher (validated-pointer+ tld offset 4)
                            (pointer
                             tag zero-terminated
-                            has-length has-size length size type)
+                            has-length has-size
+                            dimensions.length dimensions.size
+                            type)
              (when (and (= has-length 1) (= has-size 1))
                (raise-validation-error "array type has both length and size"))
              (make-type-info
               (make-array-type (stblob-type-info typelib tld type #f #f #f #f)
                                (bool zero-terminated)
-                               (and (= has-size 1) size)
-                               (and (= has-length 1) length))
+                               (and (= has-size 1) dimensions.size)
+                               (and (= has-length 1) dimensions.length))
               #f
               null-ok?)))
           ((interface)
@@ -1242,3 +1248,8 @@
 
   ;; Initialize the GObject type system
   (g-type-init))
+
+
+;; Local Variables:
+;; scheme-indent-styles: ((let-attributes 2))
+;; End

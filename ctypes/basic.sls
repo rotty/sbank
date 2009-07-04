@@ -112,8 +112,8 @@
           ((symbol? type)
            (let ((prim-type (type-tag-symbol->prim-type type)))
              (case type
-               ((int8 uint8 int16 uint16 int32 uint32
-                      int64 uint64 int uint long ulong ssize size time_t
+               ((int8 uint8 int16 uint16 int32 uint32 int64 uint64
+                      short ushort int uint long ulong ssize size time_t
                       float double)
                 (values prim-type #f #f #f))
                ((boolean)
@@ -293,10 +293,11 @@
   (define (type-info-gtype ti)
     (type->gtype (type-info-type ti)))
 
-  ;; Note that these must match with gobject-introspection
+  ;; Note that these must match with gobject-introspection,
+  ;; (see girepository.h, GITypeTag)
   (define-enum (type-tag->symbol symbol->type-tag)
     (void boolean int8 uint8 int16 uint16 int32 uint32
-          int64 uint64 int uint long ulong ssize size
+          int64 uint64 short ushort int uint long ulong ssize size
           float double time_t gtype utf8 filename
           array interface glist gslist ghash error))
 
