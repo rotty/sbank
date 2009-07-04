@@ -71,8 +71,11 @@
           ((list? val) (list->vector val))
           (else (error '->vector "cannot convert argument to vector" val))))
 
+  (define (%->string x)
+    (if (string? x) x (symbol->string x)))
+  
   (define (symbol-append . syms)
-    (string->symbol (apply string-append (map symbol->string syms))))
+    (string->symbol (apply string-append (map %->string syms))))
 
   (define (name-symbol/prefix sym prefix)
     (let ((s (symbol->string sym)))

@@ -264,24 +264,27 @@
           (bits (sxpath-attr component '(bits)))
           (bit-offset (sxpath-attr component '(bit-offset)))
           (type (sxpath-attr component '(type))))
-      (case (car type)
-        ((primitive)
-         (values (string->symbol (stype-attribute type 'name))
-                 offset
-                 bit-offset
-                 bits))
-        ((record union)
-         (values (car type) offset #f #f))
-        ((array)
-         (let ((element-count (sxpath-attr type '(element-count))))
-           (if (not element-count)
-               (values 'pointer offset #f #f)
-               (values 'array offset #f #f))))
-        ((pointer)
-         (values 'pointer offset #f #f))
-        (else
-         (error 'stype-compound-element-fetcher-values
-                "invalid component type" component)))))
+      (if type
+          (case (car type)
+            ((primitive)
+             (values (string->symbol (stype-attribute type 'name))
+                     offset
+                     bit-offset
+                     bits))
+            ((record union)
+             (values (car type) offset #f #f))
+            ((array)
+             (let ((element-count (sxpath-attr type '(element-count))))
+               (if (not element-count)
+                   (values 'pointer offset #f #f)
+                   (values 'array offset #f #f))))
+            ((pointer)
+             (values 'pointer offset #f #f))
+            (else
+             (error 'stype-compound-element-fetcher-values
+                    "invalid component type" component)))
+          ;; the component itself is a type (record or union
+          (values (car component) offset #f #f))))
 
   (define (fetcher-chain stype path)
     (let loop ((fetchers '()) (stype stype) (path path))
@@ -478,10 +481,12 @@
       (syntax-case stx ()
         ((k <name> <type-name>)
          (with-syntax (((field ...)
-                        (append-map
-                         (lambda (comp)
-                           (component-fetcher-alist comp 0))
-                         (cdr (stypes-ref types (syntax->datum #'<type-name>))))))
+                        (datum->syntax
+                         #'k
+                         (append-map
+                          (lambda (comp)
+                            (component-fetcher-alist comp 0))
+                          (cdr (stypes-ref types (syntax->datum #'<type-name>)))))))
            #'(define <name>
                (let ((fields '(field ...)))
                  (lambda (sym)
@@ -505,20 +510,25 @@
                  (values attribute-value ...))))))))
 
   (define (component-fetcher-alist comp base-offset)
+    (define (nested-comps-alist comp offset)
+      (append-map (lambda (nested-comp)
+                    (component-fetcher-alist nested-comp offset))
+                  (cdr comp)))
     (case (car comp)
       ((field record array union)
        (let ((name (sxpath-attr comp '(name)))
              (offset (sxpath-attr comp '(offset))))
          (cond
           (name
-           (list
-            (datum->syntax
-             #'k
-             (cons (scheme-ified-symbol name)
-                   (receive (type offset bit-offset bit-size)
-                            (stype-compound-element-fetcher-values comp)
-                     (list type (+ base-offset offset) bit-offset bit-size))))))
-          (else (append-map (lambda (nested-comp)
-                              (component-fetcher-alist nested-comp offset))
-                            (cdr comp))))))
+           (let ((comp-name (scheme-ified-symbol name)))
+             (receive (type offset bit-offset bit-size)
+                      (stype-compound-element-fetcher-values comp)
+               (cons*
+                (list comp-name type (+ base-offset offset) bit-offset bit-size)
+                (map (lambda (elt)
+                       (cons (symbol-append comp-name "." (car elt))
+                             (cdr elt)))
+                     (nested-comps-alist comp offset))))))
+          (else
+           (nested-comps-alist comp offset)))))
       (else '()))))
