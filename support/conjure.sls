@@ -33,7 +33,7 @@
           (spells misc)
           (spells logging)
           (xitomatl irregex)
-          (fmt)
+          (spells fmt)
           (conjure utils)
           (only (sbank gobject internals) gerror?)
           (sbank typelib expanders)

@@ -1,8 +1,6 @@
 (define-system sbank
   (dependencies spells)
   
-  (r6rs-libs ".")
-
   (conjure
    (import (rnrs)
            (only (spells filesys)
