@@ -31,7 +31,36 @@
 
 (define-test-case everything-tests basic-types ()
   (test-equal (list #t #f)
-    (list (test-boolean #t) (test-boolean #f))))
+    (list (test-boolean #t) (test-boolean #f)))
+  (for-each
+   (lambda (spec)
+     (test-equal (cdr spec)
+       (map (car spec) (cdr spec))))
+   `((,test-int8 -128 0 127)
+     (,test-uint8 0 255)
+     (,test-int16 -32768 0 32767)
+     (,test-uint16 0 65535)
+     (,test-int32 -2147483648 0 2147483647)
+     (,test-uint32 0 4294967295))))
+
+(define utf8-const "const \x2665; utf8")
+(define utf8-nonconst "nonconst \x2665; utf8")
+
+(define-test-case everything-tests utf8 ()
+  (test-equal utf8-const
+    (test-utf8-const-return))
+  (test-equal utf8-nonconst
+    (test-utf8-nonconst-return))
+  (test-utf8-nonconst-in utf8-nonconst)
+  (test-utf8-const-in utf8-const)
+  (test-equal utf8-nonconst
+    (test-utf8-inout utf8-const)))
+
+(define-test-case everything-tests multi-out ()
+  (test-equal '("first" "second")
+    (call-with-values test-utf8-out-out list))
+  (test-equal '("first" "second")
+    (call-with-values test-utf8-out-nonconst-return list)))
 
 (define-test-suite (everything-tests.arrays everything-tests)
   "Arrays")

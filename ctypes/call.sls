@@ -358,20 +358,19 @@
              #f)
             (else
              (lambda (ret-val arg-vec)
-               (loop continue ((for step (in-list steps))
-                               (with out-vals
-                                     (cond ((not ret-consume) '())
-                                           ((procedure? ret-consume)
-                                            (list (ret-consume ret-val arg-vec)))
-                                           (else (list ret-val)))))
-                 => out-vals
-                 (continue
-                  (=> out-vals
-                      (cons (cond ((fixnum? step)
+               (loop ((for step (in-list steps))
+                      (for results
+                           (listing-reverse
+                            (initial
+                             (cond ((not ret-consume) '())
+                                   ((procedure? ret-consume)
+                                    (list (ret-consume ret-val arg-vec)))
+                                   (else (list ret-val))))
+                            (cond ((fixnum? step)
                                    (vector-ref arg-vec step))
                                   (else
-                                   (step arg-vec)))
-                            out-vals)))))))))
+                                   (step arg-vec))))))
+                 => (reverse results)))))))
 
   (define (args-cleanup-procedure steps)
     (if (null? steps)
