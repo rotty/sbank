@@ -27,20 +27,28 @@
   (export register-typelib-decorator
           lookup-typelib-decorator)
   (import (rnrs base)
-          (spells table)
+          (rnrs hashtables)
+          (rnrs arithmetic fixnums)
           (srfi :39 parameters))
 
-  (define *typelib-decorators* (make-table 'equal))
+  (define hash-bits (- (fixnum-width) 1))
+  (define hash-mask (fxnot (fxarithmetic-shift -1 hash-bits)))
+  
+  (define (key-hash key)
+    (fxxor (fxand (string-hash (car key)) hash-mask)
+           (fxand (string-hash (cdr key)) hash-mask)))
+
+  (define *typelib-decorators* (make-hashtable key-hash equal?))
   
   (define (lookup-typelib-decorator namespace name)
-    (table-ref *typelib-decorators* (cons namespace name)))
+    (hashtable-ref *typelib-decorators* (cons namespace name) #f))
 
   (define (register-typelib-decorator namespace name decorator)
-    (let* ((key (cons namespace name))
-           (old-decorator (table-ref *typelib-decorators* key)))
-      (table-set! *typelib-decorators*
-                  key
-                  (if old-decorator
-                      (lambda (obj)
-                        (decorator (old-decorator obj)))
-                      decorator)))))
+    (hashtable-update! *typelib-decorators*
+                       (cons namespace name)
+                       (lambda (old-decorator)
+                         (if old-decorator
+                             (lambda (obj)
+                               (decorator (old-decorator obj)))
+                             decorator))
+                       #f)))

@@ -40,7 +40,6 @@
           (srfi :2 and-let*)
           (spells foreign)
           (srfi :8 receive)
-          (spells table)
           (spells define-values)
           (spells tracing)
           (only (spells assert) cout)
