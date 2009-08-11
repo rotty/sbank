@@ -48,7 +48,8 @@
         (('typelib-availability-filter . names)
          (let ((result (filter typelib-available? names)))
            (log/sbank 'info (cat "available typelibs: "
-                                 (fmt-join dsp names " ")))
+                                 (fmt-join dsp result ", ")
+                                 " (of " (fmt-join dsp names ", ") ")"))
            (list (cons datum (fmt #f (wrt result))))))
         (_
          #f)))))
