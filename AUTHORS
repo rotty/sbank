@@ -1,1 +1,4 @@
-Andreas Rottmann <a.rottmann@gmx.at>
+Andreas Rottmann: 
+wrote most of sbank, except for some of the GTK+ examples (in
+examples/gtk), and the GTK+ demo in particuliar (examples/gtk/demo),
+wich he has ported from Guile-GNOME.
