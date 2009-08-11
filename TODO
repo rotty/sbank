@@ -1,20 +1,25 @@
--*- Mode: org; -*-
+# -*- Mode: org; -*-
 
-* Core
+* Missing features
 
-** TODO Implement field setters
+** Bigger stuff
 
-Getters should already work (modulo bitfields).
+*** TODO Allow deriving from GObject classes
 
-** TODO Implement ownership transfer
+... and implementing interfaces as well.
 
-Full and nothing transfer should work, container-only transfer needs
-still to be implemented.
+** Smaller stuff
 
-** TODO Review codebase for uses of `pointer?'
+*** TODO Review codebase for uses of ~pointer?~
 
 Pointers are not necessarily a disjunct type; in Ypsilon, for instance
 they are just positive integers.
+
+*** TODO Implement abstract classes
+
+There should be no ~new*~ static method on abstract classes.
+
+*** TODO Implement bitfield setters & getters
 
 * Test suite
 
@@ -23,9 +28,19 @@ they are just positive integers.
 * Efficiency
 
 ** TODO Write some benchmarks
+
+What would be interesting is a benchmark justifying sbank's design of
+"cutting out the middle man" (the "middle man" being
+~libgirepository~). This design decision is based on the assumption
+that calling out to C is quite a bit more expensive than parsing the
+binary typelib data directly from Scheme. I expect the assumption to
+hold for both Ikarus and Ypsilon, with Ikarus cashing in more on that
+design.
+
 ** TODO "Compress" callouts by signature in `let-callouts' and `define-callouts'
+
+This is a rather minor optimization, I guess.
 
 * Usage examples
 
 ** TODO Complete the GTK+ demo
-** TODO Port some examples from libsoup

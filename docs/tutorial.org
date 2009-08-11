@@ -1,0 +1,257 @@
+#+SETUPFILE: ~/.emacs.d/org-templates/level-2.org
+#+TITLE: sbank tutorial
+#+OPTIONS: toc:t
+
+This tutorial assumes you have already installed sbank for your
+preferred Scheme implementation, and you've been able to run the test
+suite and some example, making sure everything is working. Please see
+the [[./#installation][installation instructions]] for details.
+
+* GObject-Introspection
+
+~sbank~ is a Scheme binding for [[http://live.gnome.org/GObjectIntrospection][GObject Introspection]], which provides
+API metadata for GObject-based C libraries. This metadata contains
+information about available functions, classes, their methods, the
+argument and return types of the functions and methods. It is stored
+in binary form in so-called ~.typelib~ files. Using this metadata,
+~sbank~ provides you with instant Scheme bindings -- you can access
+the C library (e.g. GTK+) without any library-specific code, neither
+in your code, nor in ~sbank~.
+
+To stress that: if a C library provides gobject-introspection
+metadata, you should be able to use it via ~sbank~ without further
+ado.
+
+However, while the metadata provided in the ~.typelib~ file is
+complete enough to yield good and "schemely" bindings, there might
+still be some corners in the API that profit from some glossing over,
+and sbank provides such glossing where and when such cases are
+identified.
+
+* GObject
+
+In this section, I'll try to give a very rough overview of the GObject
+type system, as far as relevant in the context of ~sbank~. If you
+already have a basic understanding of GObject, this will be quite
+familiar to you, but read this section nevertheless, as it's written
+from the perspective of an sbank user.
+
+GObject is a C library that implements an [[http://en.wikipedia.org/wiki/Object_system][object system]] for C,
+including support for (single) inheritance, interfaces and signals.
+
+All classes in GObject are organized in a tree, rooted in the [[http://library.gnome.org/devel/gobject/stable/gobject-The-Base-Object-Type.html][GObject
+class]]. The functionality provided by this root of the inheritance
+hierarchy is hence available with all GObject-based classes, and for
+the most part consists of:
+
+- Lifecycle managment :: Using ~sbank~, you don't have to care about
+     that, as all objects you hold on to from Scheme are registered
+     with your Scheme implementation's garbage collector. This results
+     in their underlying C counterparts dying when you don't reference
+     them from Scheme anymore and the GC kicks in.
+- Signals :: Signals are a way for objects to broadcast information
+     (for example state changes) to an unknown and possibly empty
+     group of receivers. If you are interested in some signal emitted
+     by an object, you register a handler for that specific object and
+     signal. This handler (in sbank) is just a procedure that gets
+     called with arguments specified by the emitter. Each signal has a
+     particuliar argument list, with fixed length, argument types and
+     semantics.
+- Properties :: Each object may have several properties, which are
+     similiar to the fields in a Scheme record, but come with
+     additional functionality: when a property of an object is
+     changed, a special signal (called "notify") is emitted for that
+     object, allowing interested parties to react.
+
+Each class has a number of "methods" that may be called to interact
+with the object. In C, these are exposed as plain functions. Take for
+example, like =gtk_widget_show=. This name can be broken down into
+three components: 
+
+- ~gtk~ is the namespace of the library that the method resides in;
+- ~widget~ indicates the class the method belongs to,
+- and ~show~ is the actual name of the method.
+
+This means you can call ~show~ on any object which is derived from the
+~GtkWidget~ class (i.e. most objects in GTK+). In ~sbank~, rather than
+speaking of "invoking a method on an object", we talk about "sending a
+message to an object", meaning the same thing.
+
+Equipped with this background knowledge about GObject, let's turn to a
+first example.
+
+* An example using GTK+
+
+The obligatory example in this case is of course a "Hello
+World!"-style program. The program presented in the following is
+semantically equivalent to the [[http://library.gnome.org/devel/gtk-tutorial/stable/c39.html#SEC-HELLOWORLD][one in C]] from the GTK+ tutorial.
+
+#+BEGIN_SRC scheme -r -l "{ref:%s}"
+#!r6rs
+
+(import (rnrs)
+        (sbank gtk))
+
+;; For convinience
+(define (println . args)
+  (for-each display args)
+  (newline))
+
+;; Initialize GTK+ with the command-line arguments
+(gtk-init (command-line))
+
+(let ((window (send <gtk-window> (new 'toplevel)))
+      (button (send <gtk-button> 
+                (new-with-label "Hello World!"))))
+  ;; Send several messages to the `button' object
+  ;; created above {ref:button-send}
+  (send button                           
+    (connect 'clicked (lambda (widget)
+                        (println "Hello World!")))
+    (connect 'clicked (lambda (widget)
+                        (send window (destroy))))
+    (show))
+  ;; Ditto for `window' {ref:window-send}
+  (send window
+    (connect 'delete-event
+             (lambda (widget event)
+               (println "delete-event: " widget " " event)
+               ;; returning #t to prevent further
+               ;; propogation of this signal...
+               #t))
+    (connect 'destroy (lambda (widget) (gtk-main-quit)))
+    (set-border-width 10)
+    (add button)
+    (show)))
+
+;; Launch the main loop
+(gtk-main)
+#+END_SRC
+
+** Messages
+
+As you probably have noticed, ~send~ plays an important role in sbank:
+it is a macro that allows access to ~sbank~'s object system, which is
+a thin layer above GObject. The syntax of the macro is:
+
+#+BEGIN_SRC scheme
+(send <object> (<message> <argument> ...) ...)
+#+END_SRC
+
+This will, for each =(<message> ...)= clause, the invoke the method of
+=<object>= identified by =<message>=, passing it =<argument> ...=. It
+returns the value(s) returned by the last invocation.
+
+The first two usages of =send= in the above example send the messages
+to class "objects", =<gtk-window>= and =<gtk-button>=. These respond
+to the all of underlying GObject class's constructors and static
+methods; in our case the constructors [[http://library.gnome.org/devel/gtk/stable/GtkWindow.html#gtk-window-new][=gtk\_window\_new=]] and
+[[http://library.gnome.org/devel/gtk/stable/GtkButton.html#gtk-button-new-with-label][=gtk\_button\_new\_with\_label=]] are called. As you can see, ~sbank~
+takes care of all the binding grunt work, like converting the Scheme
+symbol =toplevel= to the right [[http://library.gnome.org/devel/gtk/stable/gtk-Standard-Enumerations.html#GtkWindowType][C enumeration value]]
+(=GTK_WINDOW_TOPLEVEL=), in this case.
+
+The two forms inside the =let= again use =send=, the first one issuing
+a bunch of messages to =button=, the second several to
+=window=.
+
+** Signals
+
+Another thing to note is the use of the =connect= message, which is
+provided by =<g-object>=, the root of GObject's inheritance
+hierarchy. It takes a symbol identifying the signal name to connect
+to, and a handler, which is a procedure that is invoked when the
+corresponding signal is emitted.
+
+As can be seen in the [[(button-send)][first form]], it is perfectly legitimate to
+connect several handlers to the same signal (on the very same
+object). All those handlers will be invoked when the signal is
+emitted. As you can probably guess, these two handlers will be invoked
+when the button is clicked. Order is significant, so first "Hello
+World" will be printed on the terminal, then the =destroy= message is
+sent to the window.
+
+In the [[(window-send)][second form]], we again connect two handlers, this time for
+different signals -- =delete-event= will be emitted when the user
+requests the window to be closed; =destroy= before it is destroyed.
+
+** Summing up
+
+There is little more about this small example:
+
+- Both the button and the window are sent the =show= message when we
+  are otherwise finished dealing with them.
+
+- The window gets a ten-pixel border, and the is button added inside
+  it.
+
+- In the last line, the GTK+ main loop is started. This will cause
+  GTK+ to start handling mouse and keyboard events, allowing you to
+  interact with the application. 
+
+- The main loop will run until it is terminated by
+  =gtk-main-loop-quit=. This will happen in one of two ways: either
+  the user clicks the button, which causes the =clicked= signal to be
+  emitted, which will in turn cause our second handler to send the
+  =destroy= message to =window=. The other way is GTK+ itself
+  destroying the top-level window upon request by the user (and our
+  =delete-event= handler will indicate permission to do so by
+  returning =#t=).
+
+* Name and value conversions
+
+As there's not yet a reference manual for sbank, you have to refer to
+the original manuals written for C. To make sense of them, you have to
+know how sbank maps the C names and values to Scheme. 
+
+** Names
+
+The name conversions follows the following rules:
+
+- /Method names/ are split from their namespace and class prefixes, so
+  =gtk_container_set_border_width= for example becomes
+  =set_border_width=, then underscores are replaced by hyphens,
+  resulting in =set-border-width=.
+- /Field names/ are likewise hyphen-ized.
+- /Class names/ are converted from CamelCase to lower case by
+  inserting a hyphen at every in-word case boundary, and then wrapped
+  in angle brackets: =GtkToggleButton= becomes =<gtk-toggle-button>=.
+- /Constants/ like =GTK_PAPER_NAME_A4= are hyphenized, lowercased and
+  wrapped in asterisks, leading to =*gtk-paper-name-a4*=. Note that
+  this does not apply to C enumeration values; for those see below.
+
+** Values
+
+The values conversion rules are:
+
+- Scheme /strings/ are converted to UTF-8 encoded, null terminated C
+  strings, and vice versa.
+- Scheme /numbers/ (integer, real) are converted to their C
+  counterparts
+- Where the C API expects an /array/, you can pass a Scheme vector or
+  list with elements of the approriate type. For vectors of type
+  =int8= and =uint8=, bytevectors and strings are also accepted,
+  strings are converted to UTF-8 before being passed to C. In the
+  C->Scheme direction, arrays are always converted to
+  vectors[fn:scheme-bv].
+- =GList= and =GSList= are mapped to Scheme lists.
+- =GHashTable= values are passed around as opaque objects.
+- C /enumeration values/ are mapped to Scheme symbols; the symbols
+  correspond to the discriminative suffix of the C identifiers. For
+  example, =GTK_ANCHOR_CENTER=, =GTK_ANCHOR_NORTH=,
+  =GTK_ANCHOR_NORTH_WEST=, ... map to the symbols =center=, =north=,
+  =north-west=, ....
+
+** Output arguments
+
+As a function can have only single return value (or none), functions
+returning multiple values are implemented using "output
+arguments". Those are mapped to multiple return values in Scheme: the
+first value returned is the return value of the C function (if
+present), followed by the output argument values, in the order they
+appear in the C function prototype.
+
+* Footnotes
+
+[fn:scheme-bv] Probably arrays of type =uint8= and =int8= should be
+mapped to bytevectors.

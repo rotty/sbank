@@ -1,0 +1,105 @@
+#+SETUPFILE: ~/.emacs.d/org-templates/level-2.org
+#+TITLE: sbank
+
+* About
+
+This is a Scheme binding for [[http://live.gnome.org/GObjectIntrospection/][gobject-introspection]] [fn:g-i], called
+sbank[fn:naming].
+
+* Status
+
+For missing/planned features see the ~TODO~ file included in the
+distribution. sbank is currently still in alpha mode, this also why no
+official releases exist, you have to grab the code via git. Alpha mode
+means that sbank is not ready for general public consumption or even
+production use. If, however, you are willing to deal with:
+
+- Not-yet-stable APIs: while in general, the APIs introduced by
+  sbank's =typelib-import= macro will not change much, and neither
+  will the API of =typelib-import= itself.
+
+- Bugs. These may manifest in crashes, not properly covered API,
+  memory leaks (there are surely quite a few of those at the time of
+  this writing) or otherwise. sbank is only lightly tested, so you
+  should be prepared to run into bugs, and either fix them yourself,
+  or report them to me. I'm still investigating options regarding an
+  bug/issue tracking system. In the meantime, send me an email, or
+  even better, drop by on IRC, either ~gnome/#introspection~, or
+  ~freenode/#scheme~ -- I'm hanging out there as ~rotty~.
+
+The following is a list of working code using sbank to access various
+libraries; this should give you an impression of what's already
+possible:
+
+- The hello-world.c and hello-world2.c examples from the GTK+ tutorial
+  have been ported (see examples/gtk/hello-world{,2}.sps).
+
+- A working port of a part of guile-gnome's GTK+ demo suite is
+  provided in examples/gtk/demo.
+
+- There is a rather minimal example using gdk-pixbuf at
+  examples/gdk-pixbuf.sps.
+
+- The simple-httpd.c example from libsoup has been ported
+  (examples/soup/simple-httpd.sps).
+
+- I have a web server using libsoup via sbank, running on Ikarus
+  Scheme that provides IRC logs. An instance of the code is currently
+  available via http://rotty.yi.org/irclogs/, you can find a link
+  to the code at the footer of that page.
+
+
+# <<installation>>
+* Installation
+
+- gobject-introspection :: Grab the code from git, build and install
+     it:
+
+: git clone git://git.gnome.org/gobject-introspection
+: cd gobject-introspection
+: ./autogen.sh && make && sudo make install
+
+- gir-repository :: While this is not a strict dependency, you
+                    probably want the typelib data it provides, so you
+                    can use e.g. GTK+. Procedure as above:
+
+: git clone git://git.gnome.org/gir-repository
+: cd gir-repository
+: ./autogen.sh && make && sudo make install
+
+
+- Ikarus :: Please see [[http://rotty.yi.org/software/spells/#ikarus-notes][spells' Ikarus notes]].
+- Ypsilon :: While Ypsilon should successfully run ~sbank~, it does not
+             integrate with its garbage collector, due to [[http://code.google.com/p/ypsilon/issues/detail?id=75][missing
+             functionality in Ypsilon]].
+- Scheme code :: ~sbank~ uses a bunch of Scheme libraries. You can
+                 grab them all in one go by using the SPE helper
+                 package:
+
+: IMPL=ikarus
+: git clone git://github.com/rotty/spe.git
+: cd spe
+: ./scripts/fetch-systems $IMPL sbank
+
+* Testing
+
+When you've completed the above installation procedure, you should run
+the sbank testsuite, to make sure that everything worked out as
+expected:
+
+: ./scripts/launch $IMPL test sbank
+
+Note that if you haven't installed ~gir-repository~, you'll get
+testcase failures for ~gtk.scm~.
+
+* Documentation
+
+I'm working on a short [[file:tutorial.org][tutorial]], which should help to get you started.
+
+* Footnotes
+
+[fn:g-i] See also this [[http://blogs.gnome.org/johan/2008/06/01/introduction-to-gobject-introspection/][blog post]] for an introduction to
+gobject-introspection
+
+[fn:naming] Unimaginatively named after pybank, a Python binding for
+gobject-introspection.
