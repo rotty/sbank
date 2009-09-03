@@ -3,8 +3,9 @@
 
 * About
 
-This is a Scheme binding for [[http://live.gnome.org/GObjectIntrospection/][gobject-introspection]] [fn:g-i], called
-sbank[fn:naming].
+This is the documentation sbank[fn:naming], a Scheme binding for
+[[http://live.gnome.org/GObjectIntrospection/][gobject-introspection]] [fn:g-i].
+
 
 * Status
 
@@ -68,9 +69,10 @@ possible:
 : ./autogen.sh && make && sudo make install
 
 
-- Ikarus :: Please see [[http://rotty.yi.org/software/spells/#ikarus-notes][spells' Ikarus notes]].
+- Ikarus :: The newest version of Ikarus (from bzr) is required. Also
+            see [[http://rotty.yi.org/software/spells/#ikarus-notes][spells' Ikarus notes]].
 - Ypsilon :: While Ypsilon should successfully run ~sbank~, it does not
-             integrate with its garbage collector, due to [[http://code.google.com/p/ypsilon/issues/detail?id=75][missing
+             integrate with Ypsilon's garbage collector, due to [[http://code.google.com/p/ypsilon/issues/detail?id=75][missing
              functionality in Ypsilon]].
 - Scheme code :: ~sbank~ uses a bunch of Scheme libraries. You can
                  grab them all in one go by using the SPE helper
@@ -91,6 +93,14 @@ expected:
 
 Note that if you haven't installed ~gir-repository~, you'll get
 testcase failures for ~gtk.scm~.
+
+You can also run any of the examples using the ~launch~ script, for
+example:
+
+: ./scripts/launch $IMPL systems/sbank/examples/gtk/demo/main.sps
+
+For more information on the ~launch~ script, see the [[http://rotty.yi.org/software/spe/][documentation for
+SPE]].
 
 * Documentation
 
