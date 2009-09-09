@@ -35,6 +35,7 @@
           (xitomatl irregex)
           (spells fmt)
           (conjure utils)
+          (only (conjure base) logger:conjure)
           (only (sbank gobject internals) gerror?)
           (sbank typelib expanders)
           (sbank typelib base))
@@ -96,6 +97,7 @@
            (_
             '()))))
 
-(define log/sbank (make-fmt-log '(conjure sbank)))
+(define logger:conjure.sbank (make-logger logger:conjure 'sbank))
+(define log/sbank (make-fmt-log logger:conjure.sbank))
 
 )
