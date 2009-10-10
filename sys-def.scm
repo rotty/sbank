@@ -33,12 +33,10 @@
            (spells pathname)
            (conjure dsl))
 
-   (define (typelib-fender namespace)
-     (lambda ()
-       (let ((available? (procedure-from-environment/lazy typelib-available?
-                                                          (sbank typelib base))))
-         (available? namespace))))
-
+   (define typelib-fender (procedure-from-environment/lazy
+                           typelib-fender
+                           (sbank support conjure)))
+   
    (task (configure
           (produce '((("sbank") "config.sls") <= "config.sls.in")
                    '((("sbank") "glib.sls") <= "glib.sls.in")
