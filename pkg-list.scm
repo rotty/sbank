@@ -25,17 +25,24 @@
 
 ;;; Code:
 
-(define-system sbank
-  (dependencies spells)
+(package (sbank (0))
+  (depends (srfi)
+           (spells)
+           (xitomatl))
+  
+  (libraries
+   ("data" -> ("sbank" "data"))
+   (sls -> "sbank"))
   
   (conjure
    (import (rnrs)
            (spells pathname)
            (conjure dsl))
 
-   (define typelib-fender (procedure-from-environment/lazy
-                           typelib-fender
-                           (sbank support conjure)))
+   (import-procedures/lazy
+    (only (sbank support conjure)
+          typelib-fender
+          typelib-fetcher))
    
    (task (configure
           (produce '((("sbank") "config.sls") <= "config.sls.in")
@@ -44,6 +51,8 @@
                      (? ,(typelib-fender "Gtk")))
                    `((("sbank") "soup.sls") <= "soup.sls.in"
                      (? ,(typelib-fender "Soup"))))
-          (fetchers (procedure-from-environment/lazy
-                     (typelib-fetcher)
-                     (sbank support conjure)))))))
+          (fetchers (typelib-fetcher))))))
+
+;; Local Variables:
+;; scheme-indent-styles: ((package 1))
+;; End:
