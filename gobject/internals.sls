@@ -494,7 +494,8 @@
                                                 (* j g-param-size))))
                            (free (g-param-name param))
                            (g-value-unset! (g-param-value param))))
-                       (free parameters)
+                       (unless (= n 0)
+                         (free parameters))
                        obj))
                     (else
                      (let* ((prop (car props/vals))
