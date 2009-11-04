@@ -219,7 +219,7 @@
 
   ;; Here we work the "pool magic", by wrapping the actual callback
   ;; procedures inside a "reusable" wrapper. When the callback is done
-  ;; with, we the wrapper to the pool.
+  ;; with, we return the wrapper to the pool.
 
   (define-record-type pooled-cb
     (fields (immutable ptr)

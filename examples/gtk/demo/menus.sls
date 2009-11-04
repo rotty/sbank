@@ -19,13 +19,16 @@
 (library (sbank examples gtk demo menus)
   (export main name description)
   (import (rnrs base)
-          (spells format)
           (sbank gobject)
           (sbank gtk)
           (sbank typelib))
 
   (define (main)
 
+    (define (make-label depth count)
+      (string-append "item " (number->string depth)
+                     " - " (number->string count)))
+    
     (define (create-menu depth tearoff)
       (and (>= depth 1)
            (let ((menu  (send <gtk-menu> (new))))
@@ -34,8 +37,7 @@
                         (group #f))
                (let ((menuitem
                       (send <gtk-radio-menu-item>
-                        (new-with-label group
-                                        (format #f "item ~A - ~A" depth (+ 1 i))))))
+                        (new-with-label group (make-label depth (+ 1 i))))))
                  (send menu (append menuitem))
                  (send menuitem (set-sensitive (not (eq? i 3))))
                  (if (> depth 1)

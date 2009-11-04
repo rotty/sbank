@@ -42,8 +42,8 @@
 (define-syntax repeat
   (syntax-rules ()
     ((repeat n body ...)
-     (do ((i 0 (+ i 1)))
-         ((>= i n))
+     (do ((i (- n 1) (- i 1)))
+         ((= i 0))
        body ...))))
 
 (define *checks* '())

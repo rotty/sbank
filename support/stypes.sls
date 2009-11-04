@@ -59,7 +59,6 @@
           (spells tracing)
           (for (spells foreign) run expand (meta -1))
           (srfi :8 receive)
-          (spells format)
           (spells misc)
           (for (spells define-values) run expand (meta -1))
           (for (sbank support utils) run expand (meta -1))
@@ -315,9 +314,10 @@
                    (let ((names ((select-kids (ntype?? 'name)) node)))
                      (equal? names `((name ,name)))))))
 
-  (define (warning msg . args)
-    (display "WARNING (sbank support stypes): " (current-error-port))
-    (apply format (current-error-port) msg args)
+  (define (warning . args)
+    (for-each (lambda (thing)
+                (display thing (current-error-port)))
+              (cons "WARNING (sbank support stypes): " args))
     (newline (current-error-port)))
 
   ;; This is currently coded towards x86-64, but others are likely

@@ -22,20 +22,24 @@
 (let ((window (send <gtk-window> (new 'toplevel)))
       (button (send <gtk-button> (new-with-label "Hello World"))))
   (send button
-        (connect 'clicked (lambda (widget)
-                            (println "Hello World")))
-        (connect 'clicked (lambda (widget)
-                            (send window (destroy))))
-        (show))
+    (connect 'clicked (lambda (widget)
+                        (println "Hello World")))
+    (connect 'clicked (lambda (widget)
+                        (send window (destroy))))
+    (show))
   (send window
-        (connect 'delete-event (lambda (widget event)
-                                 (println "delete-event: " widget " " event)
-                                 ;; returning #t to prevent further
-                                 ;; propogation of this signal...
-                                 #t))
-        (connect 'destroy (lambda (widget) (gtk-main-quit)))
-        (set-border-width 10)
-        (add button)
-        (show)))
+    (connect 'delete-event (lambda (widget event)
+                             (println "delete-event: " widget " " event)
+                             ;; returning #t to prevent further
+                             ;; propogation of this signal...
+                             #t))
+    (connect 'destroy (lambda (widget) (gtk-main-quit)))
+    (set-border-width 10)
+    (add button)
+    (show)))
 
 (gtk-main)
+
+;; Local Variables:
+;; scheme-indent-styles: ((send 1))
+;; End:

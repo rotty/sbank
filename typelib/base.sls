@@ -43,7 +43,6 @@
           (spells alist)
           (srfi :39 parameters)
           (srfi :8 receive)
-          (spells format)
           (spells string-utils)
           (only (srfi :13 strings) string-index)
           (only (srfi :1 lists) filter-map iota)
@@ -170,9 +169,8 @@
        (let ((shlib (or (dlopen name #t #t)
                         (dlopen (string-append "lib" name ".so") #t #t))))
          (unless shlib
-           (warning
-            "failed to load shared library '~a' referenced by the typelib: ~a"
-            name (dlerror)))
+           (warning "failed to load shared library '" name
+                    "' referenced by the typelib: " (dlerror)))
          shlib))
      (string-split names #\,)))
 
@@ -1239,8 +1237,8 @@
   (define (bool i)
     (not (= 0 i)))
 
-  (define (warning msg . args)
-    (apply format (current-error-port) msg args)
+  (define (warning . args)
+    (for-each (lambda (arg) (display arg (current-error-port))) args)
     (newline (current-error-port)))
 
   (define-c-callouts libgir
