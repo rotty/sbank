@@ -109,36 +109,33 @@
     (fields (immutable class ginstance-class)
             (immutable ptr ginstance-ptr)))
 
-  (define gobject-guardian (make-guardian))
-  (define boxed-guardian (make-guardian))
+  (define gobject-reaper
+    (make-reaper (lambda (gi)
+                   (g-object-unref (ginstance-ptr gi))
+                   #t)))
+  
+  (define boxed-reaper
+    (make-reaper (lambda (gi)
+                   (g-boxed-free (gobject-class-gtype
+                                  (ginstance-class gi))
+                                 (ginstance-ptr gi))
+                   #t)))
 
-  (define (make-collector guardian collect)
+  (define (reap-all reaper)
     (lambda ()
-      (do ((o (guardian) (guardian)))
-          ((eqv? o #f))
-        (collect o))))
-
+      (do ((o (reaper) (reaper)))
+          ((eqv? o #f)))))
+  
   (define (gobject-collect)
-    (collect-gobjects)
-    (collect-boxed))
+    (reap-all gobject-reaper)
+    (reap-all boxed-reaper))
   
-  (define collect-gobjects
-    (make-collector gobject-guardian
-                    (lambda (gi) (g-object-unref (ginstance-ptr gi)))))
-  
-  (define collect-boxed
-    (make-collector boxed-guardian
-                    (lambda (gi)
-                      (g-boxed-free (gobject-class-gtype
-                                     (ginstance-class gi))
-                                    (ginstance-ptr gi)))))
-
   (define (make-ginstance/guarded class ptr ref-type)
     (cond ((gobject-class-gtype class)
            => (lambda (gtype)
                 (case (gtype->symbol gtype)
                   ((object)
-                   (collect-gobjects)
+                   (reap-all gobject-reaper)
                    (let ((o (make-ginstance class ptr)))
                      (case ref-type
                        ((ref)  (g-object-ref ptr))
@@ -147,12 +144,12 @@
                        (else
                         (error 'make-ginstance/guarded
                                "invalid ref type" ref-type)))
-                     (gobject-guardian o)
+                     (gobject-reaper o)
                      o))
                   ((boxed)
-                   (collect-boxed)
+                   (reap-all boxed-reaper)
                    (let ((o (make-ginstance class ptr)))
-                     (boxed-guardian o)
+                     (boxed-reaper o)
                      o))
                   (else
                    (make-ginstance class ptr)))))
