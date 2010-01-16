@@ -183,6 +183,17 @@
         (list obj)
       signal-args)))
 
+(define-test-case everything-tests callback-stress ()
+  (let ((n 100))
+    (for-each (lambda (i)
+                (test-eqv i (test-callback-destroy-notify
+                             (lambda ()
+                               (collect)
+                               i))))
+              (iota n))
+    (test-eqv (/ (* (- n 1) n) 2)
+      (test-callback-thaw-notifications))))
+
 (run-test-suite everything-tests)
 
 ;; Local Variables:

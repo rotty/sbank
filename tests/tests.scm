@@ -51,6 +51,7 @@
   ("everything.scm"
    (sbank typelib)
    (srfi :39 parameters)
+   (only (spells gc) collect)
    (except (srfi :1 lists) for-each map)
    (sbank gobject))
 
