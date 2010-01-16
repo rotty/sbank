@@ -210,8 +210,8 @@
 
   (define (require-typelib% who namespace version flags)
     (with-validation-context namespace
-      (let ((c-namespace (->utf8z-ptr/null who namespace))
-            (c-version (->utf8z-ptr/null who version))
+      (let ((c-namespace (->utf8z-ptr/null namespace))
+            (c-version (->utf8z-ptr/null version))
             (gerror (malloc/set! 'pointer (null-pointer))))
         (let ((result
                (g-ir-require% (null-pointer)
