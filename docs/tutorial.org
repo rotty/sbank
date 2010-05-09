@@ -138,7 +138,7 @@ a thin layer above GObject. The syntax of the macro is:
 (send <object> (<message> <argument> ...) ...)
 #+END_SRC
 
-This will, for each =(<message> ...)= clause, the invoke the method of
+This will, for each =(<message> ...)= clause, invoke the method of
 =<object>= identified by =<message>=, passing it =<argument> ...=. It
 returns the value(s) returned by the last invocation.
 
@@ -182,12 +182,12 @@ There is little more about this small example:
 - Both the button and the window are sent the =show= message when we
   are otherwise finished dealing with them.
 
-- The window gets a ten-pixel border, and the is button added inside
+- The window gets a ten-pixel border and the is button added inside
   it.
 
 - In the last line, the GTK+ main loop is started. This will cause
-  GTK+ to start handling mouse and keyboard events, allowing you to
-  interact with the application. 
+  GTK+ to start handling mouse and keyboard events, allowing the user
+  to interact with the application.
 
 - The main loop will run until it is terminated by
   =gtk-main-loop-quit=. This will happen in one of two ways: either
@@ -227,7 +227,7 @@ The values conversion rules are:
 - Scheme /strings/ are converted to UTF-8 encoded, null terminated C
   strings, and vice versa.
 - Scheme /numbers/ (integer, real) are converted to their C
-  counterparts
+  counterparts.
 - Where the C API expects an /array/, you can pass a Scheme vector or
   list with elements of the approriate type. For vectors of type
   =int8= and =uint8=, bytevectors and strings are also accepted,
@@ -244,7 +244,7 @@ The values conversion rules are:
 
 ** Output arguments
 
-As a function can have only single return value (or none), functions
+As a C function can have only single return value (or none), functions
 returning multiple values are implemented using "output
 arguments". Those are mapped to multiple return values in Scheme: the
 first value returned is the return value of the C function (if
