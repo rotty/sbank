@@ -1,6 +1,6 @@
 ;;; soup.sls --- Glossing for the Soup namespace
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -114,7 +114,7 @@
               (if (= len 0)
                   0
                   (let ((n (min count (- len chunk-offset))))
-                    (memcpy bytevector start data chunk-offset n)
+                    (bytevector-copy! data chunk-offset bytevector start n)
                     (set! chunk-offset (+ chunk-offset n))
                     (when (>= chunk-offset len)
                       (set! current-chunk #f)
@@ -153,26 +153,12 @@
                (send hdrs (remove "Content-Type"))
                (send resp-body (truncate)))))))
 
-  (define (message-body-decorator typelib class)
-    (gobject-simple-class-decorate
-     class
-     values
-     (gobject-method-overrider typelib `((append . ,message-body-append)))))
-
-  (define (message-body-append typelib next-method)
-    (let ((<buffer> (typelib-get-entry typelib "Buffer")))
-      (lambda (body data)
-        (let ((buffer (send <buffer> (new data))))
-          (next-method body buffer)
-          (send buffer (free))))))
-
   ;;@ Do the setup necessary for using Soup. You should call this
   ;; before doing a @code{typelib-import} of the "Soup"
   ;; namespace.
   (define-setup-procedure (soup-setup!)
     (gobject-setup!)
-    (register-typelib-decorator "Soup" "Message" message-decorator)
-    (register-typelib-decorator "Soup" "MessageBody" message-body-decorator))
+    (register-typelib-decorator "Soup" "Message" message-decorator))
 
   (typelib-import (only (prefix ("Soup" #f) soup-)
                         #!@(typelib-exports soup))
