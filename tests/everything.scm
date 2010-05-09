@@ -1,6 +1,6 @@
 ;;; everything.scm --- Tests for the "Everything" namespace bindings
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -21,7 +21,17 @@
 ;;; Commentary:
 
 ;;; Code:
+#!r6rs
 
+(import (rnrs)
+        (only (srfi :1) iota every)
+        (srfi :8 receive)
+        (srfi :39 parameters)
+        (wak trc-testing)
+        (only (spells gc) collect)
+        (spells tracing)
+        (sbank typelib)
+        (sbank gobject))
 
 (typelib-import ("Everything" #f)
                 (setup gobject-setup!))

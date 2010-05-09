@@ -1,6 +1,6 @@
 ;;; tests.scm --- List of unit-test files for running with testeez.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -48,15 +48,9 @@
    (sbank gobject internals)
    (spells foreign))
 
-  ("everything.scm"
-   (sbank typelib)
-   (srfi :39 parameters)
-   (only (spells gc) collect)
-   (except (srfi :1 lists) for-each map)
-   (sbank gobject))
+  "everything.scm"
 
   ("glib.scm"
    (sbank glib))
 
-  ("gtk.scm"
-   (sbank gtk))))
+  "gtk.scm"))
