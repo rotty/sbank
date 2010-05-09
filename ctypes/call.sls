@@ -1,6 +1,6 @@
 ;;; call.sls --- Dealing with C types and callouts/callbacks
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -519,7 +519,7 @@
                      result)))))
             (else
              (receive (prim-type out-convert back-convert cleanup)
-                      (type-info/prim-type+procs rti (arg-flags->free-spec flags))
+                      (type-info/prim-type+procs rti (arg-flags->free-spec flags) #t)
                (cond (back-convert
                       (lambda (val arg-vec)
                         (let ((result (back-convert val)))

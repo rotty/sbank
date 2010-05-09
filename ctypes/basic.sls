@@ -1,6 +1,6 @@
 ;;; basic.sls --- C type utilities.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -105,9 +105,9 @@
 
   (define type-info/prim-type+procs
     (case-lambda
-      ((ti free-spec)
+      ((ti free-spec null-ok?)
        (let ((type (type-info-type ti))
-             (null-ok? (type-info-null-ok? ti)))
+             (null-ok? (or null-ok? (type-info-null-ok? ti))))
          (cond
           ((symbol? type)
            (let ((prim-type (type-tag-symbol->prim-type type)))
@@ -234,8 +234,10 @@
           (else
            (raise-sbank-callout-error
             "argument/return type not yet implemented" type)))))
+      ((ti free-spec)
+       (type-info/prim-type+procs ti free-spec #f))
       ((ti)
-       (type-info/prim-type+procs ti -1))))
+       (type-info/prim-type+procs ti -1 #f))))
 
   (define (ginstance-maker gtype-lookup declared-class)
     (cond ((or (gobject-record-class? declared-class)
