@@ -1,6 +1,6 @@
 ;;; base.sls --- gobject-introspection typelib destructuring
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -174,17 +174,20 @@
          shlib))
      (string-split names #\,)))
 
-  ;; See comments in gtypelib.c (_g_typelib_init)
+  ;; See comments in gtypelib.c (_g_typelib_do_dlopen)
   (define (typelib-shlibs typelib)
     (or (%typelib-shlibs typelib)
         (let* ((tld (tl-data (typelib-tl typelib)))
-               (names (get/validate-string
-                       tld (typelib-header typelib 'shared-library)))
-               (shlibs (names->shlibs names)))
-          (let* ((app-dl (dlopen))
-                 (shlibs (if app-dl (append shlibs (list app-dl)) shlibs)))
-            (%typelib-set-shlibs! typelib shlibs)
-            shlibs))))
+               (shlib-offset (typelib-header typelib 'shared-library))
+               (app-dl-list (cond ((dlopen) => list)
+                                  (else '())))
+               (shlibs (if (zero? shlib-offset)
+                           app-dl-list
+                           (append (names->shlibs
+                                    (get/validate-string tld shlib-offset))
+                                   app-dl-list))))
+          (%typelib-set-shlibs! typelib shlibs)
+          shlibs)))
 
   (define (typelib-dlsym typelib name)
     (or-map (lambda (shlib)
