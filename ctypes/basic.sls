@@ -334,22 +334,29 @@
   (define (c-array->vector ptr atype size)
     (receive (prim-type element-size element-ref element-set!)
              (array-type-values atype)
-      (cond ((or size (array-size atype))
-             => (lambda (size)
-                  (do ((vec (make-vector size))
-                       (i 0 (+ i 1)))
-                      ((>= i size) vec)
-                    (vector-set! vec i (element-ref ptr (* i element-size))))))
-            ((array-is-zero-terminated? atype)
-             (let ((terminator? (array-terminator-predicate prim-type)))
-               (let loop ((offset 0) (elts '()))
-                 (if (terminator? ptr offset)
-                     (list->vector (reverse elts))
-                     (loop (+ offset element-size)
-                           (cons (element-ref ptr offset) elts))))))
-            (else
-             (error 'c-array->vector
-                    "cannot handle array without size information" atype)))))
+      (let ((is-bytevector? (eq? prim-type 'uint8)))
+        (cond ((or size (array-size atype))
+               => (lambda (size)
+                    (if is-bytevector?
+                        (memcpy (make-bytevector size) ptr size)
+                        (do ((vec (make-vector size))
+                             (i 0 (+ i 1)))
+                            ((>= i size) vec)
+                          (vector-set! vec
+                                       i
+                                       (element-ref ptr (* i element-size)))))))
+              ((array-is-zero-terminated? atype)
+               (let ((terminator? (array-terminator-predicate prim-type)))
+                 (let loop ((offset 0) (elts '()))
+                   (if (terminator? ptr offset)
+                       (if is-bytevector?
+                           (u8-list->bytevector (reverse elts))
+                           (list->vector (reverse elts)))
+                       (loop (+ offset element-size)
+                             (cons (element-ref ptr offset) elts))))))
+              (else
+               (error 'c-array->vector
+                      "cannot handle array without size information" atype))))))
 
   (define (->c-array val atype)
     (define (lose msg . irritants)
