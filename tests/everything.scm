@@ -139,6 +139,19 @@
   (test-gslist-container-in '("1" "2" "3"))
   (test-gslist-everything-in '("1" "2" "3")))
 
+(define-test-case everything-tests torture-signature ()
+  (receive (rv y z q) (test-torture-signature-1 42 "fooish" 66)
+    (test-eqv rv #t)
+    (test-eqv y 42.0)
+    (test-eqv z (* 42 2))
+    (test-eqv q (+ 6 66)))
+  (let ((exception-cookie (list 'cookie)))
+    (test-eq exception-cookie
+      (guard (c ((gerror? c) exception-cookie))
+        (call-with-values
+          (lambda () (test-torture-signature-1 42 "fooish" 77))
+          list)))))
+
 (define-test-suite (everything-tests.gobject everything-tests)
   "GObject features")
 
