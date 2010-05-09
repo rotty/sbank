@@ -177,7 +177,7 @@
 
   ;; An attachment contains a bunch of metadata associated with a
   ;; GObject instance over its whole lifetime, starting from when the
-  ;; is first needed (an thus created). This is opposed to the
+  ;; is first needed (and thus created). This is opposed to the
   ;; `ginstance' wrapper, which is (re)created as needed.
   (define-record-type gobject-attachment
     (fields (mutable destroy-hook))
