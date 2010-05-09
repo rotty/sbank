@@ -1,6 +1,6 @@
 ;;; conjure.sls --- sbank build system support
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -25,14 +25,20 @@
 
 (library (sbank support conjure)
   (export typelib-fetcher
-          typelib-fender)
-  (import (rnrs)
+          typelib-fender
+
+          sbank-build-tasks
+          install-products)
+  (import (except (rnrs) delete-file file-exists?)
           (only (srfi :1) append-map)
+          (wak irregex)
+          (wak fmt)
           (spells match)
           (spells misc)
           (spells logging)
-          (spells irregex)
-          (spells fmt)
+          (spells filesys)
+          (spells pathname)
+          (spells tracing)
           (conjure utils)
           (conjure dsl)
           (only (conjure base) logger:conjure))
@@ -112,11 +118,32 @@
     (_
      '())))
 
+(define (install-products agent product-dir pathnames)
+  (for-each (lambda (pathname)
+              (let ((product (pathname-join product-dir pathname)))
+                (when (file-exists? product)
+                  (agent 'install-file
+                         'libraries
+                         (->namestring pathname)
+                         (->namestring product)))))
+            pathnames))
+
+(define (sbank-build-tasks)
+  (task configure
+    (configure
+     (produce '((("sbank") "config.sls") <= "config.sls.in")
+              '((("sbank") "glib.sls") <= "glib.sls.in")
+              `((("sbank") "gtk.sls") <= "gtk.sls.in"
+                (? ,(typelib-fender "Gtk")))
+              `((("sbank") "soup.sls") <= "soup.sls.in"
+                (? ,(typelib-fender "Soup"))))
+     (fetchers (typelib-fetcher)))))
+
 (define logger:conjure.sbank (make-logger logger:conjure 'sbank))
 (define log/sbank (make-fmt-log logger:conjure.sbank))
 
 )
 
 ;; Local Variables:
-;; scheme-indent-styles: ((match 1))
+;; scheme-indent-styles: (as-match conjure-dsl)
 ;; End:

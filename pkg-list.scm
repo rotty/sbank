@@ -1,6 +1,6 @@
 ;;; sys-def.scm --- System definition for sbank
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -27,32 +27,53 @@
 
 (package (sbank (0))
   (depends (srfi)
+           (wak-foof-loop)
            (spells)
+           (spells-foreign)
            (xitomatl))
   
   (libraries
    ("data" -> ("sbank" "data"))
-   (sls -> "sbank"))
-  
+   (sls -> "sbank")
+   (("examples" . sls) -> ("sbank" "examples")))
+
+  (documentation
+   "AUTHORS" "COPYING" "README" "TODO"
+   "examples")
+
   (conjure
    (import (rnrs)
-           (spells pathname)
-           (conjure dsl))
+           (sbank support conjure))
+   (sbank-build-tasks))
+  
+  (installation-hook ((needs-source? . #t))
+    (import (rnrs)
+            (spells pathname)
+            (conjure dsl)
+            (conjure dorodango)
+            (only (sbank support conjure)
+                  typelib-fender
+                  typelib-fetcher
+                  install-products))
 
-   (import-procedures/lazy
-    (only (sbank support conjure)
-          typelib-fender
-          typelib-fetcher))
-   
-   (task (configure
-          (produce '((("sbank") "config.sls") <= "config.sls.in")
-                   '((("sbank") "glib.sls") <= "glib.sls.in")
-                   `((("sbank") "gtk.sls") <= "gtk.sls.in"
-                     (? ,(typelib-fender "Gtk")))
-                   `((("sbank") "soup.sls") <= "soup.sls.in"
-                     (? ,(typelib-fender "Soup"))))
-          (fetchers (typelib-fetcher))))))
+    (make-conjure-hook
+     (lambda (agent)
+       (sbank-build-tasks)
+       
+       (task install
+         (ordinary
+          (depends 'configure)
+          (proc (lambda (self)
+                  (install-products
+                   agent
+                   ((self 'project) 'product-dir)
+                   (map (lambda (filename)
+                          (make-pathname #f '("sbank") filename))
+                        '("config.sls"
+                          "glib.sls"
+                          "gtk.sls"
+                          "soup.sls")))))))))))
 
 ;; Local Variables:
-;; scheme-indent-styles: ((package 1))
+;; scheme-indent-styles: (pkg-list conjure-dsl)
 ;; End:
