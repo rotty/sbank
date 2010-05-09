@@ -1,6 +1,6 @@
 ;;; gtk.sls --- Glossing for the Gtk namespace
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -144,7 +144,9 @@
     (lambda (tree-model iter column)
       (let ((gvalue (g-value-alloc 1)))
         (next-method tree-model iter column gvalue)
-        (g-value-ref gvalue))))
+        (let ((result (g-value-ref gvalue)))
+          (g-value-free gvalue)
+          result))))
 
   (define (tree-selection-get-selected typelib next-method)
     (lambda (tree-selection)
