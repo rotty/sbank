@@ -24,7 +24,9 @@
 #!r6rs
 
 (library (sbank ctypes call)
-  (export make-callout
+  (export type-info/prim-type+procs
+
+          make-callout
           make-callback
           arg-callout-steps
           arg-callback-steps)
@@ -53,6 +55,7 @@
           (for (sbank typelib stypes) expand)
           (sbank gobject internals)
           (sbank gobject gtype)
+          (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject glist)
           (sbank gobject ghash)
@@ -65,8 +68,261 @@
 
   ;;(define-syntax debug (syntax-rules () (begin)))
 
+  (define type-info/prim-type+procs
+    (case-lambda
+      ((ti free-spec null-ok?)
+       (let ((type (type-info-type ti))
+             (null-ok? (or null-ok? (type-info-null-ok? ti))))
+         (cond
+          ((symbol? type)
+           (let ((prim-type (type-tag-symbol->prim-type type)))
+             (case type
+               ((int8 uint8 int16 uint16 int32 uint32 int64 uint64
+                      short ushort int uint long ulong ssize size time_t
+                      float double)
+                (values prim-type #f #f #f))
+               ((boolean)
+                (values prim-type
+                        (lambda (val) (if val 1 0))
+                        (lambda (val) (not (= val 0)))
+                        #f))
+               ((utf8)
+                (values prim-type
+                        (out-converter/null string->utf8z-ptr null-ok? #f)
+                        (back-converter/null utf8z-ptr->string null-ok? #f)
+                        (and (free-spec-set? free-spec) free)))
+               ((filename)
+                (values prim-type
+                        (out-converter/null string->fnamez-ptr null-ok? #f)
+                        (back-converter/null fnamez-ptr->string null-ok? #f)
+                        (and (free-spec-set? free-spec) free)))
+               ((void)
+                (values 'void #f #f #f))
+               ((pointer)
+                (values 'pointer #f #f #f))
+               ((gvalue)
+                (values 'pointer
+                        ;; FIXME: pointers ain't disjunctive
+                        (lambda (v) (if (pointer? v) v (->g-value v #f)))
+                        g-value-ref
+                        #f))
+               ((gslist)
+                (let ((elt-ti (car (type-info-parameters ti))))
+                  (receive (elt-pt elt-out elt-back elt-cleanup)
+                           (type-info/prim-type+procs
+                            elt-ti
+                            (free-spec-shift free-spec))
+                    (values 'pointer
+                            (gslist-out-converter elt-out)
+                            (gslist-back-converter elt-back)
+                            (gslist-cleanup elt-cleanup free-spec)))))
+               ((glist)
+                (let ((elt-ti (car (type-info-parameters ti))))
+                  (receive (elt-pt elt-out elt-back elt-cleanup)
+                           (type-info/prim-type+procs
+                            elt-ti
+                            (free-spec-shift free-spec))
+                    (values 'pointer
+                            (glist-out-converter elt-out)
+                            (glist-back-converter elt-back)
+                            (glist-cleanup elt-cleanup free-spec)))))
+               ((ghash)
+                (let ((key-ti (car (type-info-parameters ti)))
+                      (val-ti (cadr (type-info-parameters ti)))
+                      (elt-fspec (free-spec-shift free-spec)))
+                  (let-values
+                      (((key-pt key-out key-back key-cleanup)
+                        (type-info/prim-type+procs key-ti elt-fspec))
+                       ((val-pt val-out val-back val-cleanup)
+                        (type-info/prim-type+procs val-ti elt-fspec)))
+                    (let ((class (make-ghash-class key-out val-out
+                                                   key-back val-back
+                                                   key-cleanup val-cleanup)))
+                      (values
+                       'pointer
+                       (out-converter/null (ghash-out-converter class) null-ok? #f)
+                       (back-converter/null (ghash-back-converter class) null-ok? #f)
+                       (ghash-cleanup class free-spec))))))
+               ((gtype)
+                (values prim-type symbol->gtype gtype->symbol #f))
+               (else
+                (raise-sbank-callout-error
+                 "argument passing for this type not implemented" ti)))))
+          ((genum? type)
+           (values 'int                 ; Is int always OK?
+                   (lambda (val)
+                     (if (symbol? val)
+                         (or (genumerated-lookup type val)
+                             (raise-sbank-callout-error
+                              "invalid enumeration value"
+                              val (genumerated-symbols type)))
+                         val))
+                   (lambda (val)
+                     (or (genumerated-lookup type val) val))
+                   #f))
+          ((gflags? type)
+           (values 'int
+                   (lambda (val)
+                     (if (integer? val)
+                         val
+                         (gflags->integer type val)))
+                   (lambda (val)
+                     (integer->gflags type val))
+                   #f))
+          ((array-type? type)
+           (unless (or (array-size type) (array-is-zero-terminated? type))
+             (raise-sbank-callout-error
+              "cannot handle array without size information" type))
+           (values 'pointer
+                   (out-converter/null ->c-array null-ok? #f)
+                   (back-converter/null (lambda (ptr)
+                                          (c-array->vector ptr type #f))
+                                        null-ok?
+                                        #f)
+                   (and (free-spec-any? free-spec)
+                        (lambda (ptr)
+                          (free-c-array ptr type #f free-spec)))))
+          ((gobject-class? type)
+           (values 'pointer
+                   (out-converter/null ginstance-ptr null-ok? #f)
+                   (back-converter/null (ginstance-maker gtype-lookup type)
+                                        null-ok?
+                                        #f)
+                   #f))
+          ((signature? type)
+           (values 'pointer
+                   (lambda (val)
+                     (raise-sbank-callout-error
+                      "scheme callback -> C function pointer conversion not supported in this context"))
+                   (back-converter/null (signature-callout type) null-ok? #f)
+                   #f))
+          (else
+           (raise-sbank-callout-error
+            "argument/return type not yet implemented" type)))))
+      ((ti free-spec)
+       (type-info/prim-type+procs ti free-spec #f))
+      ((ti)
+       (type-info/prim-type+procs ti -1 #f))))
+
+  (define (gslist-out-converter elt-convert)
+    (lambda (lst)
+      (cond ((eqv? lst #f)
+             (null-pointer))
+            ((pointer? lst)
+             lst)
+            ((gslist? lst)
+             (ginstance-ptr lst))
+            (else
+             (let loop ((gslist (null-pointer))
+                        (lst lst))
+               (if (null? lst)
+                   (g-slist-reverse gslist)
+                   (loop (g-slist-prepend gslist
+                                          (if elt-convert
+                                              (elt-convert (car lst))
+                                              (car lst)))
+                         (cdr lst))))))))
+
+  (define (gslist->list gslist elt-convert)
+    (let loop ((lst '()) (gslist gslist))
+      (if (null-pointer? gslist)
+          (reverse lst)
+          (loop (cons (elt-convert (g-slist-data gslist)) lst)
+                (g-slist-next gslist)))))
+
+  (define (gslist-back-converter elt-back)
+    (lambda (gslist)
+      (gslist->list gslist elt-back)))
+
+  (define (gslist-cleanup elt-cleanup free-spec)
+    (lambda (gslist)
+      (when elt-cleanup
+        (let loop ((gslist gslist))
+          (unless (null-pointer? gslist)
+            (elt-cleanup (g-slist-data gslist))
+            (loop (g-slist-next gslist)))))
+      (when (free-spec-set? free-spec)
+        (g-slist-free gslist))))
+
+  (define (glist-out-converter elt-convert)
+    (lambda (lst)
+      (cond ((eqv? lst #f)
+             (null-pointer))
+            ((pointer? lst)
+             lst)
+            ((glist? lst)
+             (ginstance-ptr lst))
+            (else
+             (let loop ((glist (null-pointer))
+                        (lst lst))
+               (if (null? lst)
+                   glist
+                   (loop (g-list-append glist
+                                        (if elt-convert
+                                            (elt-convert (car lst))
+                                            (car lst)))
+                         (cdr lst))))))))
+
+  (define (glist->list glist elt-convert)
+    (let loop ((lst '()) (glist (g-list-last glist)))
+      (if (null-pointer? glist)
+          lst
+          (loop (cons (elt-convert (g-list-data glist)) lst)
+                (g-list-prev glist)))))
+
+  (define (glist-back-converter elt-back)
+    (lambda (glist)
+      (glist->list glist elt-back)))
+
+  (define (glist-cleanup elt-cleanup free-spec)
+    (lambda (glist)
+      (when elt-cleanup
+        (let loop ((glist glist))
+          (unless (null-pointer? glist)
+            (elt-cleanup (g-list-data glist))
+            (loop (g-list-next glist)))))
+      (when (free-spec-set? free-spec)
+        (g-list-free glist))))
+
+  (define (ghash-out-converter class)
+    (lambda (val)
+      (unless (ghash? val)
+        (raise-sbank-callout-error "expected an GHash instance" val))
+      (ginstance-ptr val)))
+
+  (define (ghash-back-converter class)
+    (lambda (ghash-ptr)
+      (make-ginstance class ghash-ptr)))
+
+  (define (ghash-cleanup class free-spec)
+    (lambda (val)
+      #f))
+
+  (define (ginstance-maker gtype-lookup declared-class)
+    (cond ((or (gobject-record-class? declared-class)
+               (gobject-union-class? declared-class))
+           (lambda (instance)
+             (make-ginstance declared-class instance)))
+          (else
+           (lambda (instance)
+             (let ((class
+                     (or
+                      (and-let* ((gtype (gtype-class-gtype
+                                         (gtype-instance-class instance))))
+                        (gtype-lookup gtype))
+                      declared-class)))
+               (make-ginstance/guarded class instance 'ref))))))
+
+
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
   
+  (define-accessors "GTypeInstance"
+    (gtype-instance-class "g_class"))
+
+  (define-accessors "GTypeClass"
+    (gtype-class-gtype "g_type"))
+
+  
   (define (args-pre-call! arg-vec arg-types flags)
     (do ((i 0 (+ i 1))
          (arg-types arg-types (cdr arg-types))
