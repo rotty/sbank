@@ -1,6 +1,6 @@
 ;;; internals.sls --- GObject mapping implementation.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -87,93 +87,25 @@
           (srfi :8 receive)
           (spells tracing)
           (only (spells assert) cout)
-          (spells gc)
           (spells foreign)
-          (sbank support type-data)
           (sbank support utils)
           (sbank support shlibs)
+          (sbank support callback-pool)
           (sbank support ptr-table)
+          (sbank support type-data)
+          (sbank ctypes call)
           (sbank gobject gtype)
           (sbank gobject gquark)
           (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject gparam)
           (sbank gobject glist)
-          (sbank gobject ghash))
+          (sbank gobject ghash)
+          (sbank gobject internals data))
 
   ;;
   ;; Object system
   ;;
-
-  (define-record-type ginstance
-    (fields (immutable class ginstance-class)
-            (immutable ptr ginstance-ptr)))
-
-  (define gobject-reaper
-    (make-reaper (lambda (gi)
-                   (g-object-unref (ginstance-ptr gi))
-                   #t)))
-  
-  (define boxed-reaper
-    (make-reaper (lambda (gi)
-                   (g-boxed-free (gobject-class-gtype
-                                  (ginstance-class gi))
-                                 (ginstance-ptr gi))
-                   #t)))
-
-  (define (reap-all reaper)
-    (lambda ()
-      (do ((o (reaper) (reaper)))
-          ((eqv? o #f)))))
-  
-  (define (gobject-collect)
-    (reap-all gobject-reaper)
-    (reap-all boxed-reaper))
-  
-  (define (make-ginstance/guarded class ptr ref-type)
-    (cond ((gobject-class-gtype class)
-           => (lambda (gtype)
-                (case (gtype->symbol gtype)
-                  ((object)
-                   (reap-all gobject-reaper)
-                   (let ((o (make-ginstance class ptr)))
-                     (case ref-type
-                       ((ref)  (g-object-ref ptr))
-                       ((sink) (when (g-object-is-floating? ptr)
-                                 (g-object-ref-sink ptr)))
-                       (else
-                        (error 'make-ginstance/guarded
-                               "invalid ref type" ref-type)))
-                     (gobject-reaper o)
-                     o))
-                  ((boxed)
-                   (reap-all boxed-reaper)
-                   (let ((o (make-ginstance class ptr)))
-                     (boxed-reaper o)
-                     o))
-                  (else
-                   (make-ginstance class ptr)))))
-          (else
-           (make-ginstance class ptr))))
-
-  (define (ginstance=? x y)
-    (cond ((and (ginstance? x) (ginstance? y))
-           (pointer=? (ginstance-ptr x) (ginstance-ptr y)))
-          ((and (eqv? x #f) (eqv? y #f))
-           #t)
-          ((or (and (eqv? x #f) (ginstance? y))
-               (and (ginstance? x) (eqv? y #f)))
-           #f)
-          (else
-           (error 'ginstance=? "invalid argument types" x y))))
-
-  (define (ginstance-is-a? inst class)
-    (let loop ((c (ginstance-class inst)))
-      (cond ((eq? c class) #t)
-            (else
-             (gobject-class-force! c)
-             (cond ((gobject-class-parent c) => loop)
-                   (else                        #f))))))
 
   ;; An attachment contains a bunch of metadata associated with a
   ;; GObject instance over its whole lifetime, starting from when the
@@ -225,135 +157,6 @@
       (gobject-attachment-destroy-hook-set!
        att
        (cons proc (gobject-attachment-destroy-hook att)))))
-
-  (define-record-type gobject-class
-    ;;(opaque #t)
-    (fields namespace
-            name
-            gtype
-            (mutable load-members)
-            (mutable parent)
-            (mutable interfaces)
-            (mutable constructors)
-            (mutable methods)
-            (mutable signals)
-            (mutable properties))
-    (protocol (lambda (p)
-                (lambda (namespace name gtype load-members)
-                  (p namespace name gtype load-members #f #f #f #f #f #f)))))
-
-  ;; A simple class is one that is not part of the GObject class
-  ;; hierarchy, e.g. plain structs and unions. It has therefore no
-  ;; parent, no interfaces, no signals and no properties.
-  (define-record-type gobject-simple-class
-    (parent gobject-class)
-    (protocol (lambda (n)
-                (lambda (namespace name gtype load-members)
-                  (let ((p (n namespace name gtype
-                              (lambda (class)
-                                (receive (constructors methods) (load-members class)
-                                  (values #f '() constructors methods '() '()))))))
-                    (p))))))
-
-
-  (define (simple-protocol n)
-    (lambda args
-      ((apply n args))))
-
-  (define-record-type gobject-record-class
-    (parent gobject-simple-class)
-    (protocol simple-protocol))
-
-  (define-record-type gobject-union-class
-    (parent gobject-simple-class)
-    (protocol simple-protocol))
-
-  (define-record-type gsequence-class
-    (parent gobject-simple-class)
-    (fields elt-out elt-back elt-cleanup)
-    (protocol
-     (lambda (n)
-       (lambda (namespace name constructors methods
-                          elt-out elt-back elt-cleanup)
-         (let ((p (n namespace name #f (lambda (class)
-                                         (values constructors methods)))))
-           (p elt-out elt-back elt-cleanup))))))
-
-  (define-record-type gmapping-class
-    (parent gobject-simple-class)
-    (fields key-out val-out key-back val-back key-cleanup val-cleanup)
-    (protocol
-     (lambda (n)
-       (lambda (namespace name constructors methods
-                          key-out val-out
-                          key-back val-back
-                          key-cleanup val-cleanup)
-         (let ((p (n namespace name #f (lambda (class)
-                                         (values constructors methods)))))
-           (p key-out val-out key-back val-back key-cleanup val-cleanup))))))
-
-  (define-record-type gslist-class
-    (parent gsequence-class)
-    (protocol (lambda (n)
-                (lambda (elt-out elt-back elt-cleanup)
-                  (let ((p (n "GLib" "SList" '() '() elt-out elt-back elt-cleanup)))
-                    (p))))))
-
-  (define-record-type glist-class
-    (parent gsequence-class)
-    (protocol (lambda (n)
-                (lambda (elt-out elt-back elt-cleanup)
-                  (let ((p (n "GLib" "List" '() '() elt-out elt-back elt-cleanup)))
-                    (p))))))
-
-  (define-record-type ghash-class
-    (parent gmapping-class)
-    (protocol
-     (lambda (n)
-       (lambda (key-out val-out key-back val-back key-cleanup val-cleanup)
-         (let ((p (n "GLib" "HashTable"
-                     '()
-                     `((foreach . ,ghash-foreach)
-                       (->alist . ,ghash->alist))
-                     key-out val-out key-back val-back key-cleanup val-cleanup)))
-           (p))))))
-
-  (define (gsequence? x)
-    (and (ginstance? x)
-         (gsequence-class? (ginstance-class x))))
-
-  (define (gslist? x)
-    (and (ginstance? x)
-         (gslist-class? (ginstance-class x))))
-
-  (define (glist? x)
-    (and (ginstance? x)
-         (gslist-class? (ginstance-class x))))
-
-  (define (ghash? x)
-    (and (ginstance? x)
-         (ghash-class? (ginstance-class x))))
-
-  (define (ghash-foreach ghash proc)
-    (unless (ghash? ghash)
-      (error 'ghash-foreach "need a GHash instance" ghash))
-    (let* ((class (ginstance-class ghash))
-           (key-back (gmapping-class-key-back class ))
-           (val-back (gmapping-class-val-back class)))
-      (g-hash-table-foreach (ginstance-ptr ghash)
-                            (lambda (key val user-data)
-                              (proc (key-back key) (val-back val)))
-                            (null-pointer))))
-
-  (define (ghash->alist ghash)
-    (cond ((eqv? ghash #f) '())
-          (else
-           (let ((result '()))
-             (ghash-foreach ghash (lambda (key val)
-                                    (set! result (cons (cons key val) result))))
-             result))))
-
-  (define-record-type gerror-type)
 
   (define (gobject-class-get-signal-signature class signal)
     (lookup-signal class signal))
@@ -433,42 +236,8 @@
                                result)
                          (cdr overrides))))))))
 
-  (define (make-gobject-class-lookup accessor)
-    (define (lookup class name)
-      (cond ((assq name (accessor class))
-             => (lambda (entry)
-                  (when (lazy-entry? (cdr entry))
-                    (set-cdr! entry ((lazy-entry-proc (cdr entry)) class)))
-                  (cdr entry)))
-            ((and-let* ((parent (gobject-class-parent class)))
-               (gobject-class-force! parent)
-               (lookup parent name)) => values)
-            (else
-             (let loop ((ifaces (gobject-class-interfaces class)))
-               (cond ((null? ifaces) #f)
-                     ((let ((iface (car ifaces)))
-                        (gobject-class-force! iface)
-                        (lookup iface name)) => values)
-                     (else
-                      (loop (cdr ifaces))))))))
-    lookup)
-
-  (define lookup-method (make-gobject-class-lookup gobject-class-methods))
   (define lookup-property (make-gobject-class-lookup gobject-class-properties))
   (define lookup-signal (make-gobject-class-lookup gobject-class-signals))
-
-  (define (gobject-class-force! class)
-    (cond ((gobject-class-load-members class)
-           => (lambda (loader)
-                (receive (parent interfaces constructors methods signals properties)
-                         (loader class)
-                  (gobject-class-parent-set! class parent)
-                  (gobject-class-interfaces-set! class interfaces)
-                  (gobject-class-constructors-set! class constructors)
-                  (gobject-class-methods-set! class methods)
-                  (gobject-class-signals-set! class signals)
-                  (gobject-class-properties-set! class properties)
-                  (gobject-class-load-members-set! class #f))))))
 
   (define (make-gobject-new* type->gtype)
     (lambda (class)
@@ -516,46 +285,13 @@
   (define (gobject-class-property-type class prop)
     (property-info-type (gobject-class-get-property-info class prop)))
 
-  (define (send-message obj msg . args)
-    (cond ((ginstance? obj)
-           (let ((method (send-message (ginstance-class obj) msg)))
-             (apply method obj args)))
-          (else
-           (gobject-class-force! obj)
-           (cond ((assq msg (gobject-class-constructors obj))
-                  => (lambda (entry)
-                       (when (lazy-entry? (cdr entry))
-                         (set-cdr! entry ((lazy-entry-proc (cdr entry)) obj)))
-                       (apply (cdr entry) args)))
-                 ((lookup-method obj msg)
-                  => (lambda (proc)
-                       (unless (null? args)
-                         (error 'send-message
-                                "cannot send message with arguments to class"
-                                obj msg args))
-                       proc))
-                 (else
-                  (error 'send-message "message not understood" obj msg args))))))
-
-  (define-syntax send
-    (syntax-rules ()
-      ((send obj (msg arg ...) ...)
-       (begin (send-message obj 'msg arg ...) ...))))
-
-
   (define-condition-type &gerror &error
     make-gerror gerror?
     (domain gerror-domain)
     (code gerror-code))
-
-  (define (g-object-is-floating? ptr)
-    (not (= (g-object-is-floating ptr) 0)))
-
+  
   (define-c-callouts libgobject
     (g-object-newv 'pointer "g_object_newv" (list gtype-ctype 'uint 'pointer))
-    (g-object-ref 'void "g_object_ref" '(pointer))
-    (g-object-unref 'void "g_object_unref" '(pointer))
-    (g-object-ref-sink 'void "g_object_ref_sink" '(pointer))
     (g-object-is-floating 'int "g_object_is_floating" '(pointer))
     (g-object-get-qdata 'pointer "g_object_get_qdata" `(pointer ,g-quark-ctype))
     (g-object-set-qdata-full 'void "g_object_set_qdata_full"

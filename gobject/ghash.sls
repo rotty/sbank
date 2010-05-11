@@ -1,6 +1,6 @@
 ;;; ghash.sls --- GHashTable primitives.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -29,15 +29,13 @@
   (import (rnrs base)
           (srfi :8 receive)
           (spells foreign)
-          (sbank support type-data)
-          (sbank support shlibs)
-          (sbank typelib stypes)
-          (sbank support stypes))
+          (sbank support callback-pool)
+          (sbank support shlibs))
 
-  (define foreach-func-signature
-    (make-simple-signature 'void '(pointer pointer pointer)))
+  (define foreach-callback-pool
+    (make-callback-pool (make-c-callback 'void '(pointer pointer pointer))))
 
-  (define foreach-callback (signature-callback foreach-func-signature))
+  (define foreach-callback (callback-pool-getter foreach-callback-pool))
 
   (define (g-hash-table-foreach hash-table proc user-data)
     (receive (cb-ptr reclaim) (foreach-callback proc)

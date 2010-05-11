@@ -35,7 +35,6 @@
           bytevector-portion bytevector-portion? bytevector-portion-count
           malloc/set!
 
-          type-info->prim-type
           out-converter/null
           back-converter/null
 
@@ -61,7 +60,7 @@
           raise-gerror/free
           gerror-conditions/free
 
-          null-ok-always-on?)
+          always-allow-none?)
   (import (rnrs)
           (srfi :2 and-let*)
           (srfi :8 receive)
@@ -78,7 +77,7 @@
           (sbank gobject genum)
           (sbank gobject gvalue)
           (sbank gobject glist)
-          (sbank gobject internals))
+          (sbank gobject internals data))
 
   (define (raise-sbank-callout-error msg . irritants)
     (raise (condition (make-sbank-callout-error)
@@ -92,7 +91,7 @@
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
 
-  (define null-ok-always-on? (make-parameter #f))
+  (define always-allow-none? (make-parameter #f))
 
   (define-record-type (<bytevector-portion> bytevector-portion bytevector-portion?)
     (fields (immutable bv bytevector-portion-bv)
@@ -104,7 +103,7 @@
   ;; with out-arguments, which are collected using a "back-converter"
   ;; (which is converting back to Scheme).
   (define (out-converter/null convert null-ok? null-val)
-    (if (or (null-ok-always-on?) null-ok?)
+    (if (or (always-allow-none?) null-ok?)
         (lambda (val)
           (if (equal? val null-val)
               (null-pointer)
@@ -112,7 +111,7 @@
         convert))
 
   (define (back-converter/null convert null-ok? null-val)
-    (if (or (null-ok-always-on?) null-ok?)
+    (if (or (always-allow-none?) null-ok?)
         (lambda (ptr)
           (if (null-pointer? ptr)
               null-val
@@ -387,29 +386,6 @@
         (else
          (c-type-sizeof (type-info->prim-type eti #f))))))
 
-  (define (type-info->prim-type ti out?)
-    (let ((type (type-info-type ti)))
-      (cond ((or out?
-                 (array-type? type)
-                 (gobject-class? type))
-             'pointer)
-            ((signature? type)
-             'fpointer)
-            ((genumerated? type)
-             'int)
-            ((symbol? type)
-             (case type
-               ((gtype) gtype-ctype)
-               ((size) 'size_t)
-               ((ssize) 'ssize_t)
-               ((boolean) 'uint)
-               ((utf8 filename gvalue gslist glist ghash) 'pointer)
-               (else type)))
-            (else
-             (raise-sbank-callout-error
-              "argument/return type not yet implemented" type)))))
-
-
   ;; Allocate memory as needed for the type @2, store a representation
   ;; of @1 in it, and return a pointer to the allocated memory
   (define (malloc/set! type val)
@@ -424,6 +400,11 @@
              mem))
           (else
            (error 'malloc/set! "not implemented" type val))))
+
+  (define-condition-type &gerror &error
+    make-gerror gerror?
+    (domain gerror-domain)
+    (code gerror-code))
 
   (define (gerror-conditions/free etype gerror)
     (let ((domain (c-gerror-domain gerror))

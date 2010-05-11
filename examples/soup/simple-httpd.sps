@@ -1,6 +1,6 @@
 ;;; simple-httpd.sps -- Example ported from libsoup test/simple-httpd.c
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -34,8 +34,7 @@
         (spells tracing)
         (sbank glib)
         (sbank glib-daemon)
-        (sbank soup)
-        (only (sbank ctypes basic) null-ok-always-on?))
+        (sbank soup))
 
 (define (main argv)
   (let ((port  8001)
@@ -44,16 +43,15 @@
                               (lambda (sig)
                                 (g-main-loop-quit main-loop)
                                 #f))
-    (parameterize ((null-ok-always-on? #t)) ;; Needed for field access, will go away
-      (let ((server (send <soup-server> (new* 'port port
-                                                   'server-header "simple-httpd"))))
-        (unless server
-          (bail-out "Unable to bind to server port {0}\n" port))
-        (send server
-          (add-handler #f server-callback)
-          (run-async))
-        (println "Waiting for requests (Ctrl+C to terminate)...")
-        (g-main-loop-run main-loop)))))
+    (let ((server (send <soup-server> (new* 'port port
+                                            'server-header "simple-httpd"))))
+      (unless server
+        (bail-out "Unable to bind to server port {0}\n" port))
+      (send server
+            (add-handler #f server-callback)
+            (run-async))
+      (println "Waiting for requests (Ctrl+C to terminate)...")
+      (g-main-loop-run main-loop))))
 
 (define (server-callback server msg path query client)
   (let ((method (send msg (get 'method)))

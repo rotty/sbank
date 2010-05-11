@@ -1,6 +1,6 @@
 ;;; signals.sls --- GObject signal support.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -34,7 +34,7 @@
           (spells string-utils)
           (spells foreign)
           (spells tracing)
-          (only (spells assert) cerr)
+          (only (spells assert) cout)
           (sbank support utils)
           (sbank support shlibs)
           (sbank ctypes basic)
@@ -86,12 +86,12 @@
                          (ginstance-class instance) signal))
              (rti (signature-rti signature))
              (atis (signature-atis signature))
-             (n-args (+ (length atis) 1))
+             (n-args (length atis))
+             ;;++ should check for right number of arguments here
              (arg-gvs (->g-value-array
                        (cons (ginstance-ptr instance) args)
                        #f
-                       (cons (gobject-class-gtype (ginstance-class instance))
-                             (map type-info-gtype atis)))))
+                       (map type-info-gtype atis))))
         (cond ((eq? (type-info-type rti) 'void)
                (emitv% arg-gvs signal-id detail (null-pointer))
                (free-g-value-array arg-gvs n-args))

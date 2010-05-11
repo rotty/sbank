@@ -1,6 +1,6 @@
 ;;; gvalue.sls --- Low-level access to GValue
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -41,11 +41,10 @@
           (spells foreign)
           (srfi :8 receive)
           (spells define-values)
-          (spells tracing)
+          (spells tracing) ;debug
           (only (spells assert) cout)
           (sbank support ptr-table)
           (sbank support shlibs)
-          (sbank support type-data)
           (sbank gobject genum)
           (sbank gobject gtype)
           (for (sbank typelib stypes) expand)
