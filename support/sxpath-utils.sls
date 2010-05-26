@@ -1,6 +1,6 @@
 ;;; sxpath-utils.sls --- Utilities based on sxpath.
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -27,7 +27,7 @@
   (export sxpath-ref sxpath-attr)
   (import (rnrs base)
           (srfi :2 and-let*)
-          (xitomatl sxml-tools sxpath))
+          (wak sxml-tools sxpath))
 
   (define (sxpath-ref sxml path)
     (and-let* ((result ((sxpath path) sxml))

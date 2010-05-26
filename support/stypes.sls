@@ -1,6 +1,6 @@
 ;;; stypes.sls --- SXML-compatible representation of C types.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -50,11 +50,11 @@
           (for (rnrs lists) run expand (meta -1))
           (rnrs syntax-case)
           (rnrs io simple)
-          (srfi :2 and-let*)
-          (xitomatl sxml-tools sxpathlib)
-          (xitomatl sxml-tools sxpath)
           (only (srfi :1 lists) append-map filter-map split-at)
+          (srfi :2 and-let*)
           (only (srfi :13 strings) string-map)
+          (wak sxml-tools sxpathlib)
+          (wak sxml-tools sxpath)
           (spells alist)
           (spells tracing)
           (for (spells foreign) run expand (meta -1))

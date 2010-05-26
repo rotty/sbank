@@ -30,7 +30,8 @@
            (wak-foof-loop)
            (spells)
            (spells-foreign)
-           (xitomatl))
+           (wak-ssax)
+           (wak-sxml-tools))
   
   (libraries
    ("data" -> ("sbank" "data"))

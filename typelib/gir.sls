@@ -1,6 +1,6 @@
 ;;; gir.sls --- Parse gobject-introspection XML .gir files.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -37,11 +37,11 @@
           (spells tracing)
           (spells foreign)
           (only (srfi :13 strings) string-skip-right)
-          (xitomatl ssax parsing)
-          (xitomatl ssax tree-trans)
-          (xitomatl sxml-tools sxpath)
-          (xitomatl sxml-tools sxpathlib)
-          (xitomatl sxml-tools sxpath-ext)
+          (wak ssax parsing)
+          (wak ssax tree-trans)
+          (wak sxml-tools sxpath)
+          (wak sxml-tools sxpathlib)
+          (wak sxml-tools sxpath-ext)
           (srfi :2 and-let*)
           (sbank support sxpath-utils))
 
