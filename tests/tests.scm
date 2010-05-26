@@ -32,8 +32,8 @@
    (spells foreign))
 
   ("stypes.scm"
-   (sbank support stypes)
-   (for (sbank support test-stypes) expand)
+   (for (sbank support stypes) run expand)
+   (for (sbank support test-stypes) run expand)
    (spells foreign)
    (only (srfi :1 lists) make-list iota)
    (rnrs control)
