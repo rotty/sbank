@@ -95,7 +95,7 @@
 
   (define (g-value-set! gvalue val)
     (define (lose msg . irritants)
-      (apply error 'g-value-set! msg irritants))
+      (apply assertion-violation 'g-value-set! msg irritants))
     (let ((gtype (g-value-gtype% gvalue)))
       (define (enum->integer val)
         (cond ((integer? val) val)
@@ -132,7 +132,7 @@
 
   (define g-value-ref
     (let ((lose (lambda (msg . irritants)
-                  (apply error 'g-value-ref msg irritants)))
+                  (apply assertion-violation 'g-value-ref msg irritants)))
           (not-found (list 'not-found)))
       (lambda (gvalue)
         (let ((gtype (g-value-gtype% gvalue)))
@@ -187,7 +187,7 @@
 
   (define (->g-value-array x value-gtype types)
     (define (lose msg . irritants)
-      (apply error '->g-value-array msg irritants))
+      (apply assertion-violation '->g-value-array msg irritants))
     (unless (or value-gtype types )
       (lose "neither value-gtype procedure nor element types given" x))
     (receive (len next init)
