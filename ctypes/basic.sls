@@ -57,6 +57,10 @@
 
           raise-sbank-callout-error raise-sbank-callback-error
 
+          gerror?
+          gerror-domain
+          gerror-code
+          
           raise-gerror/free
           gerror-conditions/free
 

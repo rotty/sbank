@@ -74,8 +74,8 @@
           genumerated-symbols
           genumerated-gtype
 
-          gerror-type? make-gerror-type
-          gerror? make-gerror gerror-domain gerror-code)
+          gerror-type
+          gerror-type?)
   (import (rnrs base)
           (rnrs control)
           (rnrs lists)
@@ -285,11 +285,6 @@
   (define (gobject-class-property-type class prop)
     (property-info-type (gobject-class-get-property-info class prop)))
 
-  (define-condition-type &gerror &error
-    make-gerror gerror?
-    (domain gerror-domain)
-    (code gerror-code))
-  
   (define-c-callouts libgobject
     (g-object-newv 'pointer "g_object_newv" (list gtype-ctype 'uint 'pointer))
     (g-object-is-floating 'int "g_object_is_floating" '(pointer))

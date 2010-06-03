@@ -1,6 +1,6 @@
 ;;; gobject.sls --- Public interface to the GObject mapping.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -44,6 +44,7 @@
           (spells tracing)
           (sbank support utils)
           (sbank typelib decorators)
+          (only (sbank ctypes basic) gerror?)
           (sbank glib)
           (sbank gobject gtype)
           (sbank gobject genum)

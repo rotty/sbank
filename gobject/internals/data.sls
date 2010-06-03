@@ -72,7 +72,7 @@
           make-ghash-class
           ghash->alist
 
-          gerror-type? make-gerror-type)
+          gerror-type? gerror-type)
   (import (rnrs)
           (rnrs mutable-pairs)
           (srfi :2 and-let*)
@@ -345,8 +345,10 @@
     (and (ginstance? x)
          (ghash-class? (ginstance-class x))))
 
-  (define-record-type gerror-type)
+  (define-record-type (:gerror-type make-gerror-type gerror-type?))
 
+  (define gerror-type (make-gerror-type))
+  
   (define (g-object-is-floating? ptr)
     (not (= (g-object-is-floating ptr) 0)))
 

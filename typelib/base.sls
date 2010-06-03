@@ -1077,7 +1077,7 @@
            (assert-no-closure)
            (let-attributes error-type-blob-fetcher (validated-pointer+ tld offset 4)
                            (tag n-domains domains)
-             (make-type-info (make-gerror-type) #t #f '() direction ownership)))
+             (make-type-info gerror-type #t #f '() direction ownership)))
           ((glist gslist ghash)
            (assert-no-closure)
            (let-attributes parameter-type-blob-fetcher
