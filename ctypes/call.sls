@@ -352,10 +352,15 @@
             (and container
                  (not (or constructor?
                           (enum-set-member? 'is-static options)))))
-           (atis (if has-self-ptr?
-                     (cons (make-arg-info container #t #f '() 'in)
-                           (signature-atis signature))
-                     (signature-atis signature)))
+           (throws? (enum-set-member? 'throws options))
+           (atis (append
+                  (if has-self-ptr?
+                      (list (make-arg-info container #t #f '() 'in))
+                      '())
+                  (signature-atis signature)
+                  (if throws?
+                      (list (make-arg-info gerror-type #t #f '() 'in))
+                      '())))
            (rti (signature-rti signature))
            (gtype-lookup (signature-gtype-lookup signature))
            (length-indices (arg-infos-length-indices (cons rti atis)))

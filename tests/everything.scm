@@ -145,7 +145,6 @@
     (test-eqv y 42.0)
     (test-eqv z (* 42 2))
     (test-eqv q (+ 6 66)))
-  #;
   (let ((exception-cookie (list 'cookie)))
     (test-eq exception-cookie
       (guard (c ((gerror? c) exception-cookie))
