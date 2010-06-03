@@ -446,6 +446,8 @@
           ((gobject-record-class? type)
            (when (eq? 'out direction)
              (vector-set! arg-vec i (ginstance-ptr (send type (alloc))))))
+          ((eq? 'gvalue type)
+           (unspecific))
           (else
            (let ((prim-type (type-info->prim-type ti #f)))
              (case direction
@@ -459,11 +461,12 @@
            (for ti (in-list arg-types)))
       (case (arg-info-direction ti)
         ((in-out out)
-         (let* ((ptr (vector-ref arg-vec i))
-                (val (deref-pointer ptr ti)))
-           (unless (gobject-record-class? (type-info-type ti))
-             (free ptr))
-           (vector-set! arg-vec i val))))))
+         (unless (eq? 'gvalue (type-info-type ti))
+           (let* ((ptr (vector-ref arg-vec i))
+                  (val (deref-pointer ptr ti)))
+             (unless (gobject-record-class? (type-info-type ti))
+               (free ptr))
+             (vector-set! arg-vec i val)))))))
 
   (define (arg-callout-steps ti i gtype-lookup)
     (let ((type (type-info-type ti))
@@ -471,7 +474,9 @@
       (define-syntax step-values
         (syntax-rules ()
           ((_ setup collect cleanup)
-           (values (and (not (eq? 'out direction)) setup)
+           (values (and (or (not (eq? 'out direction))
+                            (eq? 'gvalue type))
+                        setup)
                    (and (not (eq? 'in direction)) collect)
                    cleanup))))
       (cond
