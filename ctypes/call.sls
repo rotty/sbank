@@ -421,7 +421,7 @@
       (loop continue ((with prepare-steps '())
                       (with store-steps '())
                       (for ti (in-list type-infos))
-                      (for i (down-from (length type-infos))))
+                      (for i (up-from 0)))
         => (values prepare-steps store-steps)
         (let ((ignore? (or (memv i length-indices)
                            (memv i closure-indices))))
@@ -810,8 +810,8 @@
             (collect
              (assert (not cleanup))
              (lambda (ptr)
-               (lambda args
-                 (let ((do-callout (prim-callout ptr)))
+               (let ((do-callout (prim-callout ptr)))
+                 (lambda args
                    (apply values (collect (apply do-callout args) #f))))))
             (else
              prim-callout))))
@@ -848,7 +848,7 @@
         (let* ((arg-vec (list->vector args))
                (args (let loop ((args '()) (steps prepare-steps))
                        (if (null? steps)
-                           (reverse args)
+                           args
                            (loop (cons
                                   (cond ((integer? (car steps))
                                          (vector-ref arg-vec (car steps)))
