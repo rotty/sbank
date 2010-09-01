@@ -49,7 +49,7 @@
        typelib-available?)
  (only (sbank typelib expanders)
        typelib-exported-names)
- (only (sbank gobject internals)
+ (only (sbank ctypes basic)
        gerror?))
 
 (define (typelib-fender namespace)

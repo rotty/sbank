@@ -89,7 +89,7 @@
              (n-args (length atis))
              ;;++ should check for right number of arguments here
              (arg-gvs (->g-value-array
-                       (cons (ginstance-ptr instance) args)
+                       (cons instance args)
                        #f
                        (map type-info-gtype atis))))
         (cond ((eq? (type-info-type rti) 'void)

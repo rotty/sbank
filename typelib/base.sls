@@ -59,6 +59,7 @@
           (sbank support shlibs)
           (sbank gobject internals)
           (sbank gobject gtype)
+          (sbank gobject genum)
           (sbank support conditions)
           (sbank typelib decorators)
           (for (sbank typelib stypes) run expand))
@@ -750,7 +751,8 @@
          (proc/validation-context
           (lambda ()
             (stblob-arg-info typelib tld return-type
-                              (bool may-return-null)
+                              #t ;should be: (bool may-return-null), but
+                              ;; the annotations for this are missing everywhere
                               #f
                               (make-ownership (bool caller-owns-return-value)
                                               (bool caller-owns-return-container)))))
@@ -1067,7 +1069,7 @@
                (validated-pointer+ tld offset 4)
                (interface)
              (let* ((entry (typelib-get-entry/index typelib interface))
-                    (pointer? (not (genum? entry))))
+                    (pointer? (not (genumerated? entry))))
                (unless (signature? entry)
                  (assert-no-closure))
                (make-arg-info entry pointer? allow-none? '()

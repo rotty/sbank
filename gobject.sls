@@ -78,8 +78,8 @@
       (g-signal-disconnect instance signal)))
 
   (define (g-object-emit typelib next-method)
-    (lambda (instance signal)
-      (g-signal-emit instance signal)))
+    (lambda (instance signal . args)
+      (apply g-signal-emit instance signal args)))
 
   (define (g-object-set typelib next-method)
     (lambda (instance . args)

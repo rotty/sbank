@@ -47,6 +47,7 @@
           (sbank support shlibs)
           (sbank gobject genum)
           (sbank gobject gtype)
+          (sbank gobject internals data)
           (for (sbank typelib stypes) expand)
           (for (sbank support stypes) expand))
 
@@ -88,7 +89,9 @@
   (define registered-values (make-ptr-table))
 
   (define (to-ptr x)
-    (if (eqv? x #f) (null-pointer) x))
+    (cond ((eqv? x #f)    (null-pointer))
+          ((ginstance? x) (ginstance-ptr x))
+          (else           x)))
 
   (define (from-ptr x)
     (if (null-pointer? x) #f x))
