@@ -1,6 +1,6 @@
 ;;; glib.sls --- Glossing for the GLib namespace.
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -24,11 +24,20 @@
 #!r6rs
 
 (library (sbank glib)
-  (export #!@(typelib-exports
+  (export send
+          #!@(typelib-exports
               (prefix ("GLib" #f) g-)
               (name glib)
               (exclude "_.*"
 
+                       ".*_FORMAT"
+                       "SYSDEF_.*"
+                       "HAVE_.*"
+                       "VA_.*"
+                       ".*IEEE754.*"
+                       ".*_MODIFIER"
+                       
+                       #;
                        ".*[A-Z].*" ;; catch-all for badly mangled names
 
                        ".*_copy"
@@ -196,8 +205,8 @@
           (sbank support utils)
           (sbank support shlibs)
           (sbank typelib decorators)
-          (sbank typelib))
-
+          (sbank typelib)
+          (only (sbank gobject internals) send))
 
   (define default-prio 0)
 

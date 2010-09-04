@@ -143,11 +143,10 @@
     (type->gtype (type-info-type ti)))
 
   ;; Note that these must match with gobject-introspection,
-  ;; (see girepository.h, GITypeTag)
+  ;; (see gitypes.h, GITypeTag)
   (define-enum (type-tag->symbol symbol->type-tag)
     (void boolean int8 uint8 int16 uint16 int32 uint32
-          int64 uint64 short ushort int uint long ulong ssize size
-          float double time_t gtype utf8 filename
+          int64 uint64 float double gtype utf8 filename
           array interface glist gslist ghash error))
 
   (define (type-tag-symbol->prim-type sym)
@@ -240,12 +239,12 @@
   (define (array-terminator-predicate elt-prim-type)
     (let ((terminator (array-terminator elt-prim-type))
           (elt-ref (make-pointer-c-getter elt-prim-type)))
-      (if (pointer? terminator) ;; FIXME:
+      (if (integer? terminator)
+          (lambda (ptr offset)
+            (= (elt-ref ptr offset) terminator))
           (lambda (ptr offset)
             (pointer=? (pointer-ptr-ref ptr offset)
-                       terminator))
-          (lambda (ptr offset)
-            (= (elt-ref ptr offset) terminator)))))
+                       terminator)))))
 
   (define (c-array-for-each proc ptr atype size)
     (let ((element-size (array-element-size atype))

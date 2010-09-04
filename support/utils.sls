@@ -1,6 +1,6 @@
 ;;; utils.sls --- Miscellaneous utilities for sbank.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -41,7 +41,10 @@
           (rnrs records syntactic)
           (spells define-values)
           (srfi :14 char-sets)
-          (only (srfi :13 strings) string-map string-tokenize))
+          (only (srfi :13)
+                string-index
+                string-map
+                string-tokenize))
 
   (define-syntax define-enum
     (syntax-rules ()
@@ -126,10 +129,7 @@
   (define (camel-cased? s)
     (and (>= (string-length s) 2)
          (char-upper-case? (string-ref s 0))
-         (or (char-lower-case? (string-ref s 1))
-             (and (>= (string-length s) 3)
-                  (char-upper-case? (string-ref s 1))
-                  (char-lower-case? (string-ref s 2))))))
+         (string-index s char-lower-case?)))
   
   (define (un-camel-case s)
     (let loop ((result-chars '()) (i 0) (in-word? #f))

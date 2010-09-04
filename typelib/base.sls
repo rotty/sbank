@@ -79,7 +79,7 @@
 
   (define-syntax define-accessors (stype-accessor-definer (typelib-stypes)))
 
-  (define-accessors "GTypelib"
+  (define-accessors "_GITypelib"
     (tl-data "data"))
 
   (define-accessors "Header"
@@ -304,7 +304,7 @@
         (and-let* ((magic (memcpy (make-bytevector 16) magic 16))
                    ((not (bytevector=? magic tl-magic-bytes))))
           (lose "invalid magic" magic))
-        (or (and (= major-version 2) (= minor-version 0))
+        (or (and (= major-version 4) (= minor-version 0))
             (lose "version mismatch" major-version minor-version))
         (validate-blob-sizes tld)
         (let ((typelib (make-typelib tl
@@ -343,7 +343,7 @@
        (signature . 8)
        (enum . 24)
        (struct . 32)
-       (object . 44)
+       (object . 60)
        (interface . 40)
        (union . 40))))
 
@@ -482,29 +482,30 @@
                        options))
 
   (define (arg-blobs-type-infos typelib tld self-class arg-blobs n-args arg-blob-size)
-    (define (blob->arg-info blob)
-      (let-attributes arg-blob-fetcher blob
-                      (in out allow-none
-                          transfer-ownership
-                          transfer-container-ownership
-                          closure destroy scope arg-type)
-        (stblob-arg-info typelib
-                         tld
-                         arg-type
-                         (bool allow-none)
-                         (make-direction (bool in) (bool out))
-                         (make-ownership (bool transfer-ownership)
-                                         (bool transfer-container-ownership))
-                         (and (>= closure 0) closure)
-                         (and (>= destroy 0) destroy)
-                         (scope->symbol scope))))
-    (let ((arg-infos (map blob->arg-info (make-array-pointers arg-blobs
-                                                              n-args
-                                                              arg-blob-size))))
-      (if self-class
-          (cons (make-arg-info self-class #t #f '() 'in)
-                arg-infos)
-          arg-infos)))
+    (let ((self-offset (if self-class 1 0)))
+      (define (blob->arg-info blob)
+        (let-attributes arg-blob-fetcher blob
+                        (in out allow-none
+                            transfer-ownership
+                            transfer-container-ownership
+                            closure destroy scope arg-type)
+          (stblob-arg-info typelib
+                           tld
+                           arg-type
+                           (bool allow-none)
+                           (make-direction (bool in) (bool out))
+                           (make-ownership (bool transfer-ownership)
+                                           (bool transfer-container-ownership))
+                           (and (>= closure 0) (+ closure self-offset))
+                           (and (>= destroy 0) (+ destroy self-offset))
+                           (scope->symbol scope))))
+      (let ((arg-infos (map blob->arg-info (make-array-pointers arg-blobs
+                                                                n-args
+                                                                arg-blob-size))))
+        (if self-class
+            (cons (make-arg-info self-class #t #f '() 'in)
+                  arg-infos)
+            arg-infos))))
 
   (define (make-direction in? out?)
     (cond ((and in? out?) 'in-out)

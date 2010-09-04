@@ -1,6 +1,6 @@
 ;;; leakcheck.sps --- Do things that might trigger leaks.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -36,7 +36,7 @@
         (sbank gobject gvalue)
         (sbank typelib))
 
-(typelib-import ("Everything" #f)
+(typelib-import ("Regress" #f)
                 (setup gobject-setup!))
 
 (define-syntax repeat
@@ -79,13 +79,13 @@
       (send clone (free))
       (send a (free)))))
 
-(define-check array-transfer
-  (let ((v (random-integers 5 10)))
-    (repeat N (test-array-int-in-take v))))
-
 (define-check array-no-transfer
   (let ((v (random-integers 5 10)))
     (repeat N (test-array-int-in v))))
+
+(define-check array-inout
+  (let ((v (random-integers 5 10)))
+    (repeat N (test-array-int-inout v))))
 
 (define-check array-out
   (repeat N (test-strv-out)))

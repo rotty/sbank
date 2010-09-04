@@ -1,6 +1,6 @@
 ;;; glib-daemon.sls --- Conviniency library for using GLib with libdaemon
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -49,7 +49,7 @@
   ;; for @ref{sbank.libdaemon daemon-signal-init}.
   (define (g-install-signal-handler sigs proc)
     (apply daemon-signal-init sigs)
-    (let ((io (g-io-channel-unix-new (daemon-signal-fd))))
+    (let ((io (send <g-i-o-channel> (unix-new (daemon-signal-fd)))))
       (g-io-add-watch io
                       '(in err hup)
                       (lambda (source condition)

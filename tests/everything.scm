@@ -33,11 +33,11 @@
         (sbank typelib)
         (sbank gobject))
 
-(typelib-import ("Everything" #f)
+(typelib-import ("Regress" #f)
                 (setup gobject-setup!))
 
 (define-test-suite everything-tests
-  "Everything test typelib")
+  "Regression test typelib")
 
 (define-test-case everything-tests basic-types ()
   (test-equal (list #t #f)
@@ -61,7 +61,8 @@
     (test-utf8-const-return))
   (test-equal utf8-nonconst
     (test-utf8-nonconst-return))
-  (test-utf8-nonconst-in utf8-nonconst)
+  (test-equal utf8-nonconst
+    (test-utf8-out))
   (test-utf8-const-in utf8-const)
   (test-equal utf8-nonconst
     (test-utf8-inout utf8-const)))
@@ -78,10 +79,10 @@
 (define-test-case everything-tests.arrays int ()
   (test-equal (+ 41 42 43)
     (test-array-int-in '#(41 42 43)))
-  (test-equal (+ 44 45 46)
-    (test-array-int-in-take '#(44 45 46)))
   (test-equal '#(0 1 2 3 4)
-    (test-array-int-full-out))
+    (test-array-int-out))
+  (test-equal '#(23 34 45)
+    (test-array-int-inout '#(11 22 33 44)))
   (test-equal '#(1 2 3 4 5)
     (test-array-int-none-out)))
 
@@ -136,10 +137,19 @@
     (test-glist-nothing-return)))
 
 (define-test-case everything-tests gslist ()
-  (test-gslist-container-in '("1" "2" "3"))
-  (test-gslist-everything-in '("1" "2" "3")))
+  (test-gslist-nothing-in '("1" "2" "3"))
+  (test-equal '("1" "2" "3")
+    (test-gslist-container-return))
+  (test-equal '("1" "2" "3")
+    (test-gslist-everything-return)))
 
-(define-test-case everything-tests torture-signature ()
+(define-test-case everything-tests torture-signature-0 ()
+  (receive (y z q) (test-torture-signature-0 666 "foo and bar" 33)
+    (test-eqv y 666.0)
+    (test-eqv z (* 666 2))
+    (test-eqv q (+ 11 33))))
+
+(define-test-case everything-tests torture-signature-1 ()
   (receive (rv y z q) (test-torture-signature-1 42 "fooish" 66)
     (test-eqv rv #t)
     (test-eqv y 42.0)
@@ -151,6 +161,12 @@
         (call-with-values
           (lambda () (test-torture-signature-1 42 "fooish" 77))
           list)))))
+
+(define-test-case everything-tests test-torture-signature-2 ()
+  (receive (y z q) (test-torture-signature-2 42 (lambda () 7) "fooish" 66)
+    (test-eqv y 42.0)
+    (test-eqv z (* 42 2))
+    (test-eqv q (+ 6 66))))
 
 (define-test-suite (everything-tests.gobject everything-tests)
   "GObject features")
@@ -182,6 +198,29 @@
       (test-eqv #t
         (send b (equals (send o (get 'boxed))))))))
 
+(define-test-case everything-tests.gobject instance-method-callback ()
+  (let ((obj (send <test-obj> (new*)))
+        (result #f))
+    (send obj (instance-method-callback (lambda () (set! result 42) result)))
+    (test-eqv 42 result)))
+
+(define-test-case everything-tests.gobject instance-method-notified-callback ()
+  (let ((obj (send <test-obj> (new*)))
+        (result #f))
+    (do ((i 0 (+ i 1)))
+        ((= i 5))
+      (test-eqv 43
+        (send obj (instance-method-notified-callback
+                   (lambda () (set! result 42) 43))))
+      (test-eqv 42 result))
+    (test-eqv (* 5 43)
+      (test-callback-thaw-notifications))))
+
+(define-test-case everything-tests.gobject array-guint8-full ()
+  (test-eqv 5050
+    (let ((test-obj (send <test-obj> (new*))))
+      (send test-obj (array-guint8-full (list->vector (iota 100 1)))))))
+
 (define-test-case everything-tests callbacks ()
   (test-equal '(43 666 1234)
     (map test-callback (map (lambda (n)
@@ -192,7 +231,7 @@
                                         (lambda () n))
                                       (iota 10)))))
 
-(define-test-case everything-tests signals ()
+(define-test-case everything-tests signal-simple ()
   (let ((signal-args #f)
         (obj (send <test-obj> (new*))))
     (send obj (connect 'test (lambda args
@@ -205,6 +244,21 @@
                                l1 l2)))
         (list obj)
       signal-args)))
+
+(define-test-case everything-tests signal-arg ()
+  (let ((signal-args #f)
+        (obj (send <test-obj> (new*)))
+        (boxed-a (send <test-simple-boxed-a> (alloc))))
+    (send boxed-a
+      (set-some-int 666)
+      (set-some-int8 -127)
+      (set-some-double 42.0)
+      (set-some-enum 'value2))
+    (send obj (connect 'test-with-static-scope-arg
+                       (lambda (obj arg)
+                         (send arg (set-some-int 7)))))
+    (send obj (emit 'test-with-static-scope-arg boxed-a))
+    (test-eqv 7 (send boxed-a (get-some-int)))))
 
 (define-test-case everything-tests callback-stress ()
   (let ((n 100))

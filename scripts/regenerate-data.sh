@@ -28,9 +28,11 @@ for h in \
     gobject/gvalue.h gobject/gparam.h gobject/gtype.h; do
     scan_files="$scan_files $GLIB_INCLUDEDIR/$h"
 done
-scan_files="$scan_files $GI_HOME/girepository/gtypelib.h"
+scan_files="$scan_files $GI_HOME/girepository/gitypelib-internal.h"
 
 g-ir-scanner -n gtypelib \
+    --symbol-prefix="" \
+    --identifier-prefix="" \
     --output data/typelib.gir \
     --library gobject-2.0 \
     --pkg gobject-introspection-1.0 \
@@ -40,4 +42,4 @@ g-ir-scanner -n gtypelib \
     --c-include="glib.h" \
     --c-include="glib-object.h" \
     $scan_files
-ikarus --r6rs-script scripts/dump-typelib.sps < data/typelib.gir > data/typelib.scm
+ikarus --r6rs-script scripts/dump-typelib.sps data/typelib.gir > data/typelib.scm

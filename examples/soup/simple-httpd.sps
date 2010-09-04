@@ -38,10 +38,10 @@
 
 (define (main argv)
   (let ((port  8001)
-        (main-loop (g-main-loop-new #f #f)))
+        (main-loop (send <g-main-loop> (new #f #f))))
     (g-install-signal-handler '(int)
                               (lambda (sig)
-                                (g-main-loop-quit main-loop)
+                                (send main-loop (quit))
                                 #f))
     (let ((server (send <soup-server> (new* 'port port
                                             'server-header "simple-httpd"))))
@@ -51,7 +51,7 @@
             (add-handler #f server-callback)
             (run-async))
       (println "Waiting for requests (Ctrl+C to terminate)...")
-      (g-main-loop-run main-loop))))
+      (send main-loop (run)))))
 
 (define (server-callback server msg path query client)
   (let ((method (send msg (get 'method)))

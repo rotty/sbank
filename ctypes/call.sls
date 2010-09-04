@@ -33,9 +33,7 @@
           signature-callback
           
           make-callout
-          make-callback
-          arg-callout-steps
-          arg-callback-steps)
+          make-callback)
 
   (import (rnrs base)
           (rnrs control)
@@ -50,7 +48,7 @@
           (wak foof-loop)
           (spells foreign)
           (except (srfi :1 lists) for-each map)
-          (only (spells misc) unspecific)
+          (only (spells misc) and=> unspecific)
           (spells tracing) ;debug
           (only (spells assert) cout) ;ditto
           (sbank support utils)
@@ -97,12 +95,12 @@
               (values prim-type
                       (out-converter/null string->utf8z-ptr allow-none? #f)
                       (back-converter/null utf8z-ptr->string allow-none? #f)
-                      (and (free-spec-set? free-spec) free)))
+                      (and (free-spec-set? free-spec) free/null)))
              ((filename)
               (values prim-type
                       (out-converter/null string->fnamez-ptr allow-none? #f)
                       (back-converter/null fnamez-ptr->string allow-none? #f)
-                      (and (free-spec-set? free-spec) free)))
+                      (and (free-spec-set? free-spec) free/null)))
              ((void)
               (values 'void #f #f #f))
              ((pointer)
@@ -214,11 +212,9 @@
     (lambda (lst)
       (cond ((eqv? lst #f)
              (null-pointer))
-            ((pointer? lst)
-             lst)
             ((gslist? lst)
              (ginstance-ptr lst))
-            (else
+            ((pair? lst)
              (let loop ((gslist (null-pointer))
                         (lst lst))
                (if (null? lst)
@@ -227,7 +223,12 @@
                                           (if elt-convert
                                               (elt-convert (car lst))
                                               (car lst)))
-                         (cdr lst))))))))
+                         (cdr lst)))))
+            ((pointer? lst)
+             lst)
+            (else
+             (raise-sbank-callout-error
+              "cannot convert value to GSList" lst)))))
 
   (define (gslist->list gslist elt-convert)
     (let loop ((lst '()) (gslist gslist))
@@ -254,11 +255,9 @@
     (lambda (lst)
       (cond ((eqv? lst #f)
              (null-pointer))
-            ((pointer? lst)
-             lst)
             ((glist? lst)
              (ginstance-ptr lst))
-            (else
+            ((pair? lst)
              (let loop ((glist (null-pointer))
                         (lst lst))
                (if (null? lst)
@@ -267,7 +266,11 @@
                                         (if elt-convert
                                             (elt-convert (car lst))
                                             (car lst)))
-                         (cdr lst))))))))
+                         (cdr lst)))))
+            ((pointer? lst)
+             lst)
+            (else
+             (raise-sbank-callout-error "cannot convert value to GList" lst)))))
 
   (define (glist->list glist elt-convert)
     (let loop ((lst '()) (glist (g-list-last glist)))
@@ -337,14 +340,14 @@
   (define list->callout-options (enum-set-constructor (callout-options)))
   
   (define (signature-callout signature container options)
-    (receive (real-atis setup collect cleanup)
+    (receive (real-atis setup collect cleanup ret-consume)
              (signature-callout-values signature container options)
       (make-callout (signature-rti signature)
                     real-atis
                     setup
                     collect
                     cleanup
-                    gtype-lookup)))
+                    ret-consume)))
 
   (define (signature-callout-values signature container options)
     (let* ((constructor? (enum-set-member? 'is-constructor options))
@@ -352,6 +355,7 @@
             (and container
                  (not (or constructor?
                           (enum-set-member? 'is-static options)))))
+           (self-offset (if has-self-ptr? 1 0))
            (throws? (enum-set-member? 'throws options))
            (atis (append
                   (if has-self-ptr?
@@ -371,12 +375,16 @@
                       (with collect-steps '())
                       (with cleanup-steps '())
                       (for i (down-from (length atis))))
-        => (values atis setup-steps collect-steps cleanup-steps)
-        (let ((length? (memv i length-indices))
-              (closure? (memv i closure-indices))
-              (destroy? (memv i destroy-indices)))
+        => (values atis
+                   setup-steps
+                   collect-steps
+                   cleanup-steps
+                   (ret-type-consumer rti self-offset gtype-lookup))
+        (let ((length? (memv (- i self-offset) length-indices))
+              (closure? (memv (- i self-offset) closure-indices))
+              (destroy? (memv (- i self-offset) destroy-indices)))
           (receive (setup collect cleanup)
-                   (arg-callout-steps ti i gtype-lookup)
+                   (arg-callout-steps ti i self-offset gtype-lookup)
             (cond ((or length? closure? destroy?)
                    (continue (=> setup-steps (cons #f setup-steps))))
                   (else
@@ -468,7 +476,7 @@
                (free ptr))
              (vector-set! arg-vec i val)))))))
 
-  (define (arg-callout-steps ti i gtype-lookup)
+  (define (arg-callout-steps ti i self-offset gtype-lookup)
     (let ((type (type-info-type ti))
           (direction (arg-info-direction ti)))
       (define-syntax step-values
@@ -482,9 +490,9 @@
       (cond
        ;; Arrays are special-cased for length-parameter handling
        ((array-type? type)
-        (step-values (array-arg-setup ti i)
-                     (array-arg-collect ti i)
-                     (array-arg-cleanup ti i)))
+        (step-values (array-arg-setup ti i self-offset)
+                     (array-arg-collect ti i self-offset)
+                     (array-arg-cleanup ti i self-offset)))
        ((gerror-type? type)
         (unless (eq? 'in direction)
           (raise-sbank-callout-error
@@ -496,7 +504,7 @@
         (unless (eq? 'in direction)
           (raise-sbank-callout-error
            "callback arguments must have direction 'in'" ti direction))
-        (values (callback-arg-setup ti i gtype-lookup)
+        (values (callback-arg-setup ti i self-offset gtype-lookup)
                 #f
                 (callback-arg-cleanup ti i)))
        ((and (need-container-copy? ti)
@@ -583,7 +591,7 @@
 
 ;;; Array handling
 
-  (define (array-arg-setup ti i)
+  (define (array-arg-setup ti i self-offset)
     (let* ((atype (type-info-type ti))
            (convert (out-converter/null (lambda (val)
                                           (->c-array val atype))
@@ -591,49 +599,55 @@
                                         #f))
            (copy-container? (need-container-copy? ti)))
       (lambda (args arg-vec info-vec)
-        (cond ((pointer? (car args))
-               (vector-set! arg-vec i (car args))
-               (cdr args))
-              (else
-               (let* ((val (cond ((or (vector? (car args))
-                                      (bytevector? (car args))
-                                      (bytevector-portion? (car args)))
-                                  (car args))
-                                 ((string? (car args))
-                                  (string->utf8 (car args)))
-                                 (else
-                                  (->vector (car args)))))
-                      (ptr (convert val)))
-                 (vector-set! arg-vec i ptr)
-                 (vector-set! info-vec i
-                              (if copy-container?
-                                  (memcpy
-                                   (malloc (array-sizeof atype (vec-length val)))
-                                   ptr)
-                                  ptr))
-                 (cond ((array-length-index atype)
-                        => (lambda (l-index)
-                             (vector-set! arg-vec l-index (vec-length val)))))
-                 (cdr args)))))))
+        (define (setup val)
+          (let ((ptr (convert val)))
+            (vector-set! arg-vec i ptr)
+            (vector-set! info-vec i
+                         (if copy-container?
+                             (memcpy
+                              (malloc (array-sizeof atype (vec-length val)))
+                              ptr)
+                             ptr))
+            (cond ((array-length-index atype)
+                   => (lambda (l-index)
+                        (vector-set! arg-vec
+                                     (+ l-index self-offset)
+                                     (vec-length val)))))
+            (cdr args)))
+        (let ((arg (car args)))
+          (cond ((or (vector? arg)
+                     (bytevector? arg)
+                     (bytevector-portion? arg))
+                 (setup arg))
+                ((string? arg)
+                 (setup (string->utf8 arg)))
+                ((pair? arg)
+                 (setup (list->vector arg)))
+                ((pointer? (car args))
+                 (vector-set! arg-vec i (car args))
+                 (cdr args))
+                (else
+                 (raise-sbank-callout-error
+                  "cannot convert value to array" (car args))))))))
 
   (define (array-sizeof atype len)
     (* len (c-type-sizeof (type-info->prim-type (array-element-type atype)))))
 
-  (define (get-array-length atype arg-vec)
+  (define (get-array-length atype arg-vec self-offset)
     (cond ((array-length-index atype)
            => (lambda (l-index)
                 (vector-ref arg-vec l-index)))
           (else
            #f)))
 
-  (define (array-arg-collect ti i)
+  (define (array-arg-collect ti i self-offset)
     (let ((atype (type-info-type ti)))
       (lambda (arg-vec)
         (c-array->vector (vector-ref arg-vec i)
                          atype
-                         (get-array-length atype arg-vec)))))
+                         (get-array-length atype arg-vec self-offset)))))
 
-  (define (array-arg-cleanup ti i)
+  (define (array-arg-cleanup ti i self-offset)
     (let ((atype (type-info-type ti)))
       (let* ((copied-container? (need-container-copy? ti))
              (free-spec (fxior (arg-info-free-spec ti)
@@ -641,7 +655,7 @@
         (lambda (arg-vec info-vec)
           (free-c-array (vector-ref (if copied-container? info-vec arg-vec) i)
                         atype
-                        (get-array-length atype arg-vec)
+                        (get-array-length atype arg-vec self-offset)
                         free-spec)))))
 
 
@@ -672,12 +686,13 @@
               (convert val)))
         convert))
 
-  (define (callback-arg-setup ti i gtype-lookup)
+  (define (callback-arg-setup ti i self-offset gtype-lookup)
     (let* ((convert (out-converter/null* (signature-callback (type-info-type ti))
                                          (type-info-allow-none? ti)
                                          #f))
-           (closure-i (arg-info-closure-index ti))
-           (destroy-i (arg-info-destroy-index ti))
+           (correct-i (lambda (i) (+ i self-offset)))
+           (closure-i (and=> (arg-info-closure-index ti) correct-i))
+           (destroy-i (and=> (arg-info-destroy-index ti) correct-i))
            (setup-destroy
             (cond ((and destroy-i
                         (eq? (arg-info-scope ti) 'notified))
@@ -732,25 +747,24 @@
                      (loop ((car steps) args arg-vec info-vec)
                            (cdr steps)))))))))
 
-  (define (args-collect-procedure rti gtype-lookup steps)
-    (let ((ret-consume (ret-type-consumer rti gtype-lookup)))
-      (cond ((and (not ret-consume) (null? steps))
-             #f)
-            (else
-             (lambda (ret-val arg-vec)
-               (loop ((for step (in-list steps))
-                      (for results
-                           (listing-reverse
-                            (initial
-                             (cond ((not ret-consume) '())
-                                   ((procedure? ret-consume)
-                                    (list (ret-consume ret-val arg-vec)))
-                                   (else (list ret-val))))
-                            (cond ((fixnum? step)
-                                   (vector-ref arg-vec step))
-                                  (else
-                                   (step arg-vec))))))
-                 => (reverse results)))))))
+  (define (args-collect-procedure ret-consume steps)
+    (cond ((and (not ret-consume) (null? steps))
+           #f)
+          (else
+           (lambda (ret-val arg-vec)
+             (loop ((for step (in-list steps))
+                    (for results
+                         (listing-reverse
+                          (initial
+                           (cond ((not ret-consume) '())
+                                 ((procedure? ret-consume)
+                                  (list (ret-consume ret-val arg-vec)))
+                                 (else (list ret-val))))
+                          (cond ((fixnum? step)
+                                 (vector-ref arg-vec step))
+                                (else
+                                 (step arg-vec))))))
+               => (reverse results))))))
 
   (define (args-cleanup-procedure steps)
     (if (null? steps)
@@ -766,11 +780,14 @@
           ((bytevector-portion? x) (bytevector-portion-count x))
           (else (error 'vec-length "called with non-vector" x))))
 
+  (define (free/null pointer)
+    (unless (null-pointer? pointer)
+      (free pointer)))
+
   ;;; The callout dispatcher
   
   (define (make-callout rti arg-types
-                        setup-steps collect-steps cleanup-steps
-                        gtype-lookup)
+                        setup-steps collect-steps cleanup-steps ret-consume)
     (let ((prim-callout
            (make-c-callout (type-info->prim-type rti #f)
                            (map (lambda (ti)
@@ -780,7 +797,7 @@
                                 arg-types)))
           (out-args? (arg-infos-have-out-args? arg-types))
           (setup (args-setup-procedure (length arg-types) setup-steps))
-          (collect (args-collect-procedure rti gtype-lookup collect-steps))
+          (collect (args-collect-procedure ret-consume collect-steps))
           (cleanup (args-cleanup-procedure cleanup-steps)))
       (cond (out-args?
              ;; The most general, complex case
@@ -879,14 +896,14 @@
                     (else
                      (loop ((car steps) (car vals) arg-vec))))))))))
 
-  (define (ret-type-consumer rti gtype-lookup)
+  (define (ret-type-consumer rti self-offset gtype-lookup)
     (let ((type (type-info-type rti)))
       (cond ((eq? type 'void)
              #f)
             ((array-type? type)
              (let ((free-spec (arg-info-free-spec rti)))
                (lambda (rv arg-vec)
-                 (let ((len (get-array-length type arg-vec)))
+                 (let ((len (get-array-length type arg-vec self-offset)))
                    (let ((result (c-array->vector rv type len)))
                      (free-c-array rv type len free-spec)
                      result)))))

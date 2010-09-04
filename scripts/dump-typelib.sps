@@ -1,4 +1,4 @@
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU Lesser General Public License as
@@ -16,9 +16,10 @@
 
 #!r6rs
 
-(import (rnrs base)
-        (rnrs io simple)
+(import (rnrs)
         (spells pretty-print)
         (sbank typelib gir))
 
-(pretty-print (gir-xml->stype-list (current-input-port)))
+(call-with-input-file (cadr (command-line))
+  (lambda (port)
+    (pretty-print (gir-xml->stype-list port))))

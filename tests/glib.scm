@@ -1,6 +1,6 @@
 ;;; glib.scm --- Unit test for the GLib bindings
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -33,24 +33,24 @@
              (set! c (- c 1))
              #t)
             (else
-             (g-main-loop-quit main-loop)
+             (send main-loop (quit))
              #f)))))
 
 (define-test-case glib-tests mainloop ()
-  (let ((main-loop (g-main-loop-new #f #f))
+  (let ((main-loop (send <g-main-loop> (new #f #f)))
         (results '()))
     (define (add-square! x)
       (set! results (cons (* x x) results)))
     (g-idle-add
      (main-loop-counter main-loop 5 add-square!))
-    (g-main-loop-run main-loop)
+    (send main-loop (run))
     (test-equal '(1 4 9 16 25) results)
     
     (set! results '())
     (g-timeout-add
      50
      (main-loop-counter main-loop 4 add-square!))
-    (g-main-loop-run main-loop)
+    (send main-loop (run))
     (test-equal '(1 4 9 16) results)))
 
 (run-test-suite glib-tests)

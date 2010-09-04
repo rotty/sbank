@@ -1,6 +1,6 @@
 ;;; shlibs.sls --- Shared libraries needed in sbank.
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -33,7 +33,7 @@
     (or (dlopen name)
         (error 'checked-dlopen "unable to open shared library" name (dlerror))))
 
-  (define libgir (checked-dlopen "libgirepository-1.0.so.0"))
+  (define libgir (checked-dlopen "libgirepository-1.0.so.1"))
   (define libgobject (checked-dlopen "libgobject-2.0.so.0"))
   (define libglib (checked-dlopen "libglib-2.0.so.0"))
   (define libgthread (checked-dlopen "libgthread-2.0.so.0"))

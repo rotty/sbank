@@ -1,6 +1,6 @@
 ;;; gtype.sls --- Low-level access to GType
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -87,6 +87,8 @@
       (else
        (bitwise-arithmetic-shift (symbol->gtype% (case sym
                                                    ((utf8) 'string)
+                                                   ((int32) 'int)
+                                                   ((uint32) 'uint)
                                                    (else sym)))
                                  *fundamental-shift*))))
 

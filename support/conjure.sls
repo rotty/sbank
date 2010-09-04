@@ -31,15 +31,25 @@
           install-products)
   (import (except (rnrs) delete-file file-exists?)
           (only (srfi :1) append-map)
+          (srfi :8 receive)
+          (only (srfi :13) string-trim-right)
+          (srfi :45 lazy)
           (wak irregex)
           (wak fmt)
+          (wak prometheus)
           (spells match)
+          (spells string-utils)
           (spells misc)
           (spells logging)
           (spells filesys)
           (spells pathname)
+          (spells process)
+          (spells sysutils)
           (spells tracing)
+          (spells test-runner)
           (conjure utils)
+          (conjure run)
+          (conjure base)
           (conjure dsl)
           (only (conjure base) logger:conjure))
 
@@ -137,10 +147,319 @@
                 (? ,(typelib-fender "Gtk")))
               `((("sbank") "soup.sls") <= "soup.sls.in"
                 (? ,(typelib-fender "Soup"))))
-     (fetchers (typelib-fetcher)))))
+     (fetchers (typelib-fetcher))))
+  (task test
+    (ordinary
+     (depends 'build-regress 'configure)
+     (proc (lambda (step)
+             (run-tests-in-directory
+              (merge-pathnames '(("tests"))
+                               ((step 'project) 'source-dir))
+              #f)))))
+  (task build-regress
+    (g-ir-compiler (file '(() ("Regress-1.0" "gir")))))
+  (task
+    (g-ir-scanner
+     (files (gi-datadir '(("tests") "regress.h"))
+            (gi-datadir '(("tests") "regress.c")))
+     (gir-namespace "Regress")
+     (gir-version "1.0")
+     (gir-libraries "libregress.la")
+     (gir-includes "cairo-1.0" "Gio-2.0")))
+  (task cc (cc-conf))
+  (task (lt-link (product "libregress.la")
+                 (objects "regress.lo")
+                 (lt-flags "-export-dynamic" "-rpath" "/usr/local/lib")
+                 (ld-flags : (regress-ld-flags))
+                 (compiler 'cc)))
+  (task (lt-compile (product "regress.lo")
+                    (sources (gi-datadir '(("tests") "regress.c")))
+                    (compiler 'cc)
+                    (c-flags : (regress-c-flags)))))
+
+(define (regress-c-flags)
+  (append
+   '("-Wall")
+   (string-split (pkg-config "gobject-2.0" "gio-2.0" "cairo" "--cflags") '(#\space))))
+
+(define (regress-ld-flags)
+  (append
+   '("-avoid-version")
+   (string-split (pkg-config "gobject-2.0" "gio-2.0" "cairo" "--libs") '(#\space))))
+
+
+;;; pkg-config
+
+(define %gi-datadir
+  (delay (pkg-config "gobject-introspection-1.0" "--variable=gidatadir")))
+
+(define %pkg-config-path
+  (delay (find-exec-path "pkg-config")))
+
+(define (gi-datadir pathname)
+  (merge-pathnames pathname (pathname-as-directory (force %gi-datadir))))
+
+(define (pkg-config . args)
+  (receive (status signal result)
+           (apply run-process/string
+                  #f
+                  (or (force %pkg-config-path)
+                      (build-failure
+                       "cannot find `pkg-config' in PATH"))
+                  args)
+    (unless (eqv? 0 status)
+      (build-failure "`pkg-config' returned non-zero exit status" status))
+    (string-trim-right result)))
+
+
+;;; g-ir-scanner
+
+(define-object <g-ir-scanner> (<program>)
+  (program "g-ir-scanner")
+  (runner (<runner> 'clone))
+  (gir-namespace #f)
+  (gir-version #f)
+  (gir-packages '())
+  (gir-libraries '())
+  (gir-includes '())
+  (gir-export-packages '())
+  (gir-scanner-flags '())
+  (gir-c-flags '())
+  (gir-ld-flags '())
+  
+  ((scan-files self resend dest srcs)
+   ((self 'runner) 'run (cons (self 'program-path)
+                              (g-ir-scanner-args self dest srcs)))))
+
+(define-object <g-ir-scanner-step> (<file-step>)
+  ((build self resend)
+   (let ((scanner (<g-ir-scanner> 'clone)))
+     (for-each (lambda (property)
+                 (scanner 'add-value-slot! property (self 'prop property)))
+               '(gir-namespace
+                 gir-version
+                 gir-packages
+                 gir-includes
+                 gir-export-packages
+                 gir-scanner-flags
+                 gir-c-flags
+                 gir-ld-flags))
+     (scanner 'add-value-slot!
+              'gir-libraries
+              (self 'resolve-files (self 'prop 'gir-libraries)))
+     (scanner 'scan-files
+              (self 'prop 'product)
+              (self 'resolve-files (self 'prop 'files))))))
+
+(define (g-ir-scanner-deduce-product task)
+  (make-pathname
+   #f
+   '()
+   (make-file (string-append (task 'prop 'gir-namespace)
+                             "-"
+                             (task 'prop 'gir-version))
+              "gir")))
+
+(define-object <g-ir-scanner-task> (<file-task>)
+  (arguments '())
+  (properties
+   `((gir-namespace (singleton string))
+     (gir-version (singleton string))
+     (gir-packages (list-of string) ())
+     (gir-libraries (list-of pathname) ())
+     (gir-includes (list-of pathname) ())
+     (gir-export-packages (list-of string) ())
+     (gir-scanner-flags (list-of string) ())
+     (gir-c-flags (list-of string) ())
+     (gir-ld-flags (list-of string) ())
+     (product (singleton pathname) ,g-ir-scanner-deduce-product)
+     (files (list-of pathname))))
+  (step-prototype <g-ir-scanner-step>)
+  
+  ((new self resend name args props)
+   (let ((task (resend #f 'new name args props)))
+     (task 'add-value-slot! 'products (list (task 'prop 'product)))
+     (task 'add-value-slot! 'sources (append (task 'prop 'files)
+                                             (task 'prop 'gir-libraries)))
+     task)))
+
+(define (g-ir-scanner-args scanner dest srcs)
+  (define (option-arglist option message)
+    (cond ((scanner message)
+           => (lambda (value)
+                (list option value)))
+          (else
+           '())))
+  (define (multi-arglist option message)
+    (append-map (lambda (value)
+                  (list option value))
+                (scanner message)))
+  (append (option-arglist "--namespace" 'gir-namespace)
+          (option-arglist "--nsversion" 'gir-version)
+          (multi-arglist "--pkg" 'gir-packages)
+          (multi-arglist "--include" 'gir-includes)
+          (multi-arglist "--pkg-export" 'gir-export-packages)
+          (multi-arglist "--library" 'gir-libraries)
+          (scanner 'gir-scanner-flags)
+          (scanner 'gir-c-flags)
+          (scanner 'gir-ld-flags)
+          srcs
+          (list "--output" dest)))
+
+;;; g-ir-compiler
+
+(define-object <g-ir-compiler> (<program>)
+  (program "g-ir-compiler")
+  (runner (<runner> 'clone))
+  
+  ((compile-file self resend dest src)
+   ((self 'runner) 'run (list (self 'program-path) "-o" dest src))))
+
+(define-object <g-ir-compiler-step> (<file-step>)
+  ((build self resend)
+   (<g-ir-compiler> 'compile-file
+                    (self 'prop 'product)
+                    (self 'resolve-file (self 'prop 'file)))))
+
+(define (g-ir-compiler-deduce-product task)
+  (pathname-replace-type (task 'prop 'file) "typelib"))
+
+(define-object <g-ir-compiler-task> (<file-task>)
+  (arguments '())
+  (properties
+   `((product (singleton pathname) ,g-ir-compiler-deduce-product)
+     (file (singleton pathname))))
+  
+  (step-prototype <g-ir-compiler-step>)
+  
+  ((new self resend name args props)
+   (let ((task (resend #f 'new name args props)))
+     (task 'add-value-slot! 'products (list (task 'prop 'product)))
+     (task 'add-value-slot! 'sources (list (task 'prop 'file)))
+     task)))
+
+;;; C compiler
+
+(define-object <cc-task> (<file-task>)
+  (arguments '())
+  (properties
+   '((compiler (singleton symbol))
+     (c-flags (list-of string) ())
+     (ld-flags (list-of string) ())))
+  
+  ((construct-step self resend project)
+   (let ((step (resend #f 'construct-step project))
+         (compiler-step (project 'get-step (self 'prop 'compiler))))
+     (step 'add-value-slot! 'compiler (object ((compiler-step 'build))
+                                        (c-flags (self 'prop 'c-flags))
+                                        (ld-flags (self 'prop 'ld-flags))))
+     step)))
+
+(define-object <cc-link-step> (<file-step>)
+  ((build self resend)
+   (let ((compiler (self 'compiler)))
+     (compiler 'compile-program (self 'prop 'product) ((self 'task) 'sources)))))
+
+(define-object <cc-link-task> (<cc-task>)
+  (arguments '())
+  (properties
+   `((product (singleton pathname))
+     (objects (list-of pathname))
+     (libraries (list-of pathname) ())
+     ,@(filter-props '(compiler c-flags ld-flags) (<cc-task> 'properties))))
+   
+  (step-prototype <cc-link-step>)
+
+  ((new self resend name args props)
+   (let ((task (resend #f 'new name args props)))
+     (task 'add-value-slot! 'products (list (task 'prop 'product)))
+     (task 'add-value-slot! 'sources (append (task 'prop 'objects)
+                                             (task 'prop 'libraries)))
+     task)))
+
+(define-object <cc-compile-step> (<file-step>)
+  ((build self resend)
+   (let ((compiler (self 'compiler)))
+     (compiler 'compile-object (self 'prop 'product) ((self 'task) 'sources)))))
+
+(define-object <cc-compile-task> (<cc-task>)
+  (arguments '())
+  (properties
+   `((product (singleton pathname))
+     ,@(filter-props '(sources) (<file-task> 'properties))
+     ,@(filter-props '(compiler c-flags ld-flags) (<cc-task> 'properties))))
+
+  (step-prototype <cc-compile-step>)
+
+  ((new self resend name args props)
+   (let ((task (resend #f 'new name args props)))
+     (task 'add-value-slot! 'products (list (task 'prop 'product)))
+     task)))
+
+;;; libtool
+
+(define (make-lt-cc-task task)
+  (object (task)
+    (properties
+     (append '((lt-flags (list-of string) ())) (task 'properties)))
+    ((construct-step self resend project)
+     (let* ((step (resend #f 'construct-step project))
+            (original-compiler (step 'compiler)))
+       (step 'add-value-slot! 'compiler (make-lt-cc-wrapper original-compiler
+                                                            self))
+       step))))
+
+(define (make-lt-cc-wrapper cc task)
+  (object (cc)
+    ((program-path self resend)
+     (<lt-program> 'program-path))
+    
+    ((compile-object-args self resend dest srcs)
+     (append (lt-cc-wrapper-args "compile")
+             (list (resend cc 'program-path))
+             (task 'prop 'lt-flags)
+             (resend #f 'compile-object-args dest srcs)))
+    ((compile-program-args self resend dest srcs)
+     (append (lt-cc-wrapper-args "link")
+             (list (cc 'program-path))
+             (task 'prop 'lt-flags)
+             (resend #f 'compile-program-args dest srcs)))))
+
+(define (lt-cc-wrapper-args mode)
+  (list "--quiet" "--tag=CC" (string-append "--mode=" mode)))
+
+(define <lt-link-task> (make-lt-cc-task <cc-link-task>))
+
+(define-object <lt-compile-task> ((make-lt-cc-task <cc-compile-task>))
+  ((construct-step self resend project)
+   (let ((step (resend #f 'construct-step project)))
+     (step 'add-value-slot!
+           'products
+           (append (step 'products)
+                   (list (pathname-replace-type (self 'prop 'product) "o"))))
+     step)))
+
+(define (run-libtool argv)
+  (<lt-program> 'run argv))
+
+(define-object <lt-program> (<program>)
+  (program "libtool")
+  (runner (<runner> 'clone))
+  ((run self resend argv)
+   ((self 'runner) 'run (cons* (self 'program-path) "--quiet" argv))))
+
+
+
+(define logger:conjure.libtool (make-logger logger:conjure 'libtool))
+(define log/libtool (make-fmt-log logger:conjure.libtool))
 
 (define logger:conjure.sbank (make-logger logger:conjure 'sbank))
 (define log/sbank (make-fmt-log logger:conjure.sbank))
+
+(register-task-prototype 'lt-compile <lt-compile-task>)
+(register-task-prototype 'lt-link <lt-link-task>)
+(register-task-prototype 'g-ir-scanner <g-ir-scanner-task>)
+(register-task-prototype 'g-ir-compiler <g-ir-compiler-task>)
 
 )
 

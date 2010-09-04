@@ -36,7 +36,9 @@
           (spells alist)
           (spells tracing)
           (spells foreign)
-          (only (srfi :13 strings) string-skip-right)
+          (only (srfi :13 strings)
+                string-prefix?
+                string-skip-right)
           (wak ssax parsing)
           (wak ssax tree-trans)
           (wak sxml-tools sxpath)
@@ -71,9 +73,11 @@
        (core:bitfield *PREORDER* . ,(lambda sxml
                                       `(alias ,(sxpath-ref sxml '(^ name))
                                               (target "uint"))))
-       (core:alias *PREORDER* . ,(lambda sxml
-                                   `(alias ,(sxpath-ref sxml '(^ name ))
-                                           ,(sxpath-ref sxml '(^ target)))))
+       (core:alias *PREORDER*
+                   . ,(lambda sxml
+                        (let ((target (sxpath-attr sxml '(core:type ^ name))))
+                          `(alias ,(sxpath-ref sxml '(^ name ))
+                                  (target ,(normalize-type-name target))))))
        (^ *PREORDER* . ,list))))
 
   (define (ignore . args)
@@ -88,7 +92,10 @@
                                         (else 0))))
                `(type (array (element-type ,(sxpath-ref array '(type)))
                              (element-count ,element-count))))))
-      (core:type . ,(lambda sxml (type-pointifier sxml)))))
+      (core:type . ,(lambda sxml (type-pointifier sxml)))
+      (core:callback *PREORDER*
+                     . ,(lambda sxml
+                          '(type (pointer (base-type (type "void"))))))))
   
   (define field-rules
     `((core:field
@@ -101,34 +108,46 @@
                      (and-let* ((bits (sxpath-attr field '(^ bits))))
                        (list (list 'bits (string->number bits))))
                      '()))))
-      (core:constructor *PREORDER* . ,ignore)
-      (core:callback *PREORDER*
-                     . ,(lambda sxml
-                          `(field ,(sxpath-ref sxml '(^ name)) (type "pointer"))))))
+      (core:constructor *PREORDER* . ,ignore)))
 
   (define (type-pointifier type)
     (define (construct-type base-type depth)
-      (case depth
-        ((0)
-         `(type ,base-type))
-        ((1)
-         `(type (pointer (base-type (type ,base-type)))))
-        (else
-         `(type (pointer (base-type (type ,base-type))
-                         (depth ,depth))))))
+      (let ((base-type (normalize-type-name base-type)))
+        (case depth
+          ((0)
+           `(type ,base-type))
+          ((1)
+           `(type (pointer (base-type (type ,base-type)))))
+          (else
+           `(type (pointer (base-type (type ,base-type))
+                           (depth ,depth)))))))
+    (define (type-from-ctype ctype name)
+      (cond ((string-skip-right ctype #\*)
+             => (lambda (i)
+                  (construct-type (or name (substring ctype 0 (+ i 1)))
+                                  (- (string-length ctype) (+ i 1)))))
+            (else
+             `(type ,(or name ctype)))))
     
     (let ((name (sxpath-attr type '(^ name)))
           (ctype (sxpath-attr type '(^ c:type))))
-      (cond ((string=? name "any")
-             (construct-type "void" 1))
-            ((string=? name "utf8")
-             (construct-type "char" 1))
-            ((string=? name "GType")
-             (construct-type "gtype" 0))
-            ((not ctype)
-             `(type ,name))
-            ((string-skip-right ctype #\*)
-             => (lambda (i)
-                  (construct-type name (- (string-length ctype) (+ i 1)))))
+      (if name
+          (case (string->symbol name)
+            ((gpointer) (construct-type "void" 1))
+            ((utf8)     (construct-type "char" 1))
+            ((GType)    (construct-type "gtype" 0))
             (else
-             `(type ,name))))))
+             (type-from-ctype ctype name)))
+          (type-from-ctype ctype #f))))
+
+  (define (normalize-type-name name)
+    (if (and (string-prefix? "g" name)
+             (member name 
+                     '("gboolean" "gchar"
+                       "gint" "gint8" "gint16" "gint32"
+                       "guint" "guint8" "guint16" "guint32"
+                       "glong" "gulong")))
+        (substring name 1 (string-length name))
+        name))
+  
+  )
