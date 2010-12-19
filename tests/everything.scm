@@ -51,7 +51,15 @@
      (,test-int16 -32768 0 32767)
      (,test-uint16 0 65535)
      (,test-int32 -2147483648 0 2147483647)
-     (,test-uint32 0 4294967295))))
+     (,test-uint32 0 4294967295)))
+  (test-equal (map integer->char '(65 2665))
+    (map test-unichar (list #\A (integer->char 2665)))))
+
+(define-test-case everything-tests enums ()
+  (test-equal '("value3" "value2" "value1")
+    (map test-enum-param '(value3 value2 value1)))
+  (test-equal '("value1" "value2")
+    (map test-unsigned-enum-param '(value1 value2))))
 
 (define utf8-const "const \x2665; utf8")
 (define utf8-nonconst "nonconst \x2665; utf8")

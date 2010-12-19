@@ -994,9 +994,9 @@
                      flags.pointer
                      flags.tag)
       (cond ((and (= flags.reserved 0) (= flags.reserved2 0))
-             (when (>= flags.tag type-tag-array)
+             (unless (basic-type-tag? flags.tag)
                (raise-validation-error "wrong tag in simple type" flags.tag))
-             (when (and (>= flags.tag type-tag-utf8) (= flags.pointer 0))
+             (when (and (pointer-type-tag? flags.tag) (= flags.pointer 0))
                (raise-validation-error "pointer type expected for tag" flags.tag))
              (let ((tag-symbol (type-tag->symbol flags.tag)))
                (cond ((and (= flags.pointer 1) (eq? tag-symbol 'void))
@@ -1098,9 +1098,6 @@
            (raise-validation-error
             "non-simple type of this kind not yet implemented"
             (type-tag->symbol tag)))))))
-
-  (define type-tag-utf8 (symbol->type-tag 'utf8))
-  (define type-tag-array (symbol->type-tag 'array))
 
   (define (get/validate-string tld offset)
     ;; FIXME: This should actually check we don't go beyond the data

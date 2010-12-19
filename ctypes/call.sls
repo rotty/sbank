@@ -91,6 +91,8 @@
                       (lambda (val) (if val 1 0))
                       (lambda (val) (not (= val 0)))
                       #f))
+             ((unichar)
+              (values prim-type char->integer integer->char #f))
              ((utf8)
               (values prim-type
                       (out-converter/null string->utf8z-ptr allow-none? #f)

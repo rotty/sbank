@@ -53,6 +53,8 @@
           type-info-parameters
           type-info->prim-type
 
+          type-tag-symbol->prim-type
+
           make-arg-info
           arg-info?
           arg-info-closure-index
@@ -116,7 +118,17 @@
   
   (define-record-type type-info
     (fields type is-pointer? allow-none? parameters))
-  
+
+  (define (type-tag-symbol->prim-type sym)
+    (case sym
+      ((gtype) gtype-ctype)
+      ((size) 'size_t)
+      ((ssize) 'ssize_t)
+      ((boolean) 'uint)
+      ((unichar) 'uint32)
+      ((utf8 filename gvalue gslist glist ghash) 'pointer)
+      (else sym)))
+
   (define (type-info->prim-type ti out?)
     (let ((type (type-info-type ti)))
       (cond ((or out?
@@ -129,13 +141,7 @@
             ((genumerated? type)
              'int)
             ((symbol? type)
-             (case type
-               ((gtype) gtype-ctype)
-               ((size) 'size_t)
-               ((ssize) 'ssize_t)
-               ((boolean) 'uint)
-               ((utf8 filename gvalue gslist glist ghash) 'pointer)
-               (else type)))
+             (type-tag-symbol->prim-type type))
             (else
              (assertion-violation 'type-info->prim-type
                                   "argument/return type not yet implemented"

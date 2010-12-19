@@ -48,9 +48,9 @@
           deref-pointer
           set-pointer
 
-          type-tag-symbol->prim-type
           type-tag->symbol
           symbol->type-tag
+          basic-type-tag? pointer-type-tag?
 
           scope->symbol
           symbol->scope
@@ -147,16 +147,21 @@
   (define-enum (type-tag->symbol symbol->type-tag)
     (void boolean int8 uint8 int16 uint16 int32 uint32
           int64 uint64 float double gtype utf8 filename
-          array interface glist gslist ghash error))
+          array interface glist gslist ghash error unichar))
 
-  (define (type-tag-symbol->prim-type sym)
-    (case sym
-      ((boolean) 'uint)
-      ((size) 'size_t)
-      ((ssize) 'ssize_t)
-      ((utf8) 'pointer)
-      ((gtype) gtype-ctype)
-      (else sym)))
+  (define type-tag-array (symbol->type-tag 'array))
+  (define type-tag-unichar (symbol->type-tag 'unichar))
+  (define type-tag-utf8 (symbol->type-tag 'utf8))
+
+  ;; The same as `G_TYPE_TAG_IS_BASIC ()'
+  (define (basic-type-tag? tag)
+    (or (< tag type-tag-array)
+        (= tag type-tag-unichar)))
+
+  ;; Returns #t for types that are represented as a pointer
+  (define (pointer-type-tag? tag)
+    (and (>= tag type-tag-utf8)
+         (not (= tag type-tag-unichar))))
 
   ;; Must be in sync with GIScopeType
   (define-enum (scope->symbol symbol->scope)

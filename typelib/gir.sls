@@ -108,6 +108,7 @@
                      (and-let* ((bits (sxpath-attr field '(^ bits))))
                        (list (list 'bits (string->number bits))))
                      '()))))
+      (core:doc *PREORDER* . ,ignore)
       (core:constructor *PREORDER* . ,ignore)))
 
   (define (type-pointifier type)
