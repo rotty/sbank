@@ -50,7 +50,6 @@
 
   "everything.scm"
 
-  ("glib.scm"
-   (sbank glib))
+  "glib.scm"
 
   "gtk.scm"))

@@ -1,3 +1,4 @@
+#!r6rs
 ;;; glib.scm --- Unit test for the GLib bindings
 
 ;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
@@ -21,6 +22,10 @@
 ;;; Commentary:
 
 ;;; Code:
+
+(import (rnrs)
+        (wak trc-testing)
+        (sbank glib))
 
 (define-test-suite glib-tests
   "GLib bindings")
