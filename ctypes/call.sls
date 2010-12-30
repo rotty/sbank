@@ -313,7 +313,7 @@
     (cond ((or (gobject-record-class? declared-class)
                (gobject-union-class? declared-class))
            (lambda (instance)
-             (make-ginstance declared-class instance)))
+             (make-ginstance/guarded declared-class instance 'ref)))
           (else
            (lambda (instance)
              (let ((class

@@ -53,6 +53,10 @@
           send
           send-message
 
+          gobject-simple-class?
+          gobject-simple-class-ref
+          gobject-simple-class-unref
+          
           make-gobject-record-class
           gobject-record-class?
           
@@ -120,6 +124,11 @@
                                  (ginstance-ptr gi))
                    #t)))
 
+  (define simple-reaper
+    (make-reaper (lambda (gi)
+                   (let ((class (ginstance-class gi)))
+                     ((gobject-simple-class-unref class) (ginstance-ptr gi))))))
+
   (define (reap-all reaper)
     (lambda ()
       (do ((o (reaper) (reaper)))
@@ -127,7 +136,8 @@
   
   (define (gobject-collect)
     (reap-all gobject-reaper)
-    (reap-all boxed-reaper))
+    (reap-all boxed-reaper)
+    (reap-all simple-reaper))
   
   (define (make-ginstance/guarded class ptr ref-type)
     (cond ((gobject-class-gtype class)
@@ -141,8 +151,8 @@
                        ((sink) (when (g-object-is-floating? ptr)
                                  (g-object-ref-sink ptr)))
                        (else
-                        (error 'make-ginstance/guarded
-                               "invalid ref type" ref-type)))
+                        (assertion-violation 'make-ginstance/guarded
+                                             "invalid ref type" ref-type)))
                      (gobject-reaper o)
                      o))
                   ((boxed)
@@ -151,9 +161,21 @@
                      (boxed-reaper o)
                      o))
                   (else
-                   (make-ginstance class ptr)))))
+                   (make-plain-instance class ptr)))))
           (else
-           (make-ginstance class ptr))))
+           (make-plain-instance class ptr))))
+
+  ;; Construct a ginstance for a class without proper gtype
+  (define (make-plain-instance class ptr)
+    (or (and-let* (((gobject-simple-class? class))
+                   (ref (gobject-simple-class-ref class))
+                   (unref (gobject-simple-class-unref class)))
+          (reap-all simple-reaper)
+          (let ((o (make-ginstance class ptr)))
+            (ref ptr)
+            (simple-reaper o)
+            o))
+        (make-ginstance class ptr)))
   
   (define-record-type gobject-class
     ;;(opaque #t)
@@ -237,13 +259,14 @@
   ;; parent, no interfaces, no signals and no properties.
   (define-record-type gobject-simple-class
     (parent gobject-class)
+    (fields ref unref)
     (protocol (lambda (n)
-                (lambda (namespace name gtype load-members)
+                (lambda (namespace name gtype ref unref load-members)
                   (let ((p (n namespace name gtype
                               (lambda (class)
                                 (receive (constructors methods) (load-members class)
                                   (values #f '() constructors methods '() '()))))))
-                    (p))))))
+                    (p ref unref))))))
 
 
   (define (simple-protocol n)
@@ -265,8 +288,8 @@
      (lambda (n)
        (lambda (namespace name constructors methods
                           elt-out elt-back elt-cleanup)
-         (let ((p (n namespace name #f (lambda (class)
-                                         (values constructors methods)))))
+         (let ((p (n namespace name #f #f #f (lambda (class)
+                                               (values constructors methods)))))
            (p elt-out elt-back elt-cleanup))))))
 
   (define-record-type gmapping-class
@@ -278,8 +301,8 @@
                           key-out val-out
                           key-back val-back
                           key-cleanup val-cleanup)
-         (let ((p (n namespace name #f (lambda (class)
-                                         (values constructors methods)))))
+         (let ((p (n namespace name #f #f #f (lambda (class)
+                                               (values constructors methods)))))
            (p key-out val-out key-back val-back key-cleanup val-cleanup))))))
 
   (define-record-type gslist-class

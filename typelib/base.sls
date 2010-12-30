@@ -841,6 +841,8 @@
            (typelib-namespace typelib)
            entry-name
            gtype
+           #f ;ref
+           #f ;unref
            (lambda (class)
              (let-attributes record-blob-fetcher blob
                              (blob-type deprecated unregistered name size
@@ -919,6 +921,8 @@
       (make-gobject-union-class (typelib-namespace typelib)
                                 entry-name
                                 gtype
+                                #f ;ref
+                                #f ;unref
                                 (lambda (class)
                                   (values '() '())))))
 

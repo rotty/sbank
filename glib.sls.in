@@ -155,7 +155,8 @@
                        "intern_string"
                        "listenv"
                        "lstat"
-                       "main_context_wait"
+                       "main_context_.*"
+                       "main_loop_.*"
                        "memdup"
                        "once_impl"
                        "open"
@@ -194,8 +195,14 @@
                        "glib_dummy_decl"
 
                        "Error"
+                       "MainLoop"
+                       "MainContext"
+                       "IOChannel"
                        "dummy_decl"
                        ))
+          <g-main-loop>
+          <g-main-context>
+          <g-i-o-channel>
           glib-setup!)
   (import (rnrs base)
           (only (srfi :1 lists) split-at)
@@ -204,9 +211,13 @@
           (spells foreign)
           (sbank support utils)
           (sbank support shlibs)
+          (sbank support type-data)
+          (sbank ctypes call)
           (sbank typelib decorators)
           (sbank typelib)
-          (only (sbank gobject internals) send))
+          (only (sbank gobject internals)
+                send
+                make-gobject-record-class))
 
   (define default-prio 0)
 
@@ -232,6 +243,14 @@
   (define-c-callouts libgthread
     (g-thread-init 'void "g_thread_init" '(pointer)))
 
+  (define-c-callouts libglib
+    (g-main-loop-ref 'pointer "g_main_loop_ref" '(pointer))
+    (g-main-loop-unref 'void "g_main_loop_unref" '(pointer))
+    (g-main-context-ref 'pointer "g_main_context_ref" '(pointer))
+    (g-main-context-unref 'void "g_main_context_unref" '(pointer))
+    (g-io-channel-ref 'pointer "g_io_channel_ref" '(pointer))
+    (g-io-channel-unref 'void "g_io_channel_unref" '(pointer)))
+  
   (define-setup-procedure (glib-setup!)
     (g-thread-init (null-pointer))
     (register-priority-func "io_add_watch" 4 1)
@@ -239,6 +258,79 @@
     (register-priority-func "timeout_add_seconds" 3 0)
     (register-priority-func "idle_add" 2 0))
 
+  
+  ;; Bind some types that are not introspectable due to
+  ;; <https://bugzilla.gnome.org/show_bug.cgi?id=572415>
+  
+  (define <g-main-loop>
+    (make-gobject-record-class "GLib"
+                               "MainLoop"
+                               #f ;gtype
+                               g-main-loop-ref
+                               g-main-loop-unref
+                               (lambda (class)
+                                 (values `((new . ,main-loop-new))
+                                         `((run . ,main-loop-run)
+                                           (quit . ,main-loop-quit))))))
+
+  (define <g-main-context>
+    (make-gobject-record-class "GLib"
+                               "MainContext"
+                               #f ;gtype
+                               g-main-context-ref
+                               g-main-context-unref
+                               (lambda (class)
+                                 (values '() '()))))
+
+  (define <g-i-o-channel>
+    (make-gobject-record-class "GLib"
+                               "IOChannel"
+                               #f ;gtype
+                               g-io-channel-ref
+                               g-io-channel-unref
+                               (lambda (class)
+                                 (values `((unix-new . ,i-o-channel-unix-new)) '()))))
+
+  (define signature:main-loop-new
+    (make-signature (make-arg-info <g-main-loop> #t #f '() 'out)
+                    (list (make-arg-info <g-main-context> #t #t '() 'in)
+                          (make-arg-info 'boolean #f #f '() 'in))
+                    #f))
+
+  (define signature:void-0
+    (make-signature (make-arg-info 'void #f #f '() 'out)
+                    (list)
+                    #f))
+
+  (define signature:i-o-channel-unix-new
+    (make-signature (make-arg-info <g-i-o-channel> #t #f '() 'out)
+                    (list (make-arg-info 'int #f #f '() 'in))
+                    #f))
+  
+  (define (checked-dlsym shlib symbol)
+    (or (dlsym shlib symbol)
+        (error 'checked-dlsym "missing symbol in shared object" shlib symbol)))
+  
+  (define main-loop-new
+    ((signature-callout signature:main-loop-new
+                         <g-main-loop>
+                         (callout-options is-constructor))
+     (checked-dlsym libglib "g_main_loop_new")))
+
+  (define main-loop-run
+    ((signature-callout signature:void-0 <g-main-loop> (callout-options))
+     (checked-dlsym libglib "g_main_loop_run")))
+
+  (define main-loop-quit
+    ((signature-callout signature:void-0 <g-main-loop> (callout-options))
+     (checked-dlsym libglib "g_main_loop_quit")))
+
+  (define i-o-channel-unix-new
+    ((signature-callout signature:i-o-channel-unix-new
+                        <g-i-o-channel>
+                        (callout-options is-constructor))
+     (checked-dlsym libglib "g_io_channel_unix_new")))
+  
   (typelib-import (only (prefix ("GLib" #f) g-)
                         #!@(typelib-exports glib))
                   (setup glib-setup!))

@@ -208,7 +208,10 @@
             (immutable gtype-lookup signature-gtype-lookup))
     (protocol (lambda (p)
                 (lambda (rti atis gtype-lookup)
-                  (p (make-lazy-entry rti) (make-lazy-entry atis) #f gtype-lookup)))))
+                  (p (if (procedure? rti) (make-lazy-entry rti) rti)
+                     (if (procedure? atis) (make-lazy-entry atis) atis)
+                     #f
+                     gtype-lookup)))))
 
   (define (signature-cached-callback signature callback-maker)
     (or (signature-get-cb% signature)

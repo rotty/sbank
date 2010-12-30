@@ -201,6 +201,8 @@
      (gobject-class-namespace class)
      (gobject-class-name class)
      (gobject-class-gtype class)
+     (gobject-simple-class-ref class)
+     (gobject-simple-class-unref class)
      (lambda (new-class)
        (receive (parent interfaces constructors methods signals properties)
                 ((gobject-class-load-members class) class)
