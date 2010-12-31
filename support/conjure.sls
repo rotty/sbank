@@ -32,7 +32,7 @@
   (import (except (rnrs) delete-file file-exists?)
           (only (srfi :1) append-map)
           (srfi :8 receive)
-          (only (srfi :13) string-trim-right)
+          (only (srfi :13) string-null? string-trim-right)
           (srfi :45 lazy)
           (wak irregex)
           (wak fmt)
@@ -197,7 +197,10 @@
   (delay (find-exec-path "pkg-config")))
 
 (define (gi-datadir pathname)
-  (merge-pathnames pathname (pathname-as-directory (force %gi-datadir))))
+  (let ((datadir (force %gi-datadir)))
+    (when (string-null? datadir)
+      (build-failure "gobject-introspection does not define pkgconfig variable `gidatadir'"))
+    (merge-pathnames pathname (pathname-as-directory datadir))))
 
 (define (pkg-config . args)
   (receive (status signal result)
