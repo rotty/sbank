@@ -1,6 +1,6 @@
 ;;; call.sls --- Dealing with C types and callouts/callbacks
 
-;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -638,7 +638,7 @@
   (define (get-array-length atype arg-vec self-offset)
     (cond ((array-length-index atype)
            => (lambda (l-index)
-                (vector-ref arg-vec l-index)))
+                (vector-ref arg-vec (+ l-index self-offset))))
           (else
            #f)))
 
