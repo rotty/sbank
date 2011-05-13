@@ -1,6 +1,6 @@
 ;;; expanders.sls --- Syntax-case expanders
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -106,12 +106,6 @@
 
   (define (eval-import-spec who spec pred)
     (match spec
-      ;; use a shortcut for the case where the bindings are statically
-      ;; specified
-      (('only ((? string? namespace) version) . names)
-       (values namespace
-               version
-               (map (lambda (x) (cons x (c-ified-string x))) names)))
      (('only base . names)
       (receive (namespace version base-bindings)
                (eval-import-spec who base pred)

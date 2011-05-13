@@ -1,6 +1,6 @@
 ;;; utils.sls --- Miscellaneous utilities for sbank.
 
-;; Copyright (C) 2008-2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -32,7 +32,6 @@
           symbol-append
           scheme-ified-symbol
           scheme-ified-string
-          c-ified-string
           name-symbol/prefix
           define-setup-procedure)
   (import (rnrs base)
@@ -43,8 +42,8 @@
           (srfi :14 char-sets)
           (only (srfi :13)
                 string-index
-                string-map
-                string-tokenize))
+                string-map)
+          (wak foof-loop))
 
   (define-syntax define-enum
     (syntax-rules ()
@@ -112,15 +111,6 @@
   (define (strip-enclosers s)
     (substring s 1 (- (string-length s) 1)))
   
-  (define (c-ified-string sym)
-    (let ((s (symbol->string sym)))
-      (cond ((enclosed-by? s #\* #\*)
-             (string-map upcase/uscore (strip-enclosers s)))
-            ((enclosed-by? s #\< #\>)
-             (camel-case (strip-enclosers s)))
-            (else
-             (string-map uscore s)))))
-
   (define (dash c) (case c ((#\_) #\-) (else c)))
   (define (downcase/dash c) (case c ((#\_) #\-) (else (char-downcase c))))
   (define (uscore c) (case c ((#\-) #\_) (else c)))
@@ -132,18 +122,31 @@
          (string-index s char-lower-case?)))
   
   (define (un-camel-case s)
-    (let loop ((result-chars '()) (i 0) (in-word? #f))
-      (if (>= i (string-length s))
-          (list->string (reverse result-chars))
-          (let ((c (string-ref s i)))
-            (cond ((and in-word? (char-upper-case? c))
-                   (loop (append (list (char-downcase c) #\-) result-chars)
-                         (+ i 1)
-                         #t))
-                  ((or (char-alphabetic? c) (char-numeric? c))
-                   (loop (cons (char-downcase c) result-chars) (+ i 1) #t))
-                  (else
-                   (loop (cons c result-chars) (+ i 1) #f)))))))
+    (loop continue ((for c i (in-string s))
+                    (with result-chars '())
+                    (with in-word? #f)
+                    (with in-upper-case? #f))
+      => (list->string (reverse result-chars))
+      (cond ((char-upper-case? c)
+             (let ((start-of-word?
+                    (or (and (not in-upper-case?) in-word?)
+                        (and in-upper-case?
+                             (< (+ i 1) (string-length s))
+                             (char-lower-case? (string-ref s (+ i 1)))))))
+               (continue (=> result-chars
+                             (if start-of-word?
+                                 (append (list (char-downcase c) #\-) result-chars)
+                                 (cons (char-downcase c) result-chars)))
+                         (=> in-word? #t)
+                         (=> in-upper-case? #t))))
+            ((or (char-alphabetic? c) (char-numeric? c))
+             (continue (=> result-chars (cons (char-downcase c) result-chars))
+                       (=> in-word? #t)
+                       (=> in-upper-case? #f)))
+            (else
+             (continue (=> result-chars (cons c result-chars))
+                       (=> in-word? #f)
+                       (=> in-upper-case? #f))))))
 
   (define (camel-case s)
     (let loop ((result-chars '()) (i 0) (had-dash? #t))
@@ -167,3 +170,7 @@
                body ...
                (set! ran? #t))))))))
   )
+
+;; Local Variables:
+;; scheme-indent-styles: (foof-loop)
+;; End:

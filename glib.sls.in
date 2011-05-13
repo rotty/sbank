@@ -1,6 +1,6 @@
 ;;; glib.sls --- Glossing for the GLib namespace.
 
-;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -202,7 +202,7 @@
                        ))
           <g-main-loop>
           <g-main-context>
-          <g-i-o-channel>
+          <g-io-channel>
           glib-setup!)
   (import (rnrs base)
           (only (srfi :1 lists) split-at)
@@ -282,14 +282,14 @@
                                (lambda (class)
                                  (values '() '()))))
 
-  (define <g-i-o-channel>
+  (define <g-io-channel>
     (make-gobject-record-class "GLib"
                                "IOChannel"
                                #f ;gtype
                                g-io-channel-ref
                                g-io-channel-unref
                                (lambda (class)
-                                 (values `((unix-new . ,i-o-channel-unix-new)) '()))))
+                                 (values `((unix-new . ,io-channel-unix-new)) '()))))
 
   (define signature:main-loop-new
     (make-signature (make-arg-info <g-main-loop> #t #f '() 'out)
@@ -302,8 +302,8 @@
                     (list)
                     #f))
 
-  (define signature:i-o-channel-unix-new
-    (make-signature (make-arg-info <g-i-o-channel> #t #f '() 'out)
+  (define signature:io-channel-unix-new
+    (make-signature (make-arg-info <g-io-channel> #t #f '() 'out)
                     (list (make-arg-info 'int #f #f '() 'in))
                     #f))
   
@@ -325,9 +325,9 @@
     ((signature-callout signature:void-0 <g-main-loop> (callout-options))
      (checked-dlsym libglib "g_main_loop_quit")))
 
-  (define i-o-channel-unix-new
-    ((signature-callout signature:i-o-channel-unix-new
-                        <g-i-o-channel>
+  (define io-channel-unix-new
+    ((signature-callout signature:io-channel-unix-new
+                        <g-io-channel>
                         (callout-options is-constructor))
      (checked-dlsym libglib "g_io_channel_unix_new")))
   

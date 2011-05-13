@@ -1,6 +1,6 @@
 ;;; utils.scm --- Unit tests for (sbank support utils)
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -22,6 +22,10 @@
 
 ;;; Code:
 
+(import (rnrs)
+        (wak trc-testing)
+        (sbank support utils))
+
 (define-test-suite utils-tests
   "Utilities")
 
@@ -34,15 +38,15 @@
   (test-equal '<foo-dialog-bar>
     (scheme-ified-symbol "FooDialogBar"))
   (test-equal '<v-box>
-    (scheme-ified-symbol "VBox")))
-
-(define-test-case utils-tests c-ified-string ()
-  (test-equal "foobar" (c-ified-string 'foobar))
-  (test-equal "foo_bar_1" (c-ified-string 'foo-bar-1))
-  (test-equal "THIS_IS_A_CONSTANT" (c-ified-string '*this-is-a-constant*))
-  (test-equal "Window" (c-ified-string '<window>))
-  (test-equal "FooDialogBar"
-    (c-ified-string '<foo-dialog-bar>)))
+    (scheme-ified-symbol "VBox"))
+  (test-equal '<http-version>
+    (scheme-ified-symbol "HTTPVersion"))
+  (test-equal '<foo-io-channel>
+    (scheme-ified-symbol "FooIOChannel"))
+  (test-equal '<io-win32-channel>
+    (scheme-ified-symbol "IOWin32Channel"))
+  (test-equal '<foo_bar>
+    (scheme-ified-symbol "Foo_Bar")))
 
 (define-test-case utils-tests name-symbol/prefix ()
   (test-equal 'gtk-main (name-symbol/prefix 'main 'gtk-))

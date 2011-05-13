@@ -49,7 +49,7 @@
   ;; for @ref{sbank.libdaemon daemon-signal-init}.
   (define (g-install-signal-handler sigs proc)
     (apply daemon-signal-init sigs)
-    (let ((io (send <g-i-o-channel> (unix-new (daemon-signal-fd)))))
+    (let ((io (send <g-io-channel> (unix-new (daemon-signal-fd)))))
       (g-io-add-watch io
                       '(in err hup)
                       (lambda (source condition)
